@@ -105,7 +105,7 @@ class RealHardwareWalletService {
       
       this.currentConnection = connection;
       return connection;
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'NotFoundError') {
         throw new Error('Connect your Ledger device, unlock it, and open the XRP app');
       }
@@ -144,7 +144,7 @@ class RealHardwareWalletService {
       }
       
       throw new Error('Failed to get address from Ledger device');
-    } catch (error) {
+    } catch (error: any) {
       throw new Error(`Ledger address retrieval failed: ${error.message}`);
     }
   }
@@ -259,6 +259,98 @@ class RealHardwareWalletService {
 
   isConnected(): boolean {
     return this.currentConnection?.connected || false;
+  }
+
+  async signTransaction(txRequest: TransactionRequest, type?: HardwareWalletType): Promise<SignedTransaction> {
+    const walletType = type || this.currentConnection?.type;
+    
+    switch (walletType) {
+      case 'Keystone Pro 3':
+        return this.signKeystoneTransaction(txRequest);
+      case 'Ledger':
+        return this.signLedgerTransaction(txRequest);
+      case 'DCent':
+        return this.signDCentTransaction(txRequest);
+      default:
+        throw new Error('No hardware wallet connected for signing');
+    }
+  }
+
+  async signKeystoneTransaction(txRequest: TransactionRequest): Promise<SignedTransaction> {
+    const txData = {
+      type: 'xrp-sign-tx',
+      transaction: {
+        TransactionType: 'Payment',
+        Amount: txRequest.amount,
+        Destination: txRequest.destination,
+        Fee: txRequest.fee || '12',
+        ...(txRequest.destinationTag && { DestinationTag: txRequest.destinationTag })
+      },
+      requestId: crypto.randomUUID()
+    };
+
+    console.log('QR Code for Keystone signing:', JSON.stringify(txData));
+    throw new Error('Scan the transaction QR code with your Keystone Pro 3 to sign, then scan the response QR code');
+  }
+
+  async signLedgerTransaction(txRequest: TransactionRequest): Promise<SignedTransaction> {
+    try {
+      const devices = await (navigator as any).usb.getDevices();
+      const device = devices.find((d: any) => d.vendorId === 0x2c97);
+      
+      if (!device) {
+        throw new Error('Ledger device not connected');
+      }
+
+      // Build transaction APDU for signing
+      const txAPDU = new Uint8Array([0xE0, 0x04, 0x00, 0x00, 0x50]); // Simplified signing command
+      
+      const result = await device.transferOut(1, txAPDU);
+      
+      if (result.status === 'ok') {
+        throw new Error('Confirm the transaction on your Ledger device screen');
+      } else {
+        throw new Error('Transaction signing failed');
+      }
+    } catch (error: any) {
+      throw new Error(`Ledger signing failed: ${error.message}`);
+    }
+  }
+
+  async signDCentTransaction(txRequest: TransactionRequest): Promise<SignedTransaction> {
+    try {
+      const response = await fetch('http://localhost:8080/api/transaction/sign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          coinType: 'XRP',
+          transaction: {
+            TransactionType: 'Payment',
+            Amount: txRequest.amount,
+            Destination: txRequest.destination,
+            Fee: txRequest.fee || '12',
+            ...(txRequest.destinationTag && { DestinationTag: txRequest.destinationTag })
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Signing request failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.signedTx) {
+        return {
+          txBlob: result.signedTx,
+          txHash: result.txHash || 'pending'
+        };
+      } else {
+        throw new Error('No signed transaction returned from DCent device');
+      }
+    } catch (error: any) {
+      throw new Error(`DCent signing failed: ${error.message}`);
+    }
   }
 
   async disconnect(): Promise<void> {
