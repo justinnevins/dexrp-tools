@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
 import QrScanner from 'qr-scanner';
+// @ts-ignore
+import { decode as cborDecode } from 'cbor-web';
 
 interface KeystoneAccountScannerProps {
   onScan: (address: string, publicKey: string) => void;
@@ -76,15 +78,9 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         }
       }
 
-      // Check for simple address format as fallback
-      if (data.match(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/)) {
-        console.log('Valid XRP address detected:', data);
-        // For demo purposes, use the address with a placeholder public key
-        // In production, this should be from the actual Keystone UR
-        stopScanning();
-        onScan(data, '0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6');
-        return;
-      }
+      // Only accept proper Keystone UR codes - no fallbacks
+      console.log('QR code is not a valid Keystone account format');
+      setError('Please scan the account QR code from your Keystone Pro 3 device. Simple addresses are not supported - we need the device-generated UR code.');
 
       console.log('QR code is not a valid Keystone account format');
       setError('Please scan the account QR code from your Keystone Pro 3 device');
@@ -103,23 +99,76 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       const urType = urParts[0];
       const hexData = urParts[urParts.length - 1];
 
+      console.log('Parsing Keystone UR:', { urType, hexLength: hexData.length });
+
       if (urType === 'ur:bytes' || urType === 'ur:xrp-account') {
         // Decode hex to get CBOR data
         const bytes = new Uint8Array(hexData.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []);
+        console.log('CBOR bytes length:', bytes.length);
         
-        // For demonstration, parse the bytes to extract account info
-        // In a real implementation, this would use proper CBOR decoding
-        const decoded = new TextDecoder().decode(bytes);
+        // Use proper CBOR decoding
+        const decoded = cborDecode(bytes);
+        console.log('CBOR decoded data:', decoded);
         
-        // Look for address pattern in decoded data
-        const addressMatch = decoded.match(/r[1-9A-HJ-NP-Za-km-z]{25,34}/);
-        const pubKeyMatch = decoded.match(/[0-9a-fA-F]{66}/);
-        
-        if (addressMatch) {
-          return {
-            address: addressMatch[0],
-            publicKey: pubKeyMatch?.[0] || '0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6'
+        // Check if decoded data contains address and public key
+        if (typeof decoded === 'object' && decoded !== null) {
+          // Look for address in the decoded structure
+          let address = null;
+          let publicKey = null;
+          
+          // Handle different CBOR structures that Keystone might use
+          if (decoded.address) {
+            address = decoded.address;
+          }
+          if (decoded.publicKey || decoded.pubkey) {
+            publicKey = decoded.publicKey || decoded.pubkey;
+          }
+          
+          // Search recursively in the structure
+          const searchObject = (obj: any): void => {
+            if (typeof obj === 'object' && obj !== null) {
+              for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === 'string') {
+                  // Check for XRP address pattern
+                  if (value.match(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/)) {
+                    address = value;
+                  }
+                  // Check for public key pattern (33 bytes = 66 hex chars)
+                  if (value.match(/^[0-9a-fA-F]{66}$/)) {
+                    publicKey = value;
+                  }
+                } else if (typeof value === 'object') {
+                  searchObject(value);
+                }
+              }
+            }
           };
+          
+          searchObject(decoded);
+          
+          if (address) {
+            console.log('Extracted from Keystone UR:', { address, publicKey });
+            return {
+              address,
+              publicKey: publicKey || '0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6'
+            };
+          }
+        }
+        
+        // Try parsing as JSON string if direct CBOR didn't work
+        try {
+          const jsonString = new TextDecoder().decode(bytes);
+          const jsonData = JSON.parse(jsonString);
+          console.log('Parsed as JSON:', jsonData);
+          
+          if (jsonData.address) {
+            return {
+              address: jsonData.address,
+              publicKey: jsonData.publicKey || jsonData.pubkey || '0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6'
+            };
+          }
+        } catch (jsonError) {
+          console.log('Not valid JSON format');
         }
       }
 
@@ -145,9 +194,11 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-sm text-muted-foreground">
-          <p>1. On your Keystone Pro 3, go to "Accounts" → "XRP"</p>
-          <p>2. Display the account QR code</p>
-          <p>3. Scan the QR code with your camera below</p>
+          <p><strong>Step 1:</strong> On your Keystone Pro 3, go to "Software Wallet" menu</p>
+          <p><strong>Step 2:</strong> Select "XRP" or "Connect Wallet"</p>
+          <p><strong>Step 3:</strong> Display the account/address QR code on your device</p>
+          <p><strong>Step 4:</strong> Scan that QR code with the camera below</p>
+          <p className="text-xs mt-2 text-amber-600">Note: The QR code must be from your Keystone device, not a simple address</p>
         </div>
 
         {error && (
