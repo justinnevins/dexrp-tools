@@ -14,6 +14,7 @@ import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { SimpleQRScanner } from '@/components/simple-qr-scanner';
+import { KeystoneSDK, UREncoder } from '@keystonehq/keystone-sdk';
 import QRCode from 'qrcode';
 
 const transactionSchema = z.object({
@@ -95,34 +96,60 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Create Keystone Pro 3 compatible QR format
-    // Based on Keystone's XRPL specification
-    const keystonePayload = {
-      type: 'xrp-sign-request',
-      requestId: crypto.randomUUID(),
-      derivationPath: "44'/144'/0'/0/0",
-      coinCode: 'XRP',
-      signData: {
+    try {
+      // Use the official Keystone SDK for XRPL transaction signing
+      const keystoneSDK = new KeystoneSDK();
+      
+      // Create the transaction in the format expected by Keystone Pro 3
+      const xrpTransaction = {
         TransactionType: 'Payment',
         Account: currentWallet.address,
         Destination: transaction.Destination,
         Amount: transaction.Amount.toString(),
         Fee: transaction.Fee.toString(),
         Sequence: transaction.Sequence,
+        NetworkID: transaction.NetworkID,
         ...(transaction.DestinationTag && { DestinationTag: transaction.DestinationTag }),
-        Flags: transaction.Flags || 0,
-        LastLedgerSequence: transaction.LastLedgerSequence
-      },
-      origin: 'XRPL Wallet'
-    };
-    
-    // Encode as hex string for Keystone Pro 3
-    const jsonString = JSON.stringify(keystonePayload);
-    const hexString = Array.from(new TextEncoder().encode(jsonString))
-      .map(byte => byte.toString(16).padStart(2, '0'))
-      .join('');
-    
-    return `ur:xrp-sign-request/${hexString}`;
+        ...(transaction.Memos && { Memos: transaction.Memos })
+      };
+      
+      // Generate the sign request using Keystone's XRP SDK
+      const requestId = crypto.randomUUID();
+      
+      const signRequest = keystoneSDK.xrp.generateSignRequest(
+        xrpTransaction,
+        requestId
+      );
+      
+      // Create UR encoder from the sign request
+      const encoder = new UREncoder(signRequest);
+      const urPart = encoder.nextPart();
+      
+      return urPart;
+      
+    } catch (error) {
+      console.error('Failed to create Keystone XRP sign request:', error);
+      console.error('Error details:', error);
+      
+      // Create a properly formatted UR for XRPL manually
+      const payload = {
+        TransactionType: 'Payment',
+        Account: currentWallet.address,
+        Destination: transaction.Destination,
+        Amount: transaction.Amount.toString(),
+        Fee: transaction.Fee.toString(),
+        Sequence: transaction.Sequence,
+        NetworkID: transaction.NetworkID
+      };
+      
+      // Convert to hex for UR format
+      const jsonString = JSON.stringify(payload);
+      const hexPayload = Array.from(new TextEncoder().encode(jsonString))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      
+      return `ur:xrp-sign-request/${hexPayload}`;
+    }
   };
 
   const onSubmit = async (data: TransactionFormData) => {
