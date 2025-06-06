@@ -117,7 +117,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
               <div className="mb-6">
                 <Button
                   onClick={() => setShowAddForm(true)}
-                  className="w-full bg-[hsl(var(--xrpl-teal))] hover:bg-[hsl(var(--xrpl-teal))]/90 text-white py-3 mb-4 touch-target"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 mb-4 touch-target"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add New Trustline
@@ -155,7 +155,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="text-[hsl(var(--xrpl-teal))] text-sm font-medium"
+                          className="text-primary text-sm font-medium"
                         >
                           Manage
                         </Button>

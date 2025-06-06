@@ -40,7 +40,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-[hsl(var(--xrpl-teal))] rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <Coins className="w-4 h-4 text-white" />
             </div>
             <div>
@@ -86,7 +86,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
                   variant="ghost"
                   className={`flex flex-col items-center py-2 px-4 touch-target ${
                     isActive 
-                      ? 'text-[hsl(var(--xrpl-teal))]' 
+                      ? 'text-primary' 
                       : 'text-muted-foreground'
                   }`}
                 >

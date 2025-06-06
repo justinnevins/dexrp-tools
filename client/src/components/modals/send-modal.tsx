@@ -182,7 +182,7 @@ export function SendModal({ isOpen, onClose, onSecurityConfirm }: SendModalProps
           
           <Button
             type="submit"
-            className="w-full bg-[hsl(var(--xrpl-teal))] hover:bg-[hsl(var(--xrpl-teal))]/90 text-white py-4 touch-target"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-4 touch-target"
             disabled={!recipient || !amount || !isValidRecipient || !isValidAmount || isValidating}
           >
             {isValidating ? 'Validating...' : 'Continue to Hardware Wallet'}

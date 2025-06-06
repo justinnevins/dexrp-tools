@@ -93,7 +93,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
             </Button>
             <Button
               onClick={shareAddress}
-              className="flex-1 bg-[hsl(var(--xrpl-teal))] hover:bg-[hsl(var(--xrpl-teal))]/90 text-white py-3 touch-target"
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
               disabled={!currentWallet?.address}
             >
               <Share2 className="w-4 h-4 mr-2" />
