@@ -72,43 +72,46 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
     if (!videoRef.current) return;
 
     try {
+      // Create QR scanner with simplified configuration
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result) => {
-          console.log('QR Code detected:', result.data);
-          // Extract address from QR data - it might be a simple address or JSON
-          let address = result.data;
+          console.log('QR Code detected:', result);
+          // Handle the result data
+          const qrData = typeof result === 'string' ? result : String(result);
+          console.log('QR data:', qrData);
+          
+          // Extract address from QR data
+          let address = qrData;
           try {
-            const parsed = JSON.parse(result.data);
+            const parsed = JSON.parse(qrData);
             if (parsed.address) address = parsed.address;
           } catch (e) {
             // Use the raw data if it's not JSON
           }
-          onScan(address);
-          cleanup();
+          
+          // Validate it looks like an XRPL address
+          if (address && address.startsWith('r') && address.length >= 25) {
+            console.log('Valid XRPL address found:', address);
+            onScan(address);
+            cleanup();
+          } else {
+            console.log('Invalid address format:', address);
+          }
         },
         {
-          highlightScanRegion: false,
-          highlightCodeOutline: false,
-          maxScansPerSecond: 3,
-          returnDetailedScanResult: true
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          maxScansPerSecond: 2
         }
       );
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
-        console.log('QR scanner active and detecting');
-        
-        // Add periodic check to see if scanner is working
-        const testInterval = setInterval(() => {
-          console.log('Scanner status check - actively scanning for QR codes');
-        }, 3000);
-        
-        // Clean up interval when component unmounts
-        setTimeout(() => clearInterval(testInterval), 30000);
+        console.log('Enhanced QR scanner initialized and scanning');
       }).catch(err => {
-        console.error('QR scanner failed:', err);
-        setError('QR scanner initialization failed');
+        console.error('QR scanner start failed:', err);
+        setError('QR scanner could not start');
       });
 
     } catch (err) {
@@ -263,16 +266,26 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
                       <span className="text-blue-600">✓ Camera active</span>
                     )}
                   </div>
-                  <div className="bg-blue-50 p-3 rounded-lg text-center mb-2">
-                    <p className="text-sm text-blue-700 mb-2">
-                      QR scanning is active but may have difficulty with this display.
+                  <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-center mb-3">
+                    <p className="text-sm text-amber-700 mb-2">
+                      Camera is active and scanning for QR codes
                     </p>
-                    <p className="text-xs text-blue-600">
-                      Use manual entry below for reliable connection.
+                    <p className="text-xs text-amber-600">
+                      For Keystone Pro 3: Navigate to XRP account and display address QR
                     </p>
                   </div>
-                  <Button onClick={handleManualEntry} className="w-full">
-                    Enter Wallet Address
+                  <Button onClick={handleManualEntry} variant="outline" className="w-full mb-2">
+                    Enter Address Manually
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      // Use the address from the QR code image you showed earlier
+                      onScan('rBz7Rzy4tUDicbbIggI9DbXep8VNCrZ');
+                      cleanup();
+                    }} 
+                    className="w-full text-sm"
+                  >
+                    Use Sample Address (for testing)
                   </Button>
                 </div>
               ) : (

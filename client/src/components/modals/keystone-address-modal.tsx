@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, QrCode } from 'lucide-react';
 import { xrplClient } from '@/lib/xrpl-client';
-import { CameraScanner } from '@/components/camera-scanner';
+import { WalletAddressScanner } from '@/components/wallet-address-scanner';
 
 interface KeystoneAddressModalProps {
   isOpen: boolean;
@@ -182,7 +182,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
       
       {/* QR Scanner Modal */}
       {showQRScanner && (
-        <CameraScanner
+        <WalletAddressScanner
           onScan={handleQRScan}
           onClose={() => setShowQRScanner(false)}
           title="Scan Wallet Address"
