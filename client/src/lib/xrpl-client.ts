@@ -3,9 +3,10 @@ import { Client, Wallet as XRPLWallet } from 'xrpl';
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
 class XRPLClient {
-  private client: Client;
+  private client: Client | null = null;
   private isConnected: boolean = false;
   private currentNetwork: XRPLNetwork = 'mainnet';
+  private connectionPromise: Promise<void> | null = null;
 
   private networkEndpoints = {
     mainnet: 'wss://xrplcluster.com',
@@ -13,26 +14,62 @@ class XRPLClient {
   };
 
   constructor() {
-    this.client = new Client(this.networkEndpoints.mainnet);
+    this.initializeClient();
+  }
+
+  private initializeClient(): void {
+    if (this.client) {
+      try {
+        this.client.disconnect();
+      } catch (error) {
+        // Ignore errors during cleanup
+      }
+    }
+    this.client = new Client(this.networkEndpoints[this.currentNetwork]);
+    this.isConnected = false;
+    this.connectionPromise = null;
   }
 
   async connect(): Promise<void> {
-    if (!this.isConnected) {
-      try {
-        await this.client.connect();
-        this.isConnected = true;
-      } catch (error) {
-        console.error('Failed to connect to XRPL:', error);
-        this.isConnected = false;
-        throw error;
+    if (this.connectionPromise) {
+      return this.connectionPromise;
+    }
+
+    if (this.isConnected && this.client) {
+      return Promise.resolve();
+    }
+
+    this.connectionPromise = this.performConnection();
+    return this.connectionPromise;
+  }
+
+  private async performConnection(): Promise<void> {
+    try {
+      if (!this.client) {
+        this.initializeClient();
       }
+      
+      await this.client!.connect();
+      this.isConnected = true;
+    } catch (error) {
+      console.error('Failed to connect to XRPL:', error);
+      this.isConnected = false;
+      throw error;
+    } finally {
+      this.connectionPromise = null;
     }
   }
 
   async disconnect(): Promise<void> {
-    if (this.isConnected) {
-      await this.client.disconnect();
+    try {
+      if (this.client && this.isConnected) {
+        await this.client.disconnect();
+      }
+    } catch (error) {
+      console.error('Error during disconnect:', error);
+    } finally {
       this.isConnected = false;
+      this.connectionPromise = null;
     }
   }
 
@@ -40,22 +77,26 @@ class XRPLClient {
     if (network === this.currentNetwork) return;
     
     try {
-      // Disconnect from current network
+      console.log(`Switching from ${this.currentNetwork} to ${network}`);
+      
+      // Completely disconnect and clean up current client
       await this.disconnect();
       
-      // Wait a moment to ensure clean disconnect
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Create new client with different endpoint
-      this.client = new Client(this.networkEndpoints[network]);
+      // Update network before creating new client
       this.currentNetwork = network;
-      this.isConnected = false;
       
-      // Reconnect to new network
+      // Wait for clean disconnect
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Initialize new client for the new network
+      this.initializeClient();
+      
+      // Connect to new network
       await this.connect();
+      
+      console.log(`Successfully switched to ${network}`);
     } catch (error) {
       console.error('Error switching networks:', error);
-      // Reset state on error
       this.isConnected = false;
       throw error;
     }
@@ -75,6 +116,10 @@ class XRPLClient {
 
   async getAccountInfo(address: string) {
     await this.connect();
+    if (!this.client) {
+      throw new Error('XRPL client not initialized');
+    }
+    
     try {
       const response = await this.client.request({
         command: 'account_info',
@@ -82,7 +127,14 @@ class XRPLClient {
         ledger_index: 'validated'
       });
       return response.result;
-    } catch (error) {
+    } catch (error: any) {
+      if (error.data?.error === 'actNotFound') {
+        return {
+          account_not_found: true,
+          address,
+          error: 'Account not found on the ledger'
+        };
+      }
       console.error('Error fetching account info:', error);
       throw error;
     }
@@ -90,6 +142,10 @@ class XRPLClient {
 
   async getAccountTransactions(address: string, limit: number = 20) {
     await this.connect();
+    if (!this.client) {
+      throw new Error('XRPL client not initialized');
+    }
+    
     try {
       const response = await this.client.request({
         command: 'account_tx',
@@ -107,6 +163,10 @@ class XRPLClient {
 
   async getAccountLines(address: string) {
     await this.connect();
+    if (!this.client) {
+      throw new Error('XRPL client not initialized');
+    }
+    
     try {
       const response = await this.client.request({
         command: 'account_lines',
