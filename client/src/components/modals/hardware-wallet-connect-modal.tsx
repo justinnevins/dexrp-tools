@@ -6,6 +6,7 @@ import { Shield, Usb, QrCode, Globe, CheckCircle, Loader2 } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/hardware-wallet';
+import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal';
 
 interface HardwareWalletConnectModalProps {
   isOpen: boolean;
@@ -36,6 +37,7 @@ const walletInfo = {
 export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletConnectModalProps) {
   const [availableWallets, setAvailableWallets] = useState<HardwareWalletType[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<HardwareWalletType | null>(null);
+  const [showKeystoneModal, setShowKeystoneModal] = useState(false);
   const { connection, isConnecting, connect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
 
@@ -48,6 +50,13 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
 
   const handleConnect = async (walletType: HardwareWalletType) => {
     setSelectedWallet(walletType);
+    
+    if (walletType === 'Keystone Pro 3') {
+      // Show the React modal for Keystone address entry
+      setShowKeystoneModal(true);
+      return;
+    }
+    
     try {
       const connection = await connect(walletType);
       
@@ -62,12 +71,34 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         
         onClose();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Connection failed:', error);
       setSelectedWallet(null);
-      // Show the actual error to user
       alert(`Hardware wallet connection failed: ${error.message}`);
     }
+  };
+
+  const handleKeystoneConfirm = async (address: string) => {
+    try {
+      await connect('Keystone Pro 3');
+      
+      await createWallet.mutateAsync({
+        address,
+        hardwareWalletType: 'Keystone Pro 3',
+      });
+      
+      setShowKeystoneModal(false);
+      setSelectedWallet(null);
+      onClose();
+    } catch (error: any) {
+      console.error('Keystone connection failed:', error);
+      alert(`Keystone connection failed: ${error.message}`);
+    }
+  };
+
+  const handleKeystoneClose = () => {
+    setShowKeystoneModal(false);
+    setSelectedWallet(null);
   };
 
   const isWalletConnected = (walletType: HardwareWalletType) => {
@@ -163,6 +194,12 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
           </div>
         </div>
       </DialogContent>
+      
+      <KeystoneAddressModal
+        isOpen={showKeystoneModal}
+        onClose={handleKeystoneClose}
+        onConfirm={handleKeystoneConfirm}
+      />
     </Dialog>
   );
 }
