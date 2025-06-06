@@ -48,6 +48,36 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
     onClose();
   };
 
+  const handleQRScan = (data: string) => {
+    try {
+      // Check if the scanned data is a valid XRPL address
+      if (data.length >= 25 && data.length <= 34 && data.startsWith('r')) {
+        setAddress(data);
+        setIsValid(true);
+        setShowQRScanner(false);
+      } else {
+        // Try to parse as JSON in case it's a more complex QR code
+        const parsed = JSON.parse(data);
+        if (parsed.address && parsed.address.startsWith('r')) {
+          setAddress(parsed.address);
+          setIsValid(true);
+          setShowQRScanner(false);
+        } else {
+          alert('Invalid wallet address QR code. Please scan a valid XRPL address.');
+        }
+      }
+    } catch (error) {
+      // If it's not JSON, check if it's a direct address
+      if (data.startsWith('r') && data.length >= 25 && data.length <= 34) {
+        setAddress(data);
+        setIsValid(true);
+        setShowQRScanner(false);
+      } else {
+        alert('Invalid QR code format. Please scan a valid XRPL wallet address.');
+      }
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleConfirm();
@@ -65,14 +95,37 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="text-center p-4 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Manual Address Entry</h4>
+          {/* QR Scanner Option */}
+          <div className="space-y-2">
+            <h4 className="font-medium flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              Scan QR Code
+            </h4>
             <p className="text-sm text-muted-foreground">
-              QR code scanning requires specific protocol implementation.<br />
-              Please manually enter your XRP address from your Keystone Pro 3.
+              Scan a QR code containing your Keystone Pro 3 wallet address
             </p>
+            <Button 
+              onClick={() => setShowQRScanner(true)}
+              variant="outline"
+              className="w-full"
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Open Camera Scanner
+            </Button>
           </div>
 
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                Or enter manually
+              </span>
+            </div>
+          </div>
+
+          {/* Manual Entry Option */}
           <div className="space-y-2">
             <Label htmlFor="xrp-address">XRP Address from Device</Label>
             <p className="text-sm text-muted-foreground">
@@ -126,6 +179,16 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
           </div>
         </div>
       </DialogContent>
+      
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <QRScanner
+          onScan={handleQRScan}
+          onClose={() => setShowQRScanner(false)}
+          title="Scan Wallet Address"
+          description="Position the QR code containing your wallet address within the camera view"
+        />
+      )}
     </Dialog>
   );
 }
