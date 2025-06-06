@@ -106,7 +106,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       Fee: transaction.Fee.toString(),
       Sequence: transaction.Sequence,
       LastLedgerSequence: (accountInfo?.ledger_current_index || 0) + 10,
-      SigningPubKey: "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6" // Placeholder for testing
+      SigningPubKey: currentWallet.publicKey || "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6" // Use real public key from device
     };
 
     // Add destination tag if present

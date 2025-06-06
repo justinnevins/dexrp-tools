@@ -255,6 +255,17 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         onClose={handleKeystoneClose}
         onConfirm={handleKeystoneConfirm}
       />
+      
+      {showKeystoneScanner && (
+        <Dialog open={showKeystoneScanner} onOpenChange={setShowKeystoneScanner}>
+          <DialogContent className="sm:max-w-md">
+            <KeystoneAccountScanner
+              onScan={handleKeystoneAccountScan}
+              onClose={() => setShowKeystoneScanner(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
