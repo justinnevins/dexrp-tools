@@ -84,24 +84,37 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
     try {
       console.log('Starting camera stream...');
       
-      // First get the camera stream and display it
+      // Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { 
           facingMode: 'environment',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
+          width: { min: 640, ideal: 1280 },
+          height: { min: 480, ideal: 720 }
         }
       });
       
-      // Set the stream to the video element
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+      // Set the stream to video element and ensure it plays
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.muted = true;
       
-      console.log('Camera feed started, initializing QR scanner...');
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = () => {
+          video.play().then(resolve).catch(resolve);
+        };
+      });
       
-      // Now create the QR scanner
+      setIsScanning(true);
+      setHasPermission(true);
+      setError(null);
+      console.log('Camera feed started and visible');
+      
+      // Start QR scanning
       scannerRef.current = new QrScanner(
-        videoRef.current,
+        video,
         (result) => {
           console.log('QR Code detected:', result.data);
           onScan(result.data);
@@ -110,17 +123,13 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
         {
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          maxScansPerSecond: 5,
-          returnDetailedScanResult: true
+          maxScansPerSecond: 3
         }
       );
 
-      // Start QR scanning (but don't start camera again since we already have the stream)
+      // Let QR scanner handle its own stream
       await scannerRef.current.start();
-      setIsScanning(true);
-      setHasPermission(true);
-      setError(null);
-      console.log('QR scanner started successfully with visible feed');
+      console.log('QR scanner active');
 
     } catch (err) {
       console.error('Failed to start camera/scanner:', err);
