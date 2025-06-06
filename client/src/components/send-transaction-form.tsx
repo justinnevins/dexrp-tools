@@ -96,95 +96,47 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Based on Keystone documentation research, create proper format
-    const xrplTransaction: any = {
-      TransactionType: 'Payment',
-      Account: currentWallet.address,
-      Destination: transaction.Destination,
+    // Create transaction object exactly as shown in Keystone documentation
+    const xrpTransaction = {
+      TransactionType: "Payment",
       Amount: transaction.Amount.toString(),
+      Destination: transaction.Destination,
+      Flags: 2147483648, // tfFullyCanonicalSig flag as shown in Keystone docs
+      Account: currentWallet.address,
       Fee: transaction.Fee.toString(),
       Sequence: transaction.Sequence,
-      Flags: 0
+      LastLedgerSequence: (accountInfo?.ledger_current_index || 0) + 10,
+      SigningPubKey: "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6" // Placeholder for testing
     };
-    
+
     // Add destination tag if present
     if (transaction.DestinationTag) {
-      xrplTransaction.DestinationTag = transaction.DestinationTag;
+      (xrpTransaction as any).DestinationTag = transaction.DestinationTag;
     }
-    
+
+    console.log('Creating Keystone transaction object:', xrpTransaction);
+
     try {
-      // Create XRPL binary transaction blob
-      const txBlob = encode(xrplTransaction);
-      console.log('XRPL transaction blob:', txBlob);
+      // According to Keystone docs: "put the transaction json into the UR Bytes"
+      const jsonTransaction = JSON.stringify(xrpTransaction);
+      console.log('Transaction JSON for Keystone:', jsonTransaction);
       
-      // Convert hex to bytes
-      const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
-      console.log('Transaction length:', binaryTx.length, 'bytes');
-      
-      // Test Format 1: CBOR tagged value (tag 1) - Keystone standard
-      const taggedCbor = new Uint8Array(3 + binaryTx.length);
-      taggedCbor[0] = 0xC1; // CBOR tag 1
-      taggedCbor[1] = 0x58; // CBOR bytes type
-      taggedCbor[2] = binaryTx.length; // Length
-      taggedCbor.set(binaryTx, 3); // Binary transaction data
-      
-      const taggedHex = Array.from(taggedCbor)
+      // Convert JSON to hex for UR encoding
+      const jsonBytes = new TextEncoder().encode(jsonTransaction);
+      const jsonHex = Array.from(jsonBytes)
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      const format1 = `ur:xrp-sign/${taggedHex}`;
-      console.log('Testing CBOR tagged format:', format1.substring(0, 50) + '...');
+      // Use ur:bytes format as specified in Keystone documentation
+      const urString = `ur:bytes/${jsonHex}`;
+      console.log('Keystone UR format (JSON):', urString.substring(0, 60) + '...');
+      console.log('JSON transaction length:', jsonBytes.length, 'bytes');
       
-      return format1;
+      return urString;
       
     } catch (error) {
-      console.error('CBOR tagged encoding failed:', error);
-      
-      // Test Format 2: Simple UR with crypto-sign type
-      try {
-        const txBlob = encode(xrplTransaction);
-        const format2 = `ur:crypto-sign/${txBlob}`;
-        console.log('Testing crypto-sign format:', format2.substring(0, 50) + '...');
-        return format2;
-      } catch (e) {
-        console.error('Crypto-sign encoding failed:', e);
-        
-        // Test Format 3: CBOR map with string key "transaction"
-        try {
-          const txBlob = encode(xrplTransaction);
-          const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
-          
-          // Create CBOR map: {"transaction": binary_data}
-          const transactionKey = new TextEncoder().encode('transaction');
-          const cborMapWithStr = new Uint8Array(2 + transactionKey.length + 2 + binaryTx.length);
-          
-          let offset = 0;
-          cborMapWithStr[offset++] = 0xA1; // CBOR map with 1 pair
-          cborMapWithStr[offset++] = 0x6B; // Text string, 11 bytes ("transaction")
-          cborMapWithStr.set(transactionKey, offset);
-          offset += transactionKey.length;
-          cborMapWithStr[offset++] = 0x58; // CBOR bytes type
-          cborMapWithStr[offset++] = binaryTx.length; // Length
-          cborMapWithStr.set(binaryTx, offset);
-          
-          const mapHex = Array.from(cborMapWithStr)
-            .map(byte => byte.toString(16).padStart(2, '0'))
-            .join('');
-          
-          const format3 = `ur:xrp-sign/${mapHex}`;
-          console.log('Testing CBOR map format:', format3.substring(0, 50) + '...');
-          return format3;
-          
-        } catch (e2) {
-          console.error('CBOR map encoding failed:', e2);
-          
-          // Final fallback: Plain transaction hex
-          const txBlob = encode(xrplTransaction);
-          const format4 = `ur:xrp-tx/${txBlob}`;
-          console.log('Final fallback - plain hex:', format4.substring(0, 50) + '...');
-          return format4;
-        }
-      }
+      console.error('Keystone JSON encoding failed:', error);
+      throw new Error('Failed to encode transaction for Keystone Pro 3');
     }
   };
 

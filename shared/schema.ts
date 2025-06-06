@@ -5,6 +5,7 @@ import { z } from "zod";
 export const wallets = pgTable("wallets", {
   id: serial("id").primaryKey(),
   address: text("address").notNull().unique(),
+  publicKey: text("publicKey"),
   balance: text("balance").notNull().default("0"),
   reservedBalance: text("reservedBalance").notNull().default("20"),
   isConnected: boolean("isConnected").notNull().default(false),

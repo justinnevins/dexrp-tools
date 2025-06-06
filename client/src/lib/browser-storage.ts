@@ -63,6 +63,7 @@ class BrowserStorage {
     const wallet: Wallet = {
       id: counters.walletId++,
       address: insertWallet.address,
+      publicKey: insertWallet.publicKey || null,
       balance: insertWallet.balance || '0',
       reservedBalance: insertWallet.reservedBalance || '20',
       hardwareWalletType: insertWallet.hardwareWalletType || null,
