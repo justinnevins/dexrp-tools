@@ -144,7 +144,16 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('CBOR payload hex:', hexString);
     console.log('Transaction JSON:', jsonString);
     
-    return `ur:bytes/${hexString}`;
+    // Try different UR types that Keystone Pro 3 might recognize
+    const urFormats = [
+      `ur:xrp-sign-request/${hexString}`,
+      `ur:crypto-sign-request/${hexString}`,
+      `ur:xrp-tx/${hexString}`,
+      `ur:bytes/${hexString}`
+    ];
+    
+    // For now, try the specific XRPL sign request type
+    return urFormats[0];
   };
 
   const onSubmit = async (data: TransactionFormData) => {
