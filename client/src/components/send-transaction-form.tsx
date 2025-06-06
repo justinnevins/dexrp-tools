@@ -95,27 +95,56 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Try the exact format that Keystone Pro 3 documentation specifies
-    // Create raw XRPL transaction for hardware wallet signing
+    // Implement the exact CBOR format that Keystone Pro 3 expects
+    // Based on successful decoding of their SDK output
     
-    const rawTxn = [
-      transaction.Destination,     // Destination address
-      transaction.Amount,          // Amount in drops
-      transaction.Fee,             // Fee in drops  
-      transaction.Sequence,        // Sequence number
-      currentWallet.address,       // Source account
-      transaction.DestinationTag || 0  // Destination tag (0 if none)
-    ];
+    const keystoneTransaction: any = {
+      TransactionType: 'Payment',
+      Account: currentWallet.address,
+      Destination: transaction.Destination,
+      Amount: transaction.Amount.toString(),
+      Fee: transaction.Fee.toString(),
+      Sequence: transaction.Sequence,
+      Flags: 0,
+      SigningPubKey: '',
+      TxnSignature: ''
+    };
     
-    // Convert to simple comma-separated format
-    const txnString = rawTxn.join(',');
+    // Add destination tag only if present
+    if (transaction.DestinationTag) {
+      keystoneTransaction.DestinationTag = transaction.DestinationTag;
+    }
     
-    // Log the QR data for debugging
-    console.log('Raw transaction data:', txnString);
-    console.log('Base64 encoded:', btoa(txnString));
+    // Convert transaction to JSON bytes
+    const jsonString = JSON.stringify(keystoneTransaction);
+    const jsonBytes = new TextEncoder().encode(jsonString);
     
-    // Create QR with minimal data - just the essential transaction info
-    return `xrp:${btoa(txnString)}`;
+    // Create CBOR bytes format with proper length encoding
+    let cborPayload;
+    if (jsonBytes.length <= 255) {
+      // Single byte length (0x58 + length byte)
+      cborPayload = new Uint8Array(2 + jsonBytes.length);
+      cborPayload[0] = 0x58; // CBOR bytes type
+      cborPayload[1] = jsonBytes.length; // Length
+      cborPayload.set(jsonBytes, 2); // JSON data
+    } else {
+      // Multi-byte length encoding (0x59 + 2 length bytes)
+      cborPayload = new Uint8Array(4 + jsonBytes.length);
+      cborPayload[0] = 0x59; // CBOR bytes type with 2-byte length
+      cborPayload[1] = (jsonBytes.length >> 8) & 0xFF; // High byte
+      cborPayload[2] = jsonBytes.length & 0xFF; // Low byte
+      cborPayload.set(jsonBytes, 3); // JSON data
+    }
+    
+    // Convert to hex string for UR
+    const hexString = Array.from(cborPayload)
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
+    
+    console.log('CBOR payload hex:', hexString);
+    console.log('Transaction JSON:', jsonString);
+    
+    return `ur:bytes/${hexString}`;
   };
 
   const onSubmit = async (data: TransactionFormData) => {
