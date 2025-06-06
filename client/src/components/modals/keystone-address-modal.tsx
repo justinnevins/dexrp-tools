@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { xrplClient } from '@/lib/xrpl-client';
 
 interface KeystoneAddressModalProps {
   isOpen: boolean;
@@ -16,7 +17,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
 
   const validateAddress = (addr: string) => {
     const trimmed = addr.trim();
-    const valid = trimmed.startsWith('r') && trimmed.length >= 25;
+    const valid = xrplClient.isValidAddress(trimmed);
     setIsValid(valid);
     return valid;
   };
@@ -34,7 +35,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
       setAddress('');
       onClose();
     } else {
-      alert('Please enter a valid XRP address starting with "r"');
+      alert('Please enter a valid XRPL address (must be a properly formatted classic address starting with "r")');
     }
   };
 

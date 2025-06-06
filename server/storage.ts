@@ -67,7 +67,7 @@ export class MemStorage implements IStorage {
   private initializeTestData() {
     const testWallet: Wallet = {
       id: this.currentWalletId++,
-      address: "rN7nUFCftTLdCqzrskBxb4AXHGqTqC4XfLQWXOPVLE",
+      address: "rKiCet8SdvWxPXnAgYarFUXMh1zCPz432Y",
       balance: "1247.850000",
       reservedBalance: "20.000000",
       isConnected: true,
