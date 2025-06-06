@@ -22,21 +22,27 @@ export function useWallet() {
 
   const createWallet = useMutation({
     mutationFn: async (walletData: { address: string; hardwareWalletType?: string }) => {
-      const response = await apiRequest('POST', '/api/wallets', walletData);
-      return response.json();
+      const wallet = browserStorage.createWallet({
+        address: walletData.address,
+        hardwareWalletType: walletData.hardwareWalletType,
+        balance: '0',
+        reservedBalance: '20',
+        isConnected: false
+      });
+      return wallet;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     },
   });
 
   const updateWalletBalance = useMutation({
     mutationFn: async ({ id, balance, reservedBalance }: { id: number; balance: string; reservedBalance: string }) => {
-      const response = await apiRequest('PATCH', `/api/wallets/${id}`, { balance, reservedBalance });
-      return response.json();
+      const wallet = browserStorage.updateWallet(id, { balance, reservedBalance });
+      return wallet;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/wallets'] });
+      queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     },
   });
 
@@ -51,22 +57,28 @@ export function useWallet() {
 
 export function useTransactions(walletId: number | null) {
   return useQuery<Transaction[]>({
-    queryKey: ['/api/transactions', walletId],
+    queryKey: ['browser-transactions', walletId],
+    queryFn: () => Promise.resolve(walletId ? browserStorage.getTransactionsByWallet(walletId) : []),
     enabled: !!walletId,
+    staleTime: 0,
   });
 }
 
 export function useTrustlines(walletId: number | null) {
   return useQuery<Trustline[]>({
-    queryKey: ['/api/trustlines', walletId],
+    queryKey: ['browser-trustlines', walletId],
+    queryFn: () => Promise.resolve(walletId ? browserStorage.getTrustlinesByWallet(walletId) : []),
     enabled: !!walletId,
+    staleTime: 0,
   });
 }
 
 export function useEscrows(walletId: number | null) {
   return useQuery<Escrow[]>({
-    queryKey: ['/api/escrows', walletId],
+    queryKey: ['browser-escrows', walletId],
+    queryFn: () => Promise.resolve(walletId ? browserStorage.getEscrowsByWallet(walletId) : []),
     enabled: !!walletId,
+    staleTime: 0,
   });
 }
 
@@ -83,11 +95,11 @@ export function useCreateTransaction() {
       toAddress?: string;
       destinationTag?: string;
     }) => {
-      const response = await apiRequest('POST', '/api/transactions', transactionData);
-      return response.json();
+      const transaction = browserStorage.createTransaction(transactionData);
+      return transaction;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/transactions', variables.walletId] });
+      queryClient.invalidateQueries({ queryKey: ['browser-transactions', variables.walletId] });
     },
   });
 }
@@ -103,11 +115,11 @@ export function useCreateTrustline() {
       issuerName: string;
       limit: string;
     }) => {
-      const response = await apiRequest('POST', '/api/trustlines', trustlineData);
-      return response.json();
+      const trustline = browserStorage.createTrustline(trustlineData);
+      return trustline;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/trustlines', variables.walletId] });
+      queryClient.invalidateQueries({ queryKey: ['browser-trustlines', variables.walletId] });
     },
   });
 }
@@ -122,11 +134,14 @@ export function useCreateEscrow() {
       recipient: string;
       releaseDate: string;
     }) => {
-      const response = await apiRequest('POST', '/api/escrows', escrowData);
-      return response.json();
+      const escrow = browserStorage.createEscrow({
+        ...escrowData,
+        releaseDate: new Date(escrowData.releaseDate)
+      });
+      return escrow;
     },
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/escrows', variables.walletId] });
+      queryClient.invalidateQueries({ queryKey: ['browser-escrows', variables.walletId] });
     },
   });
 }
