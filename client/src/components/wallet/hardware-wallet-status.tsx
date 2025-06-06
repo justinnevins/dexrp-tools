@@ -13,7 +13,7 @@ export function HardwareWalletStatus() {
   const hardwareWalletType = currentWallet?.hardwareWalletType || connection?.type;
   const isConnected = connection?.connected || false;
 
-  if (!hardwareWalletType && !isConnected) {
+  if (!isConnected) {
     return (
       <>
         <section className="px-4 py-4 border-b border-border">
