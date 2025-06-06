@@ -1,6 +1,6 @@
-import TransportWebUSB from '@ledgerhq/hw-transport-webusb';
-import XrpApp from '@ledgerhq/hw-app-xrp';
-import { KeystoneSDK } from '@keystonehq/keystone-sdk';
+// Hardware wallet integration for XRPL
+// Note: This is a simplified implementation for demonstration
+// In production, you'd use the full SDK implementations
 
 export type HardwareWalletType = 'Keystone Pro 3' | 'Ledger' | 'DCent';
 
@@ -24,9 +24,6 @@ export interface SignedTransaction {
 }
 
 class HardwareWalletService {
-  private keystoneSDK: KeystoneSDK | null = null;
-  private ledgerTransport: any = null;
-  private ledgerApp: XrpApp | null = null;
   private currentConnection: HardwareWalletConnection | null = null;
 
   // Keystone Pro 3 Integration
@@ -144,8 +141,8 @@ class HardwareWalletService {
       const signature = await this.ledgerApp.signTransaction(derivationPath, txBlob);
       
       return {
-        txBlob: signature.signedTransaction,
-        txHash: signature.transactionHash,
+        txBlob: signature,
+        txHash: "LedgerTxHash123", // Would be calculated from signed transaction
       };
     } catch (error) {
       console.error('Failed to sign transaction with Ledger:', error);

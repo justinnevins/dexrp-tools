@@ -96,7 +96,7 @@ export function useHardwareWallet() {
     const availableWallets: HardwareWalletType[] = [];
 
     // Check for Ledger support (WebUSB)
-    if (typeof navigator !== 'undefined' && navigator.usb) {
+    if (typeof navigator !== 'undefined' && (navigator as any).usb) {
       availableWallets.push('Ledger');
     }
 
