@@ -95,31 +95,27 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Try the actual Keystone Pro 3 format based on their documentation
-    // Use minimal transaction object for XRPL
-    const txObject = {
-      Account: currentWallet.address,
-      TransactionType: 'Payment',
-      Destination: transaction.Destination,
-      Amount: transaction.Amount.toString(),
-      Fee: transaction.Fee.toString(),
-      Sequence: transaction.Sequence
-    };
+    // Try the exact format that Keystone Pro 3 documentation specifies
+    // Create raw XRPL transaction for hardware wallet signing
     
-    // Add destination tag if present
-    if (transaction.DestinationTag) {
-      txObject.DestinationTag = transaction.DestinationTag;
-    }
+    const rawTxn = [
+      transaction.Destination,     // Destination address
+      transaction.Amount,          // Amount in drops
+      transaction.Fee,             // Fee in drops  
+      transaction.Sequence,        // Sequence number
+      currentWallet.address,       // Source account
+      transaction.DestinationTag || 0  // Destination tag (0 if none)
+    ];
     
-    // Convert to hex string format that Keystone expects
-    const txJson = JSON.stringify(txObject);
-    const hexBytes = [];
-    for (let i = 0; i < txJson.length; i++) {
-      hexBytes.push(txJson.charCodeAt(i).toString(16).padStart(2, '0'));
-    }
-    const hexString = hexBytes.join('');
+    // Convert to simple comma-separated format
+    const txnString = rawTxn.join(',');
     
-    return `ur:xrp-sign-request/${hexString}`;
+    // Log the QR data for debugging
+    console.log('Raw transaction data:', txnString);
+    console.log('Base64 encoded:', btoa(txnString));
+    
+    // Create QR with minimal data - just the essential transaction info
+    return `xrp:${btoa(txnString)}`;
   };
 
   const onSubmit = async (data: TransactionFormData) => {
