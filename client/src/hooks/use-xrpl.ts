@@ -37,7 +37,19 @@ export function useAccountInfo(address: string | null) {
     queryKey: ['accountInfo', address],
     queryFn: async () => {
       if (!address) return null;
-      return await xrplClient.getAccountInfo(address);
+      try {
+        return await xrplClient.getAccountInfo(address);
+      } catch (error: any) {
+        // Handle account not found error for new addresses
+        if (error.data?.error === 'actNotFound') {
+          return { 
+            account_not_found: true,
+            address,
+            error: 'Account not activated on XRPL network'
+          };
+        }
+        throw error;
+      }
     },
     enabled: !!address,
     refetchInterval: 30000, // Refetch every 30 seconds

@@ -7,15 +7,15 @@ export function useWallet() {
   const [currentWallet, setCurrentWallet] = useState<Wallet | null>(null);
   const queryClient = useQueryClient();
 
-  const { data: wallets } = useQuery<Wallet[]>({
+  const walletsQuery = useQuery<Wallet[]>({
     queryKey: ['/api/wallets'],
   });
 
   useEffect(() => {
-    if (wallets && wallets.length > 0 && !currentWallet) {
-      setCurrentWallet(wallets[0]);
+    if (walletsQuery.data && walletsQuery.data.length > 0 && !currentWallet) {
+      setCurrentWallet(walletsQuery.data[0]);
     }
-  }, [wallets, currentWallet]);
+  }, [walletsQuery.data, currentWallet]);
 
   const createWallet = useMutation({
     mutationFn: async (walletData: { address: string; hardwareWalletType?: string }) => {
@@ -40,7 +40,7 @@ export function useWallet() {
   return {
     currentWallet,
     setCurrentWallet,
-    wallets: wallets || [],
+    wallets: walletsQuery,
     createWallet,
     updateWalletBalance,
   };

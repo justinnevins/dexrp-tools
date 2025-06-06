@@ -13,16 +13,60 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const { currentWallet } = useWallet();
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
 
+  // Handle account not found on XRPL network (new/unactivated addresses)
+  if (accountInfo?.account_not_found) {
+    return (
+      <section className="px-4 py-6 xrpl-gradient text-white">
+        <div className="text-center mb-6">
+          <h1 className="text-sm font-medium text-white/80 mb-1">
+            Hardware Wallet Connected
+          </h1>
+          <div className="mb-2">
+            <span className="text-3xl font-bold">0.000000</span>
+            <span className="text-lg ml-1">XRP</span>
+          </div>
+          <p className="text-xs text-white/70">
+            Account not activated on XRPL network
+          </p>
+          <p className="text-xs text-white/60 mt-1">
+            Receive at least 10 XRP to activate this address
+          </p>
+        </div>
+        
+        <div className="flex space-x-3">
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0"
+            disabled
+          >
+            <ArrowUp className="w-4 h-4 mr-2" />
+            Send
+          </Button>
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0"
+            onClick={onReceiveClick}
+          >
+            <ArrowDown className="w-4 h-4 mr-2" />
+            Receive
+          </Button>
+        </div>
+      </section>
+    );
+  }
+
   const balance = accountInfo?.account_data?.Balance 
     ? xrplClient.formatXRPAmount(accountInfo.account_data.Balance)
-    : currentWallet?.balance || '0';
+    : '0.000000';
     
   const reservedBalance = accountInfo?.account_data?.OwnerCount 
     ? ((accountInfo.account_data.OwnerCount * 2) + 10).toString()
-    : currentWallet?.reservedBalance || '20';
+    : '20.000000';
 
   const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
-  const usdValue = (parseFloat(balance) * 0.50).toFixed(2); // Mock USD conversion rate
+  const usdValue = (parseFloat(balance) * 0.50).toFixed(2);
 
   if (isLoading) {
     return (
