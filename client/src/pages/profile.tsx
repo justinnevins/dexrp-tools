@@ -4,11 +4,12 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useWallet } from '@/hooks/use-wallet';
 import { useXRPL } from '@/hooks/use-xrpl';
+import { NetworkSettings } from '@/components/network-settings';
 import { useState } from 'react';
 
 export default function Profile() {
   const { currentWallet } = useWallet();
-  const { isConnected } = useXRPL();
+  const { isConnected, currentNetwork, switchNetwork } = useXRPL();
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
 
@@ -182,6 +183,15 @@ export default function Profile() {
           <LogOut className="w-4 h-4 mr-2" />
           Disconnect Wallet
         </Button>
+      </div>
+
+      {/* Network Settings Section */}
+      <div className="space-y-4">
+        <NetworkSettings
+          currentNetwork={currentNetwork}
+          onNetworkChange={switchNetwork}
+          isConnected={isConnected}
+        />
       </div>
     </div>
   );
