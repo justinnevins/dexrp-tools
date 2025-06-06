@@ -1,7 +1,5 @@
-import { User, Shield, Settings, LogOut, Wallet, Globe, Bell, Lock } from 'lucide-react';
+import { Shield, LogOut, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { useWallet } from '@/hooks/use-wallet';
 import { useXRPL, useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
@@ -9,97 +7,16 @@ import { NetworkSettings } from '@/components/network-settings';
 import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { notificationService } from '@/lib/notification-service';
-import { biometricService } from '@/lib/biometric-service';
 
 export default function Profile() {
   const { currentWallet } = useWallet();
   const { isConnected, currentNetwork, switchNetwork } = useXRPL();
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
-  const [notifications, setNotifications] = useState(() => {
-    return localStorage.getItem('notifications_enabled') === 'true';
-  });
-  const [biometric, setBiometric] = useState(() => {
-    return localStorage.getItem('biometric_enabled') === 'true';
-  });
-  
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null);
 
-  // Start/stop transaction monitoring based on notification settings
-  useEffect(() => {
-    if (currentWallet?.address && notifications) {
-      notificationService.startTransactionMonitoring(currentWallet.address);
-    } else {
-      notificationService.stopTransactionMonitoring();
-    }
 
-    return () => {
-      notificationService.stopTransactionMonitoring();
-    };
-  }, [currentWallet?.address, notifications]);
-
-  // Handle push notification permission
-  const handleNotificationToggle = async (enabled: boolean) => {
-    if (enabled) {
-      try {
-        await notificationService.enable();
-        setNotifications(true);
-        
-        if (currentWallet?.address) {
-          notificationService.startTransactionMonitoring(currentWallet.address);
-        }
-        
-        toast({
-          title: "Notifications Enabled",
-          description: "You'll receive transaction alerts",
-        });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to enable notifications';
-        toast({
-          title: "Permission Required",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
-    } else {
-      setNotifications(false);
-      notificationService.disable();
-      toast({
-        title: "Notifications Disabled",
-        description: "Transaction alerts turned off",
-      });
-    }
-  };
-
-  // Handle biometric authentication
-  const handleBiometricToggle = async (enabled: boolean) => {
-    if (enabled) {
-      try {
-        await biometricService.register();
-        setBiometric(true);
-        toast({
-          title: "Biometric Auth Enabled",
-          description: "Use fingerprint or face unlock for security",
-        });
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to enable biometric authentication';
-        toast({
-          title: "Setup Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      }
-    } else {
-      setBiometric(false);
-      biometricService.disable();
-      toast({
-        title: "Biometric Auth Disabled",
-        description: "Standard authentication will be used",
-      });
-    }
-  };
 
   const formatAddress = (address: string) => {
     if (address.length > 16) {
@@ -165,30 +82,7 @@ export default function Profile() {
     }
   };
 
-  const profileSettings = [
-    {
-      icon: Bell,
-      title: 'Push Notifications',
-      description: 'Get notified about transactions',
-      action: (
-        <Switch
-          checked={notifications}
-          onCheckedChange={handleNotificationToggle}
-        />
-      ),
-    },
-    {
-      icon: Lock,
-      title: 'Biometric Authentication',
-      description: 'Use fingerprint or face unlock',
-      action: (
-        <Switch
-          checked={biometric}
-          onCheckedChange={handleBiometricToggle}
-        />
-      ),
-    },
-  ];
+  const profileSettings: any[] = [];
 
 
 
@@ -238,30 +132,7 @@ export default function Profile() {
         )}
       </div>
 
-      {/* App Settings */}
-      <div className="bg-white dark:bg-card border border-border rounded-xl p-4 mb-6">
-        <h3 className="font-semibold mb-4">App Settings</h3>
-        
-        <div className="space-y-4">
-          {profileSettings.map((setting, index) => {
-            const Icon = setting.icon;
-            return (
-              <div key={index} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{setting.title}</p>
-                    <p className="text-sm text-muted-foreground">{setting.description}</p>
-                  </div>
-                </div>
-                {setting.action}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+
 
 
 
