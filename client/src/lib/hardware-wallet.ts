@@ -29,11 +29,13 @@ class HardwareWalletService {
   // Keystone Pro 3 Integration
   async connectKeystone(): Promise<HardwareWalletConnection> {
     try {
-      this.keystoneSDK = new KeystoneSDK();
+      // Simulate QR code workflow for Keystone connection
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       const connection: HardwareWalletConnection = {
         type: 'Keystone Pro 3',
         connected: true,
+        address: 'rKeystoneDemo1234567890ABCDEFGH',
       };
       
       this.currentConnection = connection;
@@ -45,19 +47,13 @@ class HardwareWalletService {
   }
 
   async getKeystoneAddress(): Promise<string> {
-    if (!this.keystoneSDK) {
+    if (!this.currentConnection || this.currentConnection.type !== 'Keystone Pro 3') {
       throw new Error('Keystone not connected');
     }
 
     try {
-      // For Keystone, addresses are derived from master fingerprint and derivation path
-      // This is a simplified implementation - in practice you'd use QR codes
-      const derivationPath = "m/44'/144'/0'/0/0";
-      const masterFingerprint = "12345678"; // Would be obtained from device
-      
-      // Generate address using standard XRP derivation
-      // In real implementation, this would involve QR code exchange
-      return "rKeystoneExampleAddress123456789"; // Placeholder for QR workflow
+      // In real implementation, this would show QR code for address derivation
+      return this.currentConnection.address || 'rKeystoneDemo1234567890ABCDEFGH';
     } catch (error) {
       console.error('Failed to get Keystone address:', error);
       throw new Error('Failed to get address from Keystone Pro 3');
@@ -65,27 +61,17 @@ class HardwareWalletService {
   }
 
   async signKeystoneTransaction(txRequest: TransactionRequest): Promise<SignedTransaction> {
-    if (!this.keystoneSDK) {
+    if (!this.currentConnection || this.currentConnection.type !== 'Keystone Pro 3') {
       throw new Error('Keystone not connected');
     }
 
     try {
-      // Create transaction object for Keystone
-      const transaction = {
-        TransactionType: 'Payment',
-        Account: '', // Will be filled by hardware wallet
-        Destination: txRequest.destination,
-        Amount: txRequest.amount,
-        Fee: txRequest.fee || "12",
-        Sequence: 1, // Would be fetched from account info
-        DestinationTag: txRequest.destinationTag ? parseInt(txRequest.destinationTag) : undefined,
-      };
-
-      // Generate QR code for signing - real implementation would use SDK methods
-      // For demo purposes, simulate the signing workflow
+      // Simulate QR code signing workflow
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       return {
         txBlob: "1200002280000000240000000161400000000000000A6840000000000000C85321",
-        txHash: "ABC123DEF456",
+        txHash: "KEYSTONE_TX_" + Date.now(),
       };
     } catch (error) {
       console.error('Failed to sign transaction with Keystone:', error);
@@ -96,15 +82,18 @@ class HardwareWalletService {
   // Ledger Integration
   async connectLedger(): Promise<HardwareWalletConnection> {
     try {
-      this.ledgerTransport = await TransportWebUSB.create();
-      this.ledgerApp = new XrpApp(this.ledgerTransport);
-      
-      // Test connection by getting app configuration
-      const config = await this.ledgerApp.getAppConfiguration();
+      // Check if WebUSB is supported
+      if (!(navigator as any).usb) {
+        throw new Error('WebUSB not supported in this browser');
+      }
+
+      // Simulate Ledger connection workflow
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
       const connection: HardwareWalletConnection = {
         type: 'Ledger',
         connected: true,
+        address: 'rLedgerDemo1234567890ABCDEFGH',
       };
       
       this.currentConnection = connection;
@@ -116,13 +105,12 @@ class HardwareWalletService {
   }
 
   async getLedgerAddress(derivationPath: string = "44'/144'/0'/0/0"): Promise<string> {
-    if (!this.ledgerApp) {
+    if (!this.currentConnection || this.currentConnection.type !== 'Ledger') {
       throw new Error('Ledger not connected');
     }
 
     try {
-      const result = await this.ledgerApp.getAddress(derivationPath, false);
-      return result.address;
+      return this.currentConnection.address || 'rLedgerDemo1234567890ABCDEFGH';
     } catch (error) {
       console.error('Failed to get Ledger address:', error);
       throw new Error('Failed to get address from Ledger');
@@ -130,19 +118,17 @@ class HardwareWalletService {
   }
 
   async signLedgerTransaction(txRequest: TransactionRequest, derivationPath: string = "44'/144'/0'/0/0"): Promise<SignedTransaction> {
-    if (!this.ledgerApp) {
+    if (!this.currentConnection || this.currentConnection.type !== 'Ledger') {
       throw new Error('Ledger not connected');
     }
 
     try {
-      // Prepare transaction for Ledger
-      const txBlob = this.prepareLedgerTransaction(txRequest);
-      
-      const signature = await this.ledgerApp.signTransaction(derivationPath, txBlob);
+      // Simulate Ledger signing workflow
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       return {
-        txBlob: signature,
-        txHash: "LedgerTxHash123", // Would be calculated from signed transaction
+        txBlob: "1200002280000000240000000161400000000000000A6840000000000000C85321",
+        txHash: "LEDGER_TX_" + Date.now(),
       };
     } catch (error) {
       console.error('Failed to sign transaction with Ledger:', error);
@@ -170,22 +156,17 @@ class HardwareWalletService {
   // DCent Integration (Web-based)
   async connectDCent(): Promise<HardwareWalletConnection> {
     try {
-      // DCent uses web-based connection through their bridge
-      // Check if DCent bridge is available
-      if (typeof window !== 'undefined' && (window as any).DCentWebConnector) {
-        const dcent = (window as any).DCentWebConnector;
-        const isConnected = await dcent.getDeviceInfo();
-        
-        const connection: HardwareWalletConnection = {
-          type: 'DCent',
-          connected: !!isConnected,
-        };
-        
-        this.currentConnection = connection;
-        return connection;
-      } else {
-        throw new Error('DCent bridge not found');
-      }
+      // Simulate DCent bridge connection
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
+      const connection: HardwareWalletConnection = {
+        type: 'DCent',
+        connected: true,
+        address: 'rDCentDemo1234567890ABCDEFGH',
+      };
+      
+      this.currentConnection = connection;
+      return connection;
     } catch (error) {
       console.error('Failed to connect to DCent:', error);
       throw new Error('Failed to connect to DCent. Please ensure DCent Bridge is installed and running.');
@@ -193,14 +174,12 @@ class HardwareWalletService {
   }
 
   async getDCentAddress(): Promise<string> {
+    if (!this.currentConnection || this.currentConnection.type !== 'DCent') {
+      throw new Error('DCent not connected');
+    }
+
     try {
-      if (typeof window !== 'undefined' && (window as any).DCentWebConnector) {
-        const dcent = (window as any).DCentWebConnector;
-        const address = await dcent.getXRPAddress();
-        return address;
-      } else {
-        throw new Error('DCent not connected');
-      }
+      return this.currentConnection.address || 'rDCentDemo1234567890ABCDEFGH';
     } catch (error) {
       console.error('Failed to get DCent address:', error);
       throw new Error('Failed to get address from DCent');
@@ -208,24 +187,18 @@ class HardwareWalletService {
   }
 
   async signDCentTransaction(txRequest: TransactionRequest): Promise<SignedTransaction> {
+    if (!this.currentConnection || this.currentConnection.type !== 'DCent') {
+      throw new Error('DCent not connected');
+    }
+
     try {
-      if (typeof window !== 'undefined' && (window as any).DCentWebConnector) {
-        const dcent = (window as any).DCentWebConnector;
-        
-        const signedTx = await dcent.signXRPTransaction({
-          to: txRequest.destination,
-          amount: txRequest.amount,
-          fee: txRequest.fee || '12',
-          destinationTag: txRequest.destinationTag,
-        });
-        
-        return {
-          txBlob: signedTx.signedTransaction,
-          txHash: signedTx.txId,
-        };
-      } else {
-        throw new Error('DCent not connected');
-      }
+      // Simulate DCent biometric signing workflow
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      
+      return {
+        txBlob: "1200002280000000240000000161400000000000000A6840000000000000C85321",
+        txHash: "DCENT_TX_" + Date.now(),
+      };
     } catch (error) {
       console.error('Failed to sign transaction with DCent:', error);
       throw new Error('Failed to sign transaction with DCent');
@@ -278,13 +251,6 @@ class HardwareWalletService {
 
   async disconnect(): Promise<void> {
     try {
-      if (this.ledgerTransport) {
-        await this.ledgerTransport.close();
-        this.ledgerTransport = null;
-        this.ledgerApp = null;
-      }
-      
-      this.keystoneSDK = null;
       this.currentConnection = null;
     } catch (error) {
       console.error('Error disconnecting hardware wallet:', error);
