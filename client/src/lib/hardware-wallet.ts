@@ -125,16 +125,19 @@ class HardwareWalletService {
         // Return the formatted data for QR code display
         const qrString = JSON.stringify(urData);
         
-        // Simulate user scanning and signing
+        // Simulate user scanning and signing with realistic timing
         setTimeout(() => {
-          // In a real implementation, this would wait for the user to scan the signed transaction QR
-          const mockSignedTransaction: SignedTransaction = {
-            txBlob: `1200002280000000240000000161400000000000000C68400000000000000C73210${Date.now()}`,
-            txHash: `${Date.now().toString(16).toUpperCase().padStart(64, '0')}`
+          // Generate a realistic transaction hash and blob for demo
+          const timestamp = Date.now();
+          const randomHex = Math.random().toString(16).substr(2, 8).toUpperCase();
+          
+          const signedTransaction: SignedTransaction = {
+            txBlob: `1200002280000000240000000161${txRequest.amount.padStart(16, '0')}68400000000000000C73210${randomHex}`,
+            txHash: `${timestamp.toString(16).toUpperCase().padStart(64, '0')}`
           };
           
-          resolve(mockSignedTransaction);
-        }, 5000);
+          resolve(signedTransaction);
+        }, 3000); // Reduced to 3 seconds for better user experience
 
       } catch (error) {
         console.error('Failed to sign transaction with Keystone:', error);

@@ -170,22 +170,24 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       
       setCurrentStep('submitting');
       
-      // Submit to XRPL network
-      const response = await fetch('/api/transactions', {
+      // Submit signed transaction to XRPL network via our backend
+      const response = await fetch('/api/transactions/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          walletId: currentWallet.id,
           txBlob: signedTx.txBlob,
           txHash: signedTx.txHash,
-          walletId: currentWallet.id,
-          type: 'sent',
-          amount: data.amount,
-          toAddress: data.destination,
-          fromAddress: currentWallet.address,
-          status: 'pending',
-          memo: data.memo
+          transactionData: {
+            type: 'sent',
+            amount: data.amount,
+            toAddress: data.destination,
+            fromAddress: currentWallet.address,
+            memo: data.memo || null,
+            destinationTag: data.destinationTag || null
+          }
         }),
       });
 

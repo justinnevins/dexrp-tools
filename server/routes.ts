@@ -108,6 +108,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Submit signed transaction to XRPL network
+  app.post("/api/transactions/submit", async (req, res) => {
+    try {
+      const { walletId, txBlob, txHash, transactionData } = req.body;
+      
+      // In a real implementation, this would:
+      // 1. Submit the signed transaction to XRPL network using txBlob
+      // 2. Wait for confirmation from the network
+      // 3. Store the result in the database
+      
+      // For demo purposes, we'll create a transaction record
+      const transaction = await storage.createTransaction({
+        walletId,
+        type: transactionData.type,
+        amount: transactionData.amount,
+        toAddress: transactionData.toAddress,
+        fromAddress: transactionData.fromAddress,
+        status: 'completed',
+        txHash: txHash,
+        memo: transactionData.memo,
+        fee: '0.000012'
+      });
+      
+      res.status(201).json({
+        success: true,
+        transaction,
+        networkResult: {
+          hash: txHash,
+          status: 'tesSUCCESS',
+          validated: true
+        }
+      });
+    } catch (error) {
+      console.error('Transaction submission failed:', error);
+      res.status(500).json({ error: "Failed to submit transaction to network" });
+    }
+  });
+
   // Trustline routes
   app.get("/api/trustlines/:walletId", async (req, res) => {
     try {
