@@ -85,20 +85,24 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       ...(txData.memo && { 
         Memos: [{
           Memo: {
-            MemoData: Buffer.from(txData.memo, 'utf8').toString('hex').toUpperCase()
+            MemoData: new TextEncoder().encode(txData.memo).reduce((hex, byte) => 
+              hex + byte.toString(16).padStart(2, '0'), '').toUpperCase()
           }
         }]
       }),
     };
 
     // Create Keystone-compatible signing request
+    const requestData = JSON.stringify({
+      currency: 'XRP',
+      transaction: transaction,
+      derivationPath: "m/44'/144'/0'/0/0"
+    });
+    
     const signingRequest = {
       type: 'crypto-psbt',
-      cbor: Buffer.from(JSON.stringify({
-        currency: 'XRP',
-        transaction: transaction,
-        derivationPath: "m/44'/144'/0'/0/0"
-      })).toString('hex'),
+      cbor: new TextEncoder().encode(requestData).reduce((hex, byte) => 
+        hex + byte.toString(16).padStart(2, '0'), ''),
       requestId: Date.now().toString()
     };
 
