@@ -6,20 +6,119 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useXRPL, useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { NetworkSettings } from '@/components/network-settings';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { notificationService } from '@/lib/notification-service';
 
 export default function Profile() {
   const { currentWallet } = useWallet();
   const { isConnected, currentNetwork, switchNetwork } = useXRPL();
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
-  const [notifications, setNotifications] = useState(true);
-  const [biometric, setBiometric] = useState(true);
+  const [notifications, setNotifications] = useState(() => {
+    return localStorage.getItem('notifications_enabled') === 'true';
+  });
+  const [biometric, setBiometric] = useState(() => {
+    return localStorage.getItem('biometric_enabled') === 'true';
+  });
   
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null);
+
+  // Start/stop transaction monitoring based on notification settings
+  useEffect(() => {
+    if (currentWallet?.address && notifications) {
+      notificationService.startTransactionMonitoring(currentWallet.address);
+    } else {
+      notificationService.stopTransactionMonitoring();
+    }
+
+    return () => {
+      notificationService.stopTransactionMonitoring();
+    };
+  }, [currentWallet?.address, notifications]);
+
+  // Handle push notification permission
+  const handleNotificationToggle = async (enabled: boolean) => {
+    if (enabled) {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          setNotifications(true);
+          notificationService.enable();
+          toast({
+            title: "Notifications Enabled",
+            description: "You'll receive transaction alerts",
+          });
+        } else {
+          toast({
+            title: "Permission Denied",
+            description: "Please enable notifications in browser settings",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Not Supported",
+          description: "Push notifications not supported in this browser",
+          variant: "destructive",
+        });
+      }
+    } else {
+      setNotifications(false);
+      notificationService.disable();
+      toast({
+        title: "Notifications Disabled",
+        description: "Transaction alerts turned off",
+      });
+    }
+  };
+
+  // Handle biometric authentication
+  const handleBiometricToggle = async (enabled: boolean) => {
+    if (enabled) {
+      if ('PublicKeyCredential' in window && 'navigator' in window && 'credentials' in navigator) {
+        try {
+          // Check if biometric authentication is available
+          const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+          if (available) {
+            setBiometric(true);
+            localStorage.setItem('biometric_enabled', 'true');
+            toast({
+              title: "Biometric Auth Enabled",
+              description: "Use fingerprint or face unlock for security",
+            });
+          } else {
+            toast({
+              title: "Not Available",
+              description: "Biometric authentication not available on this device",
+              variant: "destructive",
+            });
+          }
+        } catch (error) {
+          toast({
+            title: "Setup Failed",
+            description: "Could not enable biometric authentication",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Not Supported",
+          description: "Biometric authentication not supported in this browser",
+          variant: "destructive",
+        });
+      }
+    } else {
+      setBiometric(false);
+      localStorage.setItem('biometric_enabled', 'false');
+      toast({
+        title: "Biometric Auth Disabled",
+        description: "Password authentication will be used",
+      });
+    }
+  };
 
   const formatAddress = (address: string) => {
     if (address.length > 16) {
@@ -93,7 +192,7 @@ export default function Profile() {
       action: (
         <Switch
           checked={notifications}
-          onCheckedChange={setNotifications}
+          onCheckedChange={handleNotificationToggle}
         />
       ),
     },
@@ -104,7 +203,7 @@ export default function Profile() {
       action: (
         <Switch
           checked={biometric}
-          onCheckedChange={setBiometric}
+          onCheckedChange={handleBiometricToggle}
         />
       ),
     },
