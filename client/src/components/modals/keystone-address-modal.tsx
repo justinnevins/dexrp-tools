@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Camera, QrCode } from 'lucide-react';
 import { xrplClient } from '@/lib/xrpl-client';
+import { QRScanner } from '@/components/qr-scanner';
 
 interface KeystoneAddressModalProps {
   isOpen: boolean;
@@ -14,6 +16,7 @@ interface KeystoneAddressModalProps {
 export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAddressModalProps) {
   const [address, setAddress] = useState('');
   const [isValid, setIsValid] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
 
   const validateAddress = (addr: string) => {
     const trimmed = addr.trim();

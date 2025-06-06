@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Usb, QrCode, Globe, CheckCircle, Loader2 } from 'lucide-react';
+import { Shield, Usb, QrCode, Globe, CheckCircle, Loader2, Camera } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/hardware-wallet';
 import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal';
+import { QRScanner } from '@/components/qr-scanner';
 
 interface HardwareWalletConnectModalProps {
   isOpen: boolean;
@@ -38,6 +39,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [availableWallets, setAvailableWallets] = useState<HardwareWalletType[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<HardwareWalletType | null>(null);
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
+  const [showQRScanner, setShowQRScanner] = useState(false);
   const { connection, isConnecting, connect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
 
@@ -93,6 +95,33 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
     } catch (error: any) {
       console.error('Keystone connection failed:', error);
       alert(`Keystone connection failed: ${error.message}`);
+    }
+  };
+
+  const handleQRScan = (data: string) => {
+    try {
+      // Check if the scanned data is a valid XRPL address
+      if (data.length >= 25 && data.length <= 34 && data.startsWith('r')) {
+        handleKeystoneConfirm(data);
+        setShowQRScanner(false);
+      } else {
+        // Try to parse as JSON in case it's a more complex QR code
+        const parsed = JSON.parse(data);
+        if (parsed.address && parsed.address.startsWith('r')) {
+          handleKeystoneConfirm(parsed.address);
+          setShowQRScanner(false);
+        } else {
+          alert('Invalid wallet address QR code. Please scan a valid XRPL address.');
+        }
+      }
+    } catch (error) {
+      // If it's not JSON, check if it's a direct address
+      if (data.startsWith('r') && data.length >= 25 && data.length <= 34) {
+        handleKeystoneConfirm(data);
+        setShowQRScanner(false);
+      } else {
+        alert('Invalid QR code format. Please scan a valid XRPL wallet address.');
+      }
     }
   };
 
