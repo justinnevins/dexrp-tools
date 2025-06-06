@@ -34,9 +34,11 @@ interface SendTransactionFormProps {
 export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
+  const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [currentStep, setCurrentStep] = useState<'form' | 'qr-display' | 'signing' | 'submitting' | 'complete'>('form');
+  const [pendingTransactionData, setPendingTransactionData] = useState<TransactionFormData | null>(null);
   
   const { toast } = useToast();
   const { currentWallet } = useWallet();
@@ -169,67 +171,14 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       
       console.log('QR code displayed for Keystone Pro 3 signing');
       
-      // In a real Keystone integration, after the user signs the transaction on their device,
-      // the device generates a response QR code containing the signed transaction
-      // This would need to be scanned back into the app to complete the process
+      // Store transaction data and wait for signed QR scan
+      setPendingTransactionData(data);
       
-      // For demonstration, we'll simulate the complete signing workflow
-      await new Promise(resolve => setTimeout(resolve, 5000)); // Simulate user signing time
-      
-      // Generate a realistic signed transaction response
-      const signedTransactionData = {
-        txBlob: '1200002280000000240000000161400000000098968068400000000000000C732103' + 
-                Math.random().toString(16).substring(2, 20).toUpperCase(),
-        txHash: crypto.getRandomValues(new Uint8Array(16))
-                      .reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '')
-                      .toUpperCase()
-      };
-      
-      setCurrentStep('submitting');
-      
-      // Submit signed transaction to XRPL network via our backend
-      const response = await fetch('/api/transactions/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletId: currentWallet.id,
-          txBlob: signedTransactionData.txBlob,
-          txHash: signedTransactionData.txHash,
-          transactionData: {
-            type: 'sent',
-            amount: data.amount,
-            toAddress: data.destination,
-            fromAddress: currentWallet.address,
-            memo: data.memo || null,
-            destinationTag: data.destinationTag || null
-          }
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Transaction submission error:', errorData);
-        throw new Error(errorData.details || errorData.error || 'Failed to submit transaction to network');
-      }
-
-      setCurrentStep('complete');
-      
+      // Update QR dialog to show "Scan Signed Transaction" button
       toast({
-        title: "Transaction Sent",
-        description: `Successfully sent ${data.amount} XRP to ${data.destination}`,
+        title: "Waiting for Signature",
+        description: "After signing on your Keystone device, scan the signed transaction QR code",
       });
-
-      // Reset form
-      form.reset();
-      
-      // Call success callback if provided
-      if (onSuccess) {
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
-      }
 
     } catch (error) {
       console.error('Failed to send transaction:', error);
@@ -248,11 +197,88 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     }
   };
 
+  const handleSignedQRScan = async (signedQRData: string) => {
+    if (!currentWallet || !pendingTransactionData) return;
+
+    try {
+      setCurrentStep('submitting');
+      setShowSignedQRScanner(false);
+
+      // Parse the signed transaction QR code from Keystone device
+      let signedTransaction;
+      try {
+        // Handle different QR formats from Keystone
+        if (signedQRData.startsWith('keystone://')) {
+          const base64Data = signedQRData.replace('keystone://xrp-signed/', '');
+          const decodedData = JSON.parse(atob(base64Data));
+          signedTransaction = decodedData;
+        } else {
+          signedTransaction = JSON.parse(signedQRData);
+        }
+      } catch (parseError) {
+        throw new Error('Invalid signed transaction QR code format');
+      }
+
+      // Submit signed transaction to XRPL network
+      const response = await fetch('/api/transactions/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          walletId: currentWallet.id,
+          txBlob: signedTransaction.txBlob || signedTransaction.signedTransaction,
+          txHash: signedTransaction.txHash || signedTransaction.hash,
+          transactionData: {
+            type: 'sent',
+            amount: pendingTransactionData.amount,
+            toAddress: pendingTransactionData.destination,
+            fromAddress: currentWallet.address,
+            memo: pendingTransactionData.memo || null,
+            destinationTag: pendingTransactionData.destinationTag || null
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.details || errorData.error || 'Failed to submit transaction to network');
+      }
+
+      setCurrentStep('complete');
+      
+      toast({
+        title: "Transaction Sent",
+        description: `Successfully sent ${pendingTransactionData.amount} XRP to ${pendingTransactionData.destination}`,
+      });
+
+      // Reset form and state
+      form.reset();
+      setPendingTransactionData(null);
+      
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+        }, 2000);
+      }
+
+    } catch (error) {
+      console.error('Failed to submit signed transaction:', error);
+      toast({
+        title: "Transaction Failed",
+        description: error instanceof Error ? error.message : "Failed to submit signed transaction",
+        variant: "destructive",
+      });
+      setCurrentStep('signing');
+    }
+  };
+
   const handleQRDialogClose = () => {
     setShowQRDialog(false);
     setCurrentStep('form');
     setQrCodeData('');
     setQrCodeUrl('');
+    setPendingTransactionData(null);
   };
 
   const availableBalance = getAvailableBalance();
@@ -423,12 +449,21 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
               )}
               
               {currentStep === 'signing' && (
-                <div className="space-y-2">
-                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                  <p className="text-sm font-medium">Waiting for signature...</p>
-                  <p className="text-sm text-muted-foreground">
-                    Please confirm and sign the transaction on your Keystone Pro 3
-                  </p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
+                    <p className="text-sm font-medium">Transaction Signed</p>
+                    <p className="text-sm text-muted-foreground">
+                      Now scan the signed transaction QR code from your Keystone Pro 3
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => setShowSignedQRScanner(true)}
+                    className="w-full"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Scan Signed Transaction
+                  </Button>
                 </div>
               )}
               
