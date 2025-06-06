@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X, Scan } from 'lucide-react';
+import QrScanner from 'qr-scanner';
 
 interface WalletAddressScannerProps {
   onScan: (data: string) => void;
@@ -12,9 +13,11 @@ interface WalletAddressScannerProps {
 
 export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Address", description = "Use your camera to scan the QR code or enter manually" }: WalletAddressScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     initCamera();
@@ -46,6 +49,11 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
             setIsActive(true);
             setError(null);
             console.log('Camera ready for wallet address scanning');
+            
+            // Start QR detection after camera is ready
+            setTimeout(() => {
+              startQRDetection();
+            }, 1000);
           }).catch(err => {
             console.error('Video play failed:', err);
             setError('Failed to start camera playback');
@@ -59,12 +67,57 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
     }
   };
 
+  const startQRDetection = () => {
+    if (!videoRef.current) return;
+
+    try {
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result: any) => {
+          console.log('QR Code detected in video feed:', result);
+          
+          // Handle the result data
+          const qrData = typeof result === 'string' ? result : String(result);
+          console.log('Extracted QR data:', qrData);
+          
+          // Validate XRPL address format
+          if (qrData && qrData.startsWith('r') && qrData.length >= 25 && qrData.length <= 34) {
+            console.log('Valid XRPL address detected:', qrData);
+            onScan(qrData);
+            cleanup();
+          } else {
+            console.log('QR detected but not a valid XRPL address:', qrData);
+            // Continue scanning for valid address
+          }
+        }
+      );
+
+      scannerRef.current.start().then(() => {
+        setIsScanning(true);
+        console.log('QR scanner actively processing video feed');
+      }).catch(err => {
+        console.error('QR scanner failed to start:', err);
+        setError('QR detection failed to initialize');
+      });
+
+    } catch (err) {
+      console.error('QR scanner setup error:', err);
+      setError('Failed to setup QR detection');
+    }
+  };
+
   const cleanup = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+      scannerRef.current.destroy();
+      scannerRef.current = null;
+    }
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
     setStream(null);
     setIsActive(false);
+    setIsScanning(false);
   };
 
   const handleManualEntry = () => {
@@ -163,6 +216,21 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
                   <li>3. Position QR code in camera view</li>
                 </ol>
               </div>
+
+              {/* Status Display */}
+              {isActive && (
+                <div className="text-center mb-3">
+                  {isScanning ? (
+                    <div className="text-green-600 text-sm">
+                      🔍 Actively scanning for QR codes...
+                    </div>
+                  ) : (
+                    <div className="text-blue-600 text-sm">
+                      📷 Camera ready
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               {isActive && (
