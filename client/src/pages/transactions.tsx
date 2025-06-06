@@ -13,7 +13,7 @@ export default function Transactions() {
 
   // Combine and format transactions from both sources
   const formatTransactions = () => {
-    const transactions = [];
+    const transactions: any[] = [];
 
     // Add XRPL transactions first
     if (xrplTransactions?.transactions) {

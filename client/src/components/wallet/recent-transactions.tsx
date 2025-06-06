@@ -16,7 +16,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
 
   // Combine and format transactions from both sources
   const formatTransactions = () => {
-    const transactions = [];
+    const transactions: any[] = [];
 
     // Add XRPL transactions
     if (xrplTransactions?.transactions) {
@@ -30,7 +30,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             type: isOutgoing ? 'sent' : 'received',
             amount: `${isOutgoing ? '-' : '+'}${amount} XRP`,
             address: isOutgoing ? tx.tx.Destination : tx.tx.Account,
-            time: new Date(tx.tx.date * 1000 + 946684800000).toRelativeTimeString?.() || 'Recently',
+            time: new Date(tx.tx.date * 1000 + 946684800000).toLocaleDateString() || 'Recently',
             icon: isOutgoing ? ArrowUp : ArrowDown,
             iconBg: isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30',
             iconColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
@@ -49,7 +49,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
           type: tx.type,
           amount: `${isOutgoing ? '-' : '+'}${tx.amount} ${tx.currency}`,
           address: tx.toAddress || tx.fromAddress || 'Unknown',
-          time: new Date(tx.createdAt).toRelativeTimeString?.() || 'Recently',
+          time: new Date(tx.createdAt).toLocaleDateString() || 'Recently',
           icon: tx.type === 'escrow' ? Lock : isOutgoing ? ArrowUp : ArrowDown,
           iconBg: tx.type === 'escrow' ? 'bg-purple-100 dark:bg-purple-900/30' : 
                    isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30',

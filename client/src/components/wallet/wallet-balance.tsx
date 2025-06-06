@@ -16,7 +16,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
 
   // Handle account not found on XRPL network (new/unactivated addresses)
-  if (accountInfo?.account_not_found) {
+  if (accountInfo && 'account_not_found' in accountInfo) {
     return (
       <section className="px-4 py-6 xrpl-gradient text-white">
         <div className="text-center mb-6">
@@ -59,11 +59,11 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
     );
   }
 
-  const balance = accountInfo?.account_data?.Balance 
+  const balance = (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.Balance)
     ? xrplClient.formatXRPAmount(accountInfo.account_data.Balance)
     : '0.000000';
     
-  const reservedBalance = accountInfo?.account_data?.OwnerCount 
+  const reservedBalance = (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.OwnerCount)
     ? ((accountInfo.account_data.OwnerCount * 2) + 10).toString()
     : '20.000000';
 
