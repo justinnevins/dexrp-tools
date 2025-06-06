@@ -5,7 +5,10 @@ import { xrplClient, type XRPLNetwork } from '@/lib/xrpl-client';
 export function useXRPL() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentNetwork, setCurrentNetwork] = useState<XRPLNetwork>('mainnet');
+  const [currentNetwork, setCurrentNetwork] = useState<XRPLNetwork>(() => {
+    // Initialize with the actual network from storage or default to mainnet
+    return (localStorage.getItem('xrpl_target_network') as XRPLNetwork) || 'mainnet';
+  });
   const queryClient = useQueryClient();
 
   useEffect(() => {
