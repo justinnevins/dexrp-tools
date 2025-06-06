@@ -3,11 +3,13 @@ import { WalletBalance } from '@/components/wallet/wallet-balance';
 import { HardwareWalletStatus } from '@/components/wallet/hardware-wallet-status';
 import { QuickActions } from '@/components/wallet/quick-actions';
 import { RecentTransactions } from '@/components/wallet/recent-transactions';
+import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 import { SendModal } from '@/components/modals/send-modal';
 import { ReceiveModal } from '@/components/modals/receive-modal';
 import { TrustlineModal } from '@/components/modals/trustline-modal';
 import { SecurityConfirmationModal } from '@/components/modals/security-confirmation-modal';
 import { useLocation } from 'wouter';
+import { useWallet } from '@/hooks/use-wallet';
 
 export default function Home() {
   const [, setLocation] = useLocation();
@@ -16,6 +18,7 @@ export default function Home() {
   const [trustlineModalOpen, setTrustlineModalOpen] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [pendingTransaction, setPendingTransaction] = useState<any>(null);
+  const { wallets } = useWallet();
 
   const handleSecurityConfirm = (transactionData: any) => {
     setPendingTransaction(transactionData);

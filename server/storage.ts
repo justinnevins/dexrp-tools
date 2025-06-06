@@ -65,44 +65,8 @@ export class MemStorage implements IStorage {
   }
 
   private initializeTestData() {
-    const testWallet: Wallet = {
-      id: this.currentWalletId++,
-      address: "rKiCet8SdvWxPXnAgYarFUXMh1zCPz432Y",
-      balance: "1247.850000",
-      reservedBalance: "20.000000",
-      isConnected: true,
-      hardwareWalletType: "Keystone Pro 3",
-      createdAt: new Date(),
-    };
-    this.wallets.set(testWallet.id, testWallet);
-
-    // Add some test trustlines
-    const testTrustlines: Trustline[] = [
-      {
-        id: this.currentTrustlineId++,
-        walletId: testWallet.id,
-        currency: "USD",
-        issuer: "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B",
-        issuerName: "Bitstamp",
-        balance: "150.25",
-        limit: "10000.00",
-        isActive: true,
-        createdAt: new Date(),
-      },
-      {
-        id: this.currentTrustlineId++,
-        walletId: testWallet.id,
-        currency: "BTC",
-        issuer: "rchGBxcD1A1C2tdxF6papQYZ8kjRKMYcL",
-        issuerName: "Gatehub",
-        balance: "0.05",
-        limit: "1.00",
-        isActive: true,
-        createdAt: new Date(),
-      },
-    ];
-
-    testTrustlines.forEach(tl => this.trustlines.set(tl.id, tl));
+    // No demo data - only real hardware wallet connections will create wallets
+    // This ensures authentic data integrity
   }
 
   // Wallet operations
