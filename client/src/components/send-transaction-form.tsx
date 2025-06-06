@@ -95,29 +95,34 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Create proper Keystone Pro 3 XRPL transaction QR
-    // Using the correct format that matches Keystone's XRPL implementation
-    const xrpSignRequest = {
-      requestId: Date.now().toString(),
-      intention: 'xrp-sign-request',
-      coinType: 144, // XRP coin type
-      derivationPath: "m/44'/144'/0'/0/0",
-      address: currentWallet.address,
-      transaction: {
-        fee: transaction.Fee,
-        sequence: transaction.Sequence,
-        payment: {
-          destination: transaction.Destination,
-          amount: transaction.Amount,
-          ...(transaction.DestinationTag && { destinationTag: transaction.DestinationTag })
-        }
-      }
+    // Create Keystone Pro 3 compatible QR format
+    // Based on Keystone's XRPL specification
+    const keystonePayload = {
+      type: 'xrp-sign-request',
+      requestId: crypto.randomUUID(),
+      derivationPath: "44'/144'/0'/0/0",
+      coinCode: 'XRP',
+      signData: {
+        TransactionType: 'Payment',
+        Account: currentWallet.address,
+        Destination: transaction.Destination,
+        Amount: transaction.Amount.toString(),
+        Fee: transaction.Fee.toString(),
+        Sequence: transaction.Sequence,
+        ...(transaction.DestinationTag && { DestinationTag: transaction.DestinationTag }),
+        Flags: transaction.Flags || 0,
+        LastLedgerSequence: transaction.LastLedgerSequence
+      },
+      origin: 'XRPL Wallet'
     };
     
-    // Encode as base64 for QR code
-    const qrData = btoa(JSON.stringify(xrpSignRequest));
+    // Encode as hex string for Keystone Pro 3
+    const jsonString = JSON.stringify(keystonePayload);
+    const hexString = Array.from(new TextEncoder().encode(jsonString))
+      .map(byte => byte.toString(16).padStart(2, '0'))
+      .join('');
     
-    return `keystone://xrp-sign/${qrData}`;
+    return `ur:xrp-sign-request/${hexString}`;
   };
 
   const onSubmit = async (data: TransactionFormData) => {
