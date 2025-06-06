@@ -59,6 +59,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/wallets", async (req, res) => {
+    try {
+      await storage.clearAllData();
+      res.json({ message: "All wallet data cleared" });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to clear wallet data" });
+    }
+  });
+
   // Transaction routes
   app.get("/api/transactions/:walletId", async (req, res) => {
     try {

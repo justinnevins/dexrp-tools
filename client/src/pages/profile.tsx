@@ -25,26 +25,38 @@ export default function Profile() {
     return address;
   };
 
-  const handleDisconnectWallet = () => {
-    // Clear all local storage data
-    localStorage.clear();
-    
-    // Set network back to mainnet as default
-    localStorage.setItem('xrpl_target_network', 'mainnet');
-    
-    // Clear all query cache
-    queryClient.clear();
-    
-    // Show confirmation toast
-    toast({
-      title: "Wallet Disconnected",
-      description: "All data cleared, reloading application...",
-    });
-    
-    // Force page reload after brief delay
-    setTimeout(() => {
+  const handleDisconnectWallet = async () => {
+    try {
+      // Clear server-side data
+      await fetch('/api/wallets', { method: 'DELETE' });
+      
+      // Clear all local storage data
+      localStorage.clear();
+      
+      // Set network back to mainnet as default
+      localStorage.setItem('xrpl_target_network', 'mainnet');
+      
+      // Clear all query cache
+      queryClient.clear();
+      
+      // Show confirmation toast
+      toast({
+        title: "Wallet Disconnected",
+        description: "All data cleared, reloading application...",
+      });
+      
+      // Force page reload after brief delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      console.error('Error clearing server data:', error);
+      // Still proceed with local cleanup
+      localStorage.clear();
+      localStorage.setItem('xrpl_target_network', 'mainnet');
+      queryClient.clear();
       window.location.reload();
-    }, 1000);
+    }
   };
 
   const profileSettings = [

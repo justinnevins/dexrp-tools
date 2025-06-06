@@ -38,6 +38,9 @@ export interface IStorage {
   getEscrowsByWallet(walletId: number): Promise<Escrow[]>;
   createEscrow(escrow: InsertEscrow): Promise<Escrow>;
   updateEscrow(id: number, updates: Partial<Escrow>): Promise<Escrow | undefined>;
+  
+  // Clear all data
+  clearAllData(): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -206,6 +209,17 @@ export class MemStorage implements IStorage {
     const updatedEscrow = { ...escrow, ...updates };
     this.escrows.set(id, updatedEscrow);
     return updatedEscrow;
+  }
+
+  async clearAllData(): Promise<void> {
+    this.wallets.clear();
+    this.transactions.clear();
+    this.trustlines.clear();
+    this.escrows.clear();
+    this.currentWalletId = 1;
+    this.currentTransactionId = 1;
+    this.currentTrustlineId = 1;
+    this.currentEscrowId = 1;
   }
 }
 
