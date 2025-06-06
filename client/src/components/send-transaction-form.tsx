@@ -14,6 +14,7 @@ import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { SimpleQRScanner } from '@/components/simple-qr-scanner';
+import { encode } from 'ripple-binary-codec';
 import QRCode from 'qrcode';
 
 const transactionSchema = z.object({
@@ -95,65 +96,58 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Implement the exact CBOR format that Keystone Pro 3 expects
-    // Based on successful decoding of their SDK output
-    
-    const keystoneTransaction: any = {
+    // Use proper XRPL binary encoding for Keystone Pro 3
+    // Create the transaction object in XRPL format
+    const xrplTransaction = {
       TransactionType: 'Payment',
       Account: currentWallet.address,
       Destination: transaction.Destination,
       Amount: transaction.Amount.toString(),
       Fee: transaction.Fee.toString(),
       Sequence: transaction.Sequence,
-      Flags: 0,
-      SigningPubKey: '',
-      TxnSignature: ''
+      Flags: 0
     };
     
-    // Add destination tag only if present
+    // Add destination tag if present
     if (transaction.DestinationTag) {
-      keystoneTransaction.DestinationTag = transaction.DestinationTag;
+      xrplTransaction.DestinationTag = transaction.DestinationTag;
     }
     
-    // Convert transaction to JSON bytes
-    const jsonString = JSON.stringify(keystoneTransaction);
-    const jsonBytes = new TextEncoder().encode(jsonString);
-    
-    // Create CBOR bytes format with proper length encoding
-    let cborPayload;
-    if (jsonBytes.length <= 255) {
-      // Single byte length (0x58 + length byte)
-      cborPayload = new Uint8Array(2 + jsonBytes.length);
+    try {
+      // Encode transaction using XRPL's official binary codec
+      const txBlob = encode(xrplTransaction);
+      console.log('XRPL transaction blob:', txBlob);
+      
+      // Convert hex string to bytes
+      const binaryTx = new Uint8Array(txBlob.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+      
+      // Create CBOR wrapper for the binary transaction
+      const cborPayload = new Uint8Array(2 + binaryTx.length);
       cborPayload[0] = 0x58; // CBOR bytes type
-      cborPayload[1] = jsonBytes.length; // Length
-      cborPayload.set(jsonBytes, 2); // JSON data
-    } else {
-      // Multi-byte length encoding (0x59 + 2 length bytes)
-      cborPayload = new Uint8Array(4 + jsonBytes.length);
-      cborPayload[0] = 0x59; // CBOR bytes type with 2-byte length
-      cborPayload[1] = (jsonBytes.length >> 8) & 0xFF; // High byte
-      cborPayload[2] = jsonBytes.length & 0xFF; // Low byte
-      cborPayload.set(jsonBytes, 3); // JSON data
+      cborPayload[1] = binaryTx.length; // Length
+      cborPayload.set(binaryTx, 2); // Binary transaction data
+      
+      // Convert to hex for UR
+      const hexString = Array.from(cborPayload)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      
+      console.log('CBOR wrapped transaction hex:', hexString);
+      console.log('Original XRPL blob length:', binaryTx.length);
+      
+      return `ur:xrp-sign-request/${hexString}`;
+      
+    } catch (error) {
+      console.error('Failed to encode XRPL transaction:', error);
+      
+      // Fallback to simple JSON format if binary encoding fails
+      const fallbackPayload = JSON.stringify(xrplTransaction);
+      const fallbackHex = Array.from(new TextEncoder().encode(fallbackPayload))
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      
+      return `ur:xrp-tx/${fallbackHex}`;
     }
-    
-    // Convert to hex string for UR
-    const hexString = Array.from(cborPayload)
-      .map(byte => byte.toString(16).padStart(2, '0'))
-      .join('');
-    
-    console.log('CBOR payload hex:', hexString);
-    console.log('Transaction JSON:', jsonString);
-    
-    // Try different UR types that Keystone Pro 3 might recognize
-    const urFormats = [
-      `ur:xrp-sign-request/${hexString}`,
-      `ur:crypto-sign-request/${hexString}`,
-      `ur:xrp-tx/${hexString}`,
-      `ur:bytes/${hexString}`
-    ];
-    
-    // For now, try the specific XRPL sign request type
-    return urFormats[0];
   };
 
   const onSubmit = async (data: TransactionFormData) => {
