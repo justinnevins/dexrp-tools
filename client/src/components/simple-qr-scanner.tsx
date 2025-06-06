@@ -45,11 +45,25 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
         videoRef.current.muted = true;
         
         videoRef.current.onloadedmetadata = () => {
-          videoRef.current?.play();
-          setIsActive(true);
-          setPermissionGranted(true);
-          setError(null);
-          console.log('Camera stream active and displaying');
+          if (videoRef.current) {
+            videoRef.current.play().then(() => {
+              setIsActive(true);
+              setPermissionGranted(true);
+              setError(null);
+              console.log('Camera stream active and displaying');
+              
+              // Force a re-render to ensure video is visible
+              setTimeout(() => {
+                if (videoRef.current) {
+                  videoRef.current.style.opacity = '1';
+                  videoRef.current.style.visibility = 'visible';
+                }
+              }, 100);
+            }).catch(err => {
+              console.error('Video play failed:', err);
+              setError('Failed to play video stream');
+            });
+          }
         };
       }
 
@@ -114,18 +128,22 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="relative bg-black rounded-lg overflow-hidden">
+              <div className="relative bg-black rounded-lg overflow-hidden" style={{ width: '100%', height: '256px' }}>
                 <video
                   ref={videoRef}
-                  className="w-full h-64 object-cover"
                   playsInline
                   muted
                   autoPlay
                   style={{ 
-                    display: 'block',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
                     width: '100%',
-                    height: '256px',
-                    backgroundColor: '#000'
+                    height: '100%',
+                    objectFit: 'cover',
+                    backgroundColor: '#000',
+                    border: 'none',
+                    outline: 'none'
                   }}
                 />
                 {!isActive && (
