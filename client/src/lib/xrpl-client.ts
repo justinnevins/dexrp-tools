@@ -1,12 +1,19 @@
 import { Client, Wallet as XRPLWallet } from 'xrpl';
 
+export type XRPLNetwork = 'mainnet' | 'testnet';
+
 class XRPLClient {
   private client: Client;
   private isConnected: boolean = false;
+  private currentNetwork: XRPLNetwork = 'mainnet';
+
+  private networkEndpoints = {
+    mainnet: 'wss://xrplcluster.com',
+    testnet: 'wss://s.altnet.rippletest.net:51233'
+  };
 
   constructor() {
-    // Use testnet for development
-    this.client = new Client('wss://s.altnet.rippletest.net:51233');
+    this.client = new Client(this.networkEndpoints.mainnet);
   }
 
   async connect(): Promise<void> {
@@ -21,6 +28,32 @@ class XRPLClient {
       await this.client.disconnect();
       this.isConnected = false;
     }
+  }
+
+  async switchNetwork(network: XRPLNetwork): Promise<void> {
+    if (network === this.currentNetwork) return;
+    
+    // Disconnect from current network
+    await this.disconnect();
+    
+    // Create new client with different endpoint
+    this.client = new Client(this.networkEndpoints[network]);
+    this.currentNetwork = network;
+    
+    // Reconnect to new network
+    await this.connect();
+  }
+
+  getCurrentNetwork(): XRPLNetwork {
+    return this.currentNetwork;
+  }
+
+  getNetworkInfo() {
+    return {
+      network: this.currentNetwork,
+      endpoint: this.networkEndpoints[this.currentNetwork],
+      isConnected: this.isConnected
+    };
   }
 
   async getAccountInfo(address: string) {

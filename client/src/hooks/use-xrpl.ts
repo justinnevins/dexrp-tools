@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { xrplClient } from '@/lib/xrpl-client';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { xrplClient, type XRPLNetwork } from '@/lib/xrpl-client';
 
 export function useXRPL() {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentNetwork, setCurrentNetwork] = useState<XRPLNetwork>('mainnet');
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const connectToXRPL = async () => {
       try {
         await xrplClient.connect();
         setIsConnected(true);
+        setCurrentNetwork(xrplClient.getCurrentNetwork());
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to connect to XRPL');
@@ -25,9 +28,32 @@ export function useXRPL() {
     };
   }, []);
 
+  const switchNetwork = async (network: XRPLNetwork) => {
+    try {
+      setError(null);
+      setIsConnected(false);
+      
+      await xrplClient.switchNetwork(network);
+      
+      setCurrentNetwork(network);
+      setIsConnected(true);
+      
+      // Clear all XRPL-related cache when switching networks
+      queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
+      queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['accountLines'] });
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to switch network');
+      setIsConnected(false);
+    }
+  };
+
   return {
     isConnected,
     error,
+    currentNetwork,
+    switchNetwork,
     client: xrplClient
   };
 }
