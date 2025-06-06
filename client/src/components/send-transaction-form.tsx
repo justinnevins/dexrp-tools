@@ -192,7 +192,9 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit transaction to network');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Transaction submission error:', errorData);
+        throw new Error(errorData.details || errorData.error || 'Failed to submit transaction to network');
       }
 
       setCurrentStep('complete');
@@ -214,6 +216,10 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
 
     } catch (error) {
       console.error('Failed to send transaction:', error);
+      console.error('Transaction data:', data);
+      console.error('Current wallet:', currentWallet);
+      console.error('Current step:', currentStep);
+      
       toast({
         title: "Transaction Failed",
         description: error instanceof Error ? error.message : "Failed to send transaction",

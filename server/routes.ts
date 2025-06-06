@@ -123,12 +123,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         walletId,
         type: transactionData.type,
         amount: transactionData.amount,
-        toAddress: transactionData.toAddress,
+        currency: 'XRP',
         fromAddress: transactionData.fromAddress,
+        toAddress: transactionData.toAddress,
+        destinationTag: transactionData.destinationTag,
         status: 'completed',
-        txHash: txHash,
-        memo: transactionData.memo,
-        fee: '0.000012'
+        txHash: txHash
       });
       
       res.status(201).json({
@@ -142,7 +142,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Transaction submission failed:', error);
-      res.status(500).json({ error: "Failed to submit transaction to network" });
+      console.error('Request body:', req.body);
+      res.status(500).json({ 
+        error: "Failed to submit transaction to network",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
