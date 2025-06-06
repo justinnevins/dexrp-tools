@@ -39,6 +39,11 @@ export function useXRPL() {
       setIsConnected(true);
       
       // Clear all XRPL-related cache when switching networks
+      queryClient.removeQueries({ queryKey: ['accountInfo'] });
+      queryClient.removeQueries({ queryKey: ['accountTransactions'] });
+      queryClient.removeQueries({ queryKey: ['accountLines'] });
+      
+      // Also invalidate to trigger fresh fetches
       queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
       queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
       queryClient.invalidateQueries({ queryKey: ['accountLines'] });
@@ -59,8 +64,9 @@ export function useXRPL() {
 }
 
 export function useAccountInfo(address: string | null) {
+  const currentNetwork = xrplClient.getCurrentNetwork();
   return useQuery({
-    queryKey: ['accountInfo', address],
+    queryKey: ['accountInfo', address, currentNetwork],
     queryFn: async () => {
       if (!address) return null;
       try {

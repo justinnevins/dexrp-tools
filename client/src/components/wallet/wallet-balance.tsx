@@ -2,6 +2,7 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
+import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { xrplClient } from '@/lib/xrpl-client';
 
 interface WalletBalanceProps {
@@ -12,6 +13,7 @@ interface WalletBalanceProps {
 export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
   const { currentWallet } = useWallet();
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
+  const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
 
   // Handle account not found on XRPL network (new/unactivated addresses)
   if (accountInfo?.account_not_found) {
@@ -66,7 +68,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
     : '20.000000';
 
   const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
-  const usdValue = (parseFloat(balance) * 0.50).toFixed(2);
+  const usdValue = xrpPrice ? (parseFloat(balance) * xrpPrice).toFixed(2) : '0.00';
 
   if (isLoading) {
     return (
