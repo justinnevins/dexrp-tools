@@ -26,32 +26,23 @@ class BiometricService {
     }
 
     try {
-      const challenge = new Uint8Array(32);
-      crypto.getRandomValues(challenge);
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
 
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
         challenge,
-        rp: {
-          name: "XRPL Wallet",
-          id: window.location.hostname,
-        },
+        rp: { name: "XRPL Wallet" },
         user: {
-          id: new TextEncoder().encode("user-id"),
-          name: "wallet-user",
+          id: crypto.getRandomValues(new Uint8Array(16)),
+          name: "user",
           displayName: "Wallet User",
         },
-        pubKeyCredParams: [
-          {
-            alg: -7, // ES256
-            type: "public-key",
-          },
-        ],
+        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
         authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "required",
+          userVerification: "preferred",
+          residentKey: "preferred",
         },
-        timeout: 60000,
-        attestation: "direct",
+        timeout: 30000,
+        attestation: "none",
       };
 
       const credential = await navigator.credentials.create({
@@ -83,19 +74,18 @@ class BiometricService {
     }
 
     try {
-      const challenge = new Uint8Array(32);
-      crypto.getRandomValues(challenge);
+      const challenge = crypto.getRandomValues(new Uint8Array(32));
 
       const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
         challenge,
         allowCredentials: [
           {
-            id: new TextEncoder().encode(this.credentialId),
+            id: Uint8Array.from(atob(this.credentialId), c => c.charCodeAt(0)),
             type: "public-key",
           },
         ],
-        userVerification: "required",
-        timeout: 60000,
+        userVerification: "preferred",
+        timeout: 30000,
       };
 
       const assertion = await navigator.credentials.get({

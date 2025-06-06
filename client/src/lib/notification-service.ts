@@ -19,6 +19,15 @@ class NotificationService {
   enable() {
     this.isEnabled = true;
     localStorage.setItem('notifications_enabled', 'true');
+    
+    // Show a test notification to confirm it's working
+    setTimeout(() => {
+      this.showNotification('XRPL Wallet', {
+        body: 'Notifications enabled successfully',
+        icon: '/favicon.ico',
+        tag: 'test-notification'
+      });
+    }, 1000);
   }
 
   disable() {
@@ -81,30 +90,47 @@ class NotificationService {
       return;
     }
 
+    // Initialize transaction count
+    this.initializeTransactionCount(walletAddress);
+
     // Check for new transactions every 30 seconds
     this.monitoringInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/transactions?wallet=${walletAddress}&limit=5`);
-        const transactions = await response.json();
-        
-        // Check if there are new transactions
-        if (transactions.length > this.previousTransactionCount) {
-          const newTransactions = transactions.slice(0, transactions.length - this.previousTransactionCount);
+        const response = await fetch(`/api/transactions`);
+        if (response.ok) {
+          const transactions = await response.json();
           
-          newTransactions.forEach((tx: any) => {
-            this.showTransactionNotification(
-              tx.type,
-              tx.amount,
-              tx.toAddress || tx.fromAddress || 'Unknown'
-            );
-          });
+          // Check if there are new transactions
+          if (transactions.length > this.previousTransactionCount) {
+            const newTransactions = transactions.slice(0, transactions.length - this.previousTransactionCount);
+            
+            newTransactions.forEach((tx: any) => {
+              this.showTransactionNotification(
+                tx.type,
+                tx.amount,
+                tx.toAddress || tx.fromAddress || 'Unknown'
+              );
+            });
+          }
+          
+          this.previousTransactionCount = transactions.length;
         }
-        
-        this.previousTransactionCount = transactions.length;
       } catch (error) {
         console.error('Error monitoring transactions:', error);
       }
     }, 30000); // Check every 30 seconds
+  }
+
+  private async initializeTransactionCount(walletAddress: string) {
+    try {
+      const response = await fetch(`/api/transactions`);
+      if (response.ok) {
+        const transactions = await response.json();
+        this.previousTransactionCount = transactions.length;
+      }
+    } catch (error) {
+      console.error('Error initializing transaction count:', error);
+    }
   }
 
   stopTransactionMonitoring() {
