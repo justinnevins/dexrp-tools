@@ -19,52 +19,15 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const initScanner = async () => {
-      if (!videoRef.current) return;
+    let timeoutId: NodeJS.Timeout;
 
-      try {
-        // Check if camera is available
-        const hasCamera = await QrScanner.hasCamera();
-        if (!hasCamera) {
-          setError('No camera found on this device');
-          return;
-        }
-
-        // Create scanner instance
-        scannerRef.current = new QrScanner(
-          videoRef.current,
-          (result) => {
-            console.log('QR Code detected:', result.data);
-            onScan(result.data);
-            stopScanning();
-          },
-          {
-            highlightScanRegion: true,
-            highlightCodeOutline: true,
-            preferredCamera: 'environment' // Use back camera on mobile
-          }
-        );
-
-        // Start scanning
-        await scannerRef.current.start();
-        setIsScanning(true);
-        setHasPermission(true);
-        setError(null);
-
-      } catch (err) {
-        console.error('Failed to start QR scanner:', err);
-        if (err instanceof Error && err.name === 'NotAllowedError') {
-          setError('Camera permission denied. Please allow camera access and try again.');
-          setHasPermission(false);
-        } else {
-          setError('Failed to access camera. Please check your camera permissions.');
-        }
-      }
-    };
-
-    initScanner();
+    // Add a small delay to ensure the video element is ready
+    timeoutId = setTimeout(() => {
+      initScanner();
+    }, 100);
 
     return () => {
+      if (timeoutId) clearTimeout(timeoutId);
       stopScanning();
     };
   }, [onScan]);
@@ -80,14 +43,75 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
 
   const requestPermission = async () => {
     try {
-      await navigator.mediaDevices.getUserMedia({ video: true });
+      console.log('Requesting camera permission...');
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
+      });
+      
+      // Stop the test stream
+      stream.getTracks().forEach(track => track.stop());
+      
       setHasPermission(true);
       setError(null);
-      // Reinitialize scanner after permission granted
-      window.location.reload();
+      
+      // Try to initialize scanner again
+      initScanner();
     } catch (err) {
+      console.error('Permission request failed:', err);
       setError('Camera permission denied. Please allow camera access in your browser settings.');
       setHasPermission(false);
+    }
+  };
+
+  const initScanner = async () => {
+    if (!videoRef.current) {
+      setError('Camera element not ready');
+      return;
+    }
+
+    try {
+      console.log('Starting QR scanner...');
+      
+      // Create scanner instance
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result) => {
+          console.log('QR Code detected:', result.data);
+          onScan(result.data);
+          stopScanning();
+        },
+        {
+          highlightScanRegion: true,
+          highlightCodeOutline: true,
+          preferredCamera: 'environment',
+          maxScansPerSecond: 5
+        }
+      );
+
+      // Start scanning
+      await scannerRef.current.start();
+      setIsScanning(true);
+      setError(null);
+      console.log('QR scanner started successfully');
+
+    } catch (err) {
+      console.error('Failed to start QR scanner:', err);
+      if (err instanceof Error) {
+        if (err.name === 'NotAllowedError') {
+          setError('Camera permission denied. Please allow camera access and try again.');
+          setHasPermission(false);
+        } else if (err.name === 'NotFoundError') {
+          setError('No camera found on this device.');
+        } else {
+          setError(`Camera error: ${err.message}`);
+        }
+      } else {
+        setError('Failed to access camera. Please check your camera permissions.');
+      }
     }
   };
 
