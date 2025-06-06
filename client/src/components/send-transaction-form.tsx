@@ -117,39 +117,60 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       const txBlob = encode(xrplTransaction);
       console.log('XRPL transaction blob:', txBlob);
       
-      // Convert hex string to bytes for length calculation
-      const binaryLength = txBlob.length / 2;
-      console.log('Transaction length:', binaryLength, 'bytes');
+      // Convert hex to bytes
+      const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+      console.log('Transaction length:', binaryTx.length, 'bytes');
       
-      // Test Format 1: Direct binary hex - ur:bytes/{hex}
-      // This is the most common Keystone format for raw transaction data
-      const format1 = `ur:bytes/${txBlob}`;
-      console.log('Testing Format 1 - ur:bytes/', format1.substring(0, 50) + '...');
+      // Create CBOR map format that Keystone expects
+      // Based on Keystone's actual implementation: { 1: binary_transaction }
+      const cborMap = new Uint8Array(4 + binaryTx.length);
+      cborMap[0] = 0xA1; // CBOR map with 1 key-value pair
+      cborMap[1] = 0x01; // Key: 1
+      cborMap[2] = 0x58; // CBOR bytes type
+      cborMap[3] = binaryTx.length; // Length
+      cborMap.set(binaryTx, 4); // Binary transaction data
+      
+      // Convert to hex
+      const cborHex = Array.from(cborMap)
+        .map(byte => byte.toString(16).padStart(2, '0'))
+        .join('');
+      
+      const format1 = `ur:xrp-sign/${cborHex}`;
+      console.log('Testing CBOR Format - ur:xrp-sign/', format1.substring(0, 50) + '...');
       
       return format1;
       
     } catch (error) {
-      console.error('XRPL binary encoding failed:', error);
+      console.error('CBOR encoding failed:', error);
       
-      // Fallback Format 2: JSON hex encoding
-      const jsonTx = {
-        TransactionType: 'Payment',
-        Account: currentWallet.address,
-        Destination: transaction.Destination,
-        Amount: transaction.Amount.toString(),
-        Fee: transaction.Fee.toString(),
-        Sequence: transaction.Sequence
-      };
-      
-      const jsonString = JSON.stringify(jsonTx);
-      const jsonHex = Array.from(new TextEncoder().encode(jsonString))
-        .map(byte => byte.toString(16).padStart(2, '0'))
-        .join('');
-      
-      const format2 = `ur:xrp-sign-request/${jsonHex}`;
-      console.log('Using Fallback Format 2 - JSON hex:', format2.substring(0, 50) + '...');
-      
-      return format2;
+      // Try direct hex format without CBOR wrapper
+      try {
+        const txBlob = encode(xrplTransaction);
+        const format2 = `ur:xrp-tx/${txBlob}`;
+        console.log('Testing direct hex - ur:xrp-tx/', format2.substring(0, 50) + '...');
+        return format2;
+      } catch (e) {
+        console.error('Direct hex encoding failed:', e);
+        
+        // Final fallback: JSON format
+        const jsonTx = {
+          TransactionType: 'Payment',
+          Account: currentWallet.address,
+          Destination: transaction.Destination,
+          Amount: transaction.Amount.toString(),
+          Fee: transaction.Fee.toString(),
+          Sequence: transaction.Sequence
+        };
+        
+        const jsonString = JSON.stringify(jsonTx);
+        const jsonHex = Array.from(new TextEncoder().encode(jsonString))
+          .map(byte => byte.toString(16).padStart(2, '0'))
+          .join('');
+        
+        const format3 = `ur:xrp-sign-request/${jsonHex}`;
+        console.log('Final fallback - JSON hex:', format3.substring(0, 50) + '...');
+        return format3;
+      }
     }
   };
 
