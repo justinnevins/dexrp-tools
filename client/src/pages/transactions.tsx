@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Lock, Filter } from 'lucide-react';
+import { ArrowUp, ArrowDown, Lock, Filter, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet, useTransactions } from '@/hooks/use-wallet';
 import { useAccountTransactions } from '@/hooks/use-xrpl';
