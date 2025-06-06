@@ -127,6 +127,7 @@ export class MemStorage implements IStorage {
       balance: insertWallet.balance || "0",
       reservedBalance: insertWallet.reservedBalance || "20",
       isConnected: insertWallet.isConnected || false,
+      hardwareWalletType: insertWallet.hardwareWalletType || null,
     };
     this.wallets.set(id, wallet);
     return wallet;
@@ -157,7 +158,13 @@ export class MemStorage implements IStorage {
     const transaction: Transaction = { 
       ...insertTransaction, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      status: insertTransaction.status || "pending",
+      currency: insertTransaction.currency || "XRP",
+      fromAddress: insertTransaction.fromAddress || null,
+      toAddress: insertTransaction.toAddress || null,
+      destinationTag: insertTransaction.destinationTag || null,
+      txHash: insertTransaction.txHash || null,
     };
     this.transactions.set(id, transaction);
     return transaction;
@@ -222,6 +229,7 @@ export class MemStorage implements IStorage {
       id, 
       createdAt: new Date(),
       status: insertEscrow.status || "active",
+      txHash: insertEscrow.txHash || null,
     };
     this.escrows.set(id, escrow);
     return escrow;
