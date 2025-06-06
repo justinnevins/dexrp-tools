@@ -80,7 +80,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
         <Button
           onClick={onViewAllClick}
           variant="ghost"
-          className="text-[hsl(var(--xrpl-teal))] font-medium text-sm p-0 h-auto"
+          className="text-primary font-medium text-sm p-0 h-auto"
         >
           View All
         </Button>

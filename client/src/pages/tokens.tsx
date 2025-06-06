@@ -59,7 +59,7 @@ export default function Tokens() {
 
   const getCurrencyColor = (currency: string) => {
     const colors = {
-      'XRP': 'bg-[hsl(var(--xrpl-teal))]',
+      'XRP': 'bg-primary',
       'USD': 'bg-blue-500',
       'BTC': 'bg-orange-500',
       'ETH': 'bg-purple-500',

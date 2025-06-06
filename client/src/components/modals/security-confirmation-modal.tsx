@@ -94,7 +94,7 @@ export function SecurityConfirmationModal({
         
         <div className="flex items-center justify-center mb-6">
           <div className={isConfirming ? 'animate-pulse' : ''}>
-            <Fingerprint className="w-12 h-12 text-[hsl(var(--xrpl-teal))]" />
+            <Fingerprint className="w-12 h-12 text-primary" />
           </div>
         </div>
         

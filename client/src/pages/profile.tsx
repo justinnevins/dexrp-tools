@@ -78,7 +78,7 @@ export default function Profile() {
       {/* Wallet Info */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <div className="flex items-center space-x-4 mb-4">
-          <div className="w-16 h-16 bg-[hsl(var(--xrpl-teal))] rounded-full flex items-center justify-center">
+          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
             <Wallet className="w-8 h-8 text-white" />
           </div>
           <div>

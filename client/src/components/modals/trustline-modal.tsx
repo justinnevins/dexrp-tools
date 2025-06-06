@@ -244,7 +244,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
 
               <Button
                 type="submit"
-                className="w-full bg-[hsl(var(--xrpl-teal))] hover:bg-[hsl(var(--xrpl-teal))]/90 text-white py-3 touch-target"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
                 disabled={!currency || !issuer || !issuerName || !limit || createTrustline.isPending}
               >
                 {createTrustline.isPending ? 'Creating...' : 'Create Trustline'}
