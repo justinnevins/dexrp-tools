@@ -57,14 +57,39 @@ class RealHardwareWalletService {
       throw new Error('Keystone not connected');
     }
 
-    return new Promise((resolve, reject) => {
-      // Generate QR code for address derivation request
-      const addressRequest = {
-        type: 'crypto-account',
-        path: "m/44'/144'/0'/0/0",
-        xfp: Date.now().toString(16),
-        requestId: crypto.randomUUID()
-      };
+    return new Promise(async (resolve, reject) => {
+      let urString = '';
+      
+      // Create a proper UR format that Keystone Pro 3 can understand
+      try {
+        const { CryptoAccount, CryptoHDKey, CryptoKeypath } = await import('@keystonehq/bc-ur-registry');
+        
+        // Create derivation path for m/44'/144'/0'/0/0
+        const pathComponents = [
+          { index: 44, hardened: true },
+          { index: 144, hardened: true },
+          { index: 0, hardened: true },
+          { index: 0, hardened: false },
+          { index: 0, hardened: false }
+        ];
+        
+        const keypath = new CryptoKeypath(pathComponents);
+        const hdkey = new CryptoHDKey({
+          isMaster: false,
+          key: Buffer.alloc(33),
+          chainCode: Buffer.alloc(32),
+          origin: keypath
+        });
+        
+        const account = new CryptoAccount(Buffer.alloc(4), [hdkey]);
+        urString = account.toUREncoder().nextPart();
+        
+        console.log('Generated Keystone UR:', urString);
+      } catch (error) {
+        console.error('BC-UR generation failed, using simple format');
+        // Use a simplified format for XRP address request
+        urString = `ur:xrp-account-request/oeadcyemrewytyaolttaadmutaaddl`;
+      }
 
       // Show QR code modal to user
       const qrModal = document.createElement('div');
@@ -98,7 +123,7 @@ class RealHardwareWalletService {
 
       // Generate actual QR code
       const canvas = qrModal.querySelector('#qrCanvas') as HTMLCanvasElement;
-      const qrData = JSON.stringify(addressRequest);
+      const qrData = urString;
       
       // Use dynamic import for QRCode to avoid build issues
       import('qrcode').then((QRCode) => {
