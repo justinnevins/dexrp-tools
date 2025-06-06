@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
+import QrScanner from 'qr-scanner';
 
 interface CameraScannerProps {
   onScan: (data: string) => void;
@@ -12,9 +13,11 @@ interface CameraScannerProps {
 
 export function CameraScanner({ onScan, onClose, title = "Scan QR Code", description = "Position the QR code within the camera view" }: CameraScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const scannerRef = useRef<QrScanner | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     initCamera();
@@ -47,6 +50,11 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
             setIsActive(true);
             setError(null);
             console.log('Video playing successfully');
+            
+            // Start QR scanner after video is playing
+            setTimeout(() => {
+              initQRScanner();
+            }, 500);
           }).catch(err => {
             console.error('Play failed:', err);
             setError('Failed to start video playback');
@@ -60,12 +68,59 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
     }
   };
 
+  const initQRScanner = () => {
+    if (!videoRef.current) return;
+
+    try {
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result) => {
+          console.log('QR Code detected:', result.data);
+          // Extract address from QR data - it might be a simple address or JSON
+          let address = result.data;
+          try {
+            const parsed = JSON.parse(result.data);
+            if (parsed.address) address = parsed.address;
+          } catch (e) {
+            // Use the raw data if it's not JSON
+          }
+          onScan(address);
+          cleanup();
+        },
+        {
+          highlightScanRegion: false,
+          highlightCodeOutline: false,
+          maxScansPerSecond: 3,
+          returnDetailedScanResult: true
+        }
+      );
+
+      scannerRef.current.start().then(() => {
+        setIsScanning(true);
+        console.log('QR scanner active');
+      }).catch(err => {
+        console.error('QR scanner failed:', err);
+        setError('QR scanner initialization failed');
+      });
+
+    } catch (err) {
+      console.error('QR scanner setup failed:', err);
+      setError('Failed to initialize QR scanner');
+    }
+  };
+
   const cleanup = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+      scannerRef.current.destroy();
+      scannerRef.current = null;
+    }
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
     }
     setStream(null);
     setIsActive(false);
+    setIsScanning(false);
   };
 
   const handleManualEntry = () => {
@@ -149,8 +204,12 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
               {/* Status and Controls */}
               {isActive ? (
                 <div className="space-y-2">
-                  <div className="text-center text-green-600 text-sm">
-                    ✓ Camera is active
+                  <div className="text-center text-sm">
+                    {isScanning ? (
+                      <span className="text-green-600">✓ Scanning for QR codes...</span>
+                    ) : (
+                      <span className="text-blue-600">✓ Camera active</span>
+                    )}
                   </div>
                   <Button onClick={handleManualEntry} variant="outline" className="w-full">
                     Enter Address Manually Instead
