@@ -52,16 +52,11 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       const connection = await connect(walletType);
       
       if (connection.connected) {
-        // For demonstration, create a wallet with a sample address
-        // In production, this would get the actual address from the device
-        const sampleAddresses = {
-          'Keystone Pro 3': 'rKeystonePro3Demo123456789ABC',
-          'Ledger': 'rLedgerDemo123456789ABCDEFGH',
-          'DCent': 'rDCentDemo123456789ABCDEFGH'
-        };
+        // Get the actual address from the hardware device
+        const address = await getAddress(walletType);
         
         await createWallet.mutateAsync({
-          address: sampleAddresses[walletType],
+          address,
           hardwareWalletType: walletType,
         });
         
@@ -70,6 +65,8 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
     } catch (error) {
       console.error('Connection failed:', error);
       setSelectedWallet(null);
+      // Show the actual error to user
+      alert(`Hardware wallet connection failed: ${error.message}`);
     }
   };
 

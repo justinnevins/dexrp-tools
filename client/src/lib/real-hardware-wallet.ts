@@ -57,19 +57,86 @@ class RealHardwareWalletService {
       throw new Error('Keystone not connected');
     }
 
-    // Generate QR code for address derivation request
-    const addressRequest = {
-      type: 'crypto-account',
-      path: "m/44'/144'/0'/0/0",
-      xfp: Date.now().toString(16),
-      requestId: crypto.randomUUID()
-    };
+    return new Promise((resolve, reject) => {
+      // Generate QR code for address derivation request
+      const addressRequest = {
+        type: 'crypto-account',
+        path: "m/44'/144'/0'/0/0",
+        xfp: Date.now().toString(16),
+        requestId: crypto.randomUUID()
+      };
 
-    // Display QR code for user to scan with Keystone device
-    console.log('QR Code Data for Keystone:', JSON.stringify(addressRequest));
-    
-    // User needs to scan this QR with their Keystone device, then scan the response QR
-    throw new Error('Scan the displayed QR code with your Keystone Pro 3, then scan the response QR code from your device');
+      // Show QR code modal to user
+      const qrModal = document.createElement('div');
+      qrModal.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+        justify-content: center; z-index: 10000;
+      `;
+      
+      qrModal.innerHTML = `
+        <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; max-width: 400px;">
+          <h3 style="margin-bottom: 1rem;">Scan with Keystone Pro 3</h3>
+          <div style="border: 2px dashed #ccc; padding: 2rem; margin: 1rem 0;">
+            <canvas id="qrCanvas" style="max-width: 250px; max-height: 250px;"></canvas>
+          </div>
+          <p style="margin: 1rem 0; color: #666; font-size: 14px;">
+            1. Scan this QR code with your Keystone Pro 3<br>
+            2. Complete the action on your device<br>
+            3. Enter the XRP address shown on your device below
+          </p>
+          <input type="text" id="keystoneAddress" placeholder="Enter XRP address from device" 
+                 style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px;">
+          <div style="margin-top: 1rem;">
+            <button id="confirmAddress" style="background: #006aff; color: white; padding: 8px 16px; border: none; border-radius: 4px; margin-right: 8px;">Confirm</button>
+            <button id="cancelAddress" style="background: #ccc; color: black; padding: 8px 16px; border: none; border-radius: 4px;">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(qrModal);
+
+      // Generate actual QR code
+      const canvas = qrModal.querySelector('#qrCanvas') as HTMLCanvasElement;
+      const qrData = JSON.stringify(addressRequest);
+      
+      // Use dynamic import for QRCode to avoid build issues
+      import('qrcode').then((QRCode) => {
+        QRCode.default.toCanvas(canvas, qrData, {
+          width: 250,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF'
+          }
+        });
+      }).catch(() => {
+        // Fallback if QR code generation fails
+        canvas.style.display = 'none';
+        const fallback = document.createElement('div');
+        fallback.innerHTML = `<p style="color: #666;">QR Code: ${qrData.substring(0, 50)}...</p>`;
+        canvas.parentNode?.appendChild(fallback);
+      });
+
+      const confirmBtn = qrModal.querySelector('#confirmAddress');
+      const cancelBtn = qrModal.querySelector('#cancelAddress');
+      const addressInput = qrModal.querySelector('#keystoneAddress') as HTMLInputElement;
+
+      confirmBtn?.addEventListener('click', () => {
+        const address = addressInput.value.trim();
+        if (address && address.startsWith('r') && address.length >= 25) {
+          document.body.removeChild(qrModal);
+          resolve(address);
+        } else {
+          alert('Please enter a valid XRP address starting with "r"');
+        }
+      });
+
+      cancelBtn?.addEventListener('click', () => {
+        document.body.removeChild(qrModal);
+        reject(new Error('Address entry cancelled'));
+      });
+    });
   }
 
   // Ledger - Real WebUSB Implementation
