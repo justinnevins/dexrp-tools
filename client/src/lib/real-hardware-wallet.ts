@@ -83,7 +83,8 @@ class RealHardwareWalletService {
             4. Enter the address below
           </p>
           <input type="text" id="keystoneAddress" placeholder="Enter XRP address from device" 
-                 style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px;">
+                 style="width: 100%; padding: 12px; margin: 8px 0; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; outline: none;"
+                 autocomplete="off" spellcheck="false">
           <div style="margin-top: 1rem;">
             <button id="confirmAddress" style="background: #006aff; color: white; padding: 8px 16px; border: none; border-radius: 4px; margin-right: 8px;">Confirm</button>
             <button id="cancelAddress" style="background: #ccc; color: black; padding: 8px 16px; border: none; border-radius: 4px;">Cancel</button>
@@ -112,6 +113,34 @@ class RealHardwareWalletService {
       const confirmBtn = qrModal.querySelector('#confirmAddress');
       const cancelBtn = qrModal.querySelector('#cancelAddress');
       const addressInput = qrModal.querySelector('#keystoneAddress') as HTMLInputElement;
+
+      // Focus the input field after modal is rendered
+      setTimeout(() => {
+        addressInput.focus();
+      }, 100);
+
+      // Add input event listeners for better UX
+      addressInput.addEventListener('input', () => {
+        const address = addressInput.value.trim();
+        if (address.startsWith('r') && address.length >= 25) {
+          addressInput.style.borderColor = '#4CAF50';
+        } else {
+          addressInput.style.borderColor = '#ddd';
+        }
+      });
+
+      // Allow Enter key to confirm
+      addressInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          const address = addressInput.value.trim();
+          if (address && address.startsWith('r') && address.length >= 25) {
+            document.body.removeChild(qrModal);
+            resolve(address);
+          } else {
+            alert('Please enter a valid XRP address starting with "r"');
+          }
+        }
+      });
 
       confirmBtn?.addEventListener('click', () => {
         const address = addressInput.value.trim();
