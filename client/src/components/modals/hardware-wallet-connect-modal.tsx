@@ -8,6 +8,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/hardware-wallet';
 import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal';
 import { QRScanner } from '@/components/qr-scanner';
+import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
 
 interface HardwareWalletConnectModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [availableWallets, setAvailableWallets] = useState<HardwareWalletType[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<HardwareWalletType | null>(null);
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
+  const [showKeystoneScanner, setShowKeystoneScanner] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const { connection, isConnecting, connect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
@@ -54,8 +56,8 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
     setSelectedWallet(walletType);
     
     if (walletType === 'Keystone Pro 3') {
-      // Show the React modal for Keystone address entry
-      setShowKeystoneModal(true);
+      // Show the proper Keystone account scanner
+      setShowKeystoneScanner(true);
       return;
     }
     
@@ -77,6 +79,27 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       console.error('Connection failed:', error);
       setSelectedWallet(null);
       alert(`Hardware wallet connection failed: ${error.message}`);
+    }
+  };
+
+  const handleKeystoneAccountScan = async (address: string, publicKey: string) => {
+    try {
+      console.log('Keystone account scanned:', { address, publicKey });
+      
+      await connect('Keystone Pro 3');
+      
+      await createWallet.mutateAsync({
+        address,
+        publicKey,
+        hardwareWalletType: 'Keystone Pro 3',
+      });
+      
+      setShowKeystoneScanner(false);
+      setSelectedWallet(null);
+      onClose();
+    } catch (error: any) {
+      console.error('Keystone connection failed:', error);
+      alert(`Keystone connection failed: ${error.message}`);
     }
   };
 
