@@ -216,16 +216,31 @@ class HardwareWalletService {
       const ledgerDevice = devices.find((d: any) => d.vendorId === 0x2c97);
       
       if (!ledgerDevice) {
-        throw new Error('Ledger device not found');
+        throw new Error('Ledger device not found. Please connect your Ledger and unlock it.');
       }
 
-      // For real implementation, this would send proper APDU commands
-      // Return address after user confirms on device
-      return new Promise((resolve, reject) => {
-        setTimeout(() => {
-          resolve('rLedgerDemo123456789ABCDEFGH');
-        }, 3000);
-      });
+      if (!ledgerDevice.opened) {
+        await ledgerDevice.open();
+      }
+
+      // Send actual APDU command to get XRP address
+      const getAddressAPDU = this.buildGetAddressAPDU(derivationPath);
+      
+      // Send command to Ledger device
+      const result = await ledgerDevice.transferOut(1, getAddressAPDU);
+      
+      if (result.status === 'ok') {
+        // In real implementation, this would parse the APDU response
+        // For now, prompt user to confirm address on device
+        const address = prompt('Please confirm the XRP address displayed on your Ledger device and enter it here:');
+        if (address) {
+          return address;
+        } else {
+          throw new Error('Address confirmation cancelled');
+        }
+      } else {
+        throw new Error('Failed to communicate with Ledger device');
+      }
     } catch (error) {
       console.error('Failed to get Ledger address:', error);
       throw error;

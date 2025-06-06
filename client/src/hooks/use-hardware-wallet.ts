@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { hardwareWalletService, type HardwareWalletType, type HardwareWalletConnection, type TransactionRequest, type SignedTransaction } from '@/lib/hardware-wallet';
+import { realHardwareWalletService as hardwareWalletService, type HardwareWalletType, type HardwareWalletConnection, type TransactionRequest, type SignedTransaction } from '@/lib/real-hardware-wallet';
 
 export function useHardwareWallet() {
   const [connection, setConnection] = useState<HardwareWalletConnection | null>(null);
