@@ -4,6 +4,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { xrplClient } from '@/lib/xrpl-client';
+import { useLocation } from 'wouter';
 
 interface WalletBalanceProps {
   onSendClick: () => void;

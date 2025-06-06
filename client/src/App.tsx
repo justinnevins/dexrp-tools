@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { MobileAppLayout } from "@/components/layout/mobile-app-layout";
 import Home from "@/pages/home";
+import Send from "@/pages/send";
 import Transactions from "@/pages/transactions";
 import Tokens from "@/pages/tokens";
 import Profile from "@/pages/profile";
@@ -15,6 +16,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/send" component={Send} />
       <Route path="/transactions" component={Transactions} />
       <Route path="/tokens" component={Tokens} />
       <Route path="/profile" component={Profile} />
