@@ -43,66 +43,29 @@ export default function Profile() {
   // Handle push notification permission
   const handleNotificationToggle = async (enabled: boolean) => {
     if (enabled) {
-      if ('Notification' in window) {
-        // Check current permission status
-        if (Notification.permission === 'granted') {
-          setNotifications(true);
-          notificationService.enable();
-          if (currentWallet?.address) {
-            notificationService.startTransactionMonitoring(currentWallet.address);
-          }
-          toast({
-            title: "Notifications Enabled",
-            description: "You'll receive transaction alerts",
-          });
-          return;
-        }
-
-        // Request permission if not already granted
-        try {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            setNotifications(true);
-            notificationService.enable();
-            if (currentWallet?.address) {
-              notificationService.startTransactionMonitoring(currentWallet.address);
-            }
-            toast({
-              title: "Notifications Enabled",
-              description: "You'll receive transaction alerts",
-            });
-          } else {
-            // Enable demo mode for environments where notifications are restricted
-            setNotifications(true);
-            localStorage.setItem('notifications_enabled', 'true');
-            toast({
-              title: "Notifications Enabled",
-              description: "Demo mode - notifications would appear here",
-            });
-          }
-        } catch (error) {
-          // Fallback to demo mode
-          setNotifications(true);
-          localStorage.setItem('notifications_enabled', 'true');
-          toast({
-            title: "Notifications Enabled", 
-            description: "Demo mode - notifications simulated",
-          });
-        }
-      } else {
-        // Fallback for unsupported browsers
+      try {
+        await notificationService.enable();
         setNotifications(true);
-        localStorage.setItem('notifications_enabled', 'true');
+        
+        if (currentWallet?.address) {
+          notificationService.startTransactionMonitoring(currentWallet.address);
+        }
+        
         toast({
           title: "Notifications Enabled",
-          description: "Demo mode - browser notifications not supported",
+          description: "You'll receive transaction alerts",
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to enable notifications';
+        toast({
+          title: "Permission Required",
+          description: errorMessage,
+          variant: "destructive",
         });
       }
     } else {
       setNotifications(false);
       notificationService.disable();
-      notificationService.stopTransactionMonitoring();
-      localStorage.setItem('notifications_enabled', 'false');
       toast({
         title: "Notifications Disabled",
         description: "Transaction alerts turned off",
@@ -114,42 +77,18 @@ export default function Profile() {
   const handleBiometricToggle = async (enabled: boolean) => {
     if (enabled) {
       try {
-        const isAvailable = await biometricService.isAvailable();
-        if (!isAvailable) {
-          // Fallback: simulate biometric setup for demo purposes
-          setBiometric(true);
-          localStorage.setItem('biometric_enabled', 'true');
-          toast({
-            title: "Biometric Auth Enabled",
-            description: "Demo mode - biometric authentication simulated",
-          });
-          return;
-        }
-
-        // Try to register real biometric authentication
-        const success = await biometricService.register();
-        if (success) {
-          setBiometric(true);
-          toast({
-            title: "Biometric Auth Enabled",
-            description: "Use fingerprint or face unlock for security",
-          });
-        } else {
-          // Fallback to demo mode
-          setBiometric(true);
-          localStorage.setItem('biometric_enabled', 'true');
-          toast({
-            title: "Biometric Auth Enabled",
-            description: "Demo mode - authentication feature activated",
-          });
-        }
-      } catch (error) {
-        // Fallback to demo mode even on error
+        await biometricService.register();
         setBiometric(true);
-        localStorage.setItem('biometric_enabled', 'true');
         toast({
           title: "Biometric Auth Enabled",
-          description: "Demo mode - biometric authentication simulated",
+          description: "Use fingerprint or face unlock for security",
+        });
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to enable biometric authentication';
+        toast({
+          title: "Setup Failed",
+          description: errorMessage,
+          variant: "destructive",
         });
       }
     } else {

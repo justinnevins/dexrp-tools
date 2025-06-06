@@ -8,64 +8,70 @@ class BiometricService {
   }
 
   async isAvailable(): Promise<boolean> {
-    if (!('PublicKeyCredential' in window)) {
+    if (!window.PublicKeyCredential) {
       return false;
     }
 
     try {
-      const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
       return available;
     } catch {
       return false;
     }
   }
 
-  async register(): Promise<boolean> {
-    if (!(await this.isAvailable())) {
-      throw new Error('Biometric authentication not available');
+  async register(): Promise<void> {
+    const isAvailable = await this.isAvailable();
+    if (!isAvailable) {
+      throw new Error('Biometric authentication is not available on this device');
     }
 
     try {
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
-      const userId = crypto.getRandomValues(new Uint8Array(16));
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
 
-      const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
-        challenge,
-        rp: { 
-          name: "XRPL Wallet",
-          id: location.hostname
+      const userId = new Uint8Array(32);
+      window.crypto.getRandomValues(userId);
+
+      const createCredentialOptions: CredentialCreationOptions = {
+        publicKey: {
+          challenge,
+          rp: {
+            name: "XRPL Wallet",
+            id: window.location.hostname,
+          },
+          user: {
+            id: userId,
+            name: "wallet-user",
+            displayName: "Wallet User",
+          },
+          pubKeyCredParams: [
+            { alg: -7, type: "public-key" }, // ES256
+            { alg: -257, type: "public-key" }, // RS256
+          ],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required",
+            requireResidentKey: false,
+          },
+          timeout: 60000,
+          attestation: "none",
         },
-        user: {
-          id: userId,
-          name: "user",
-          displayName: "Wallet User",
-        },
-        pubKeyCredParams: [{ alg: -7, type: "public-key" }],
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          userVerification: "preferred"
-        },
-        timeout: 60000,
-        attestation: "none",
       };
 
-      const credential = await navigator.credentials.create({
-        publicKey: publicKeyCredentialCreationOptions,
-      }) as PublicKeyCredential;
+      const credential = await navigator.credentials.create(createCredentialOptions) as PublicKeyCredential;
 
-      if (credential) {
-        // Store the credential ID as base64
-        this.credentialId = credential.id;
-        this.isEnabled = true;
-        localStorage.setItem('biometric_enabled', 'true');
-        localStorage.setItem('biometric_credential_id', this.credentialId);
-        return true;
+      if (!credential) {
+        throw new Error('Failed to create credential');
       }
 
-      return false;
+      this.credentialId = credential.id;
+      this.isEnabled = true;
+      localStorage.setItem('biometric_enabled', 'true');
+      localStorage.setItem('biometric_credential_id', credential.id);
     } catch (error) {
       console.error('Biometric registration failed:', error);
-      throw new Error('Failed to register biometric authentication');
+      throw new Error('Failed to register biometric authentication. Please try again.');
     }
   }
 
@@ -74,29 +80,30 @@ class BiometricService {
       throw new Error('Biometric authentication not set up');
     }
 
-    if (!(await this.isAvailable())) {
-      throw new Error('Biometric authentication not available');
+    const isAvailable = await this.isAvailable();
+    if (!isAvailable) {
+      throw new Error('Biometric authentication is not available');
     }
 
     try {
-      const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const challenge = new Uint8Array(32);
+      window.crypto.getRandomValues(challenge);
 
-      const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
-        challenge,
-        allowCredentials: [
-          {
-            id: new TextEncoder().encode(this.credentialId),
-            type: "public-key",
-          },
-        ],
-        userVerification: "preferred",
-        timeout: 60000,
+      const getCredentialOptions: CredentialRequestOptions = {
+        publicKey: {
+          challenge,
+          allowCredentials: [
+            {
+              id: new TextEncoder().encode(this.credentialId),
+              type: "public-key",
+            },
+          ],
+          userVerification: "required",
+          timeout: 60000,
+        },
       };
 
-      const assertion = await navigator.credentials.get({
-        publicKey: publicKeyCredentialRequestOptions,
-      });
-
+      const assertion = await navigator.credentials.get(getCredentialOptions);
       return assertion !== null;
     } catch (error) {
       console.error('Biometric authentication failed:', error);
@@ -120,8 +127,8 @@ class BiometricService {
     return this.isEnabled && this.credentialId !== null;
   }
 
-  getBiometricStatus(): 'available' | 'not-supported' | 'not-setup' | 'enabled' {
-    if (!('PublicKeyCredential' in window)) {
+  getStatus(): 'available' | 'not-supported' | 'not-setup' | 'enabled' {
+    if (!window.PublicKeyCredential) {
       return 'not-supported';
     }
     

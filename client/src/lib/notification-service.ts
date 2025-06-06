@@ -9,34 +9,44 @@ class NotificationService {
 
   async requestPermission(): Promise<boolean> {
     if (!('Notification' in window)) {
-      return false;
+      throw new Error('This browser does not support desktop notifications');
+    }
+
+    if (Notification.permission === 'granted') {
+      return true;
+    }
+
+    if (Notification.permission === 'denied') {
+      throw new Error('Notifications are blocked. Please enable them in browser settings.');
     }
 
     const permission = await Notification.requestPermission();
-    return permission === 'granted';
+    if (permission === 'granted') {
+      return true;
+    } else if (permission === 'denied') {
+      throw new Error('Notification permission was denied');
+    } else {
+      throw new Error('Notification permission was dismissed');
+    }
   }
 
-  enable() {
+  async enable(): Promise<void> {
+    await this.requestPermission();
     this.isEnabled = true;
     localStorage.setItem('notifications_enabled', 'true');
     
-    // Show a test notification to confirm it's working
-    setTimeout(() => {
-      this.showNotification('XRPL Wallet', {
-        body: 'Notifications enabled successfully',
-        icon: '/favicon.ico',
-        tag: 'test-notification'
-      });
-    }, 1000);
+    // Show confirmation notification
+    this.showNotification('XRPL Wallet', {
+      body: 'Push notifications enabled successfully',
+      icon: '/favicon.ico',
+      tag: 'notification-enabled'
+    });
   }
 
   disable() {
     this.isEnabled = false;
     localStorage.setItem('notifications_enabled', 'false');
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-      this.monitoringInterval = null;
-    }
+    this.stopTransactionMonitoring();
   }
 
   isNotificationEnabled(): boolean {
@@ -45,13 +55,13 @@ class NotificationService {
 
   showNotification(title: string, options: NotificationOptions = {}) {
     if (!this.isNotificationEnabled()) {
-      return;
+      return null;
     }
 
     const notification = new Notification(title, {
       icon: '/favicon.ico',
       badge: '/favicon.ico',
-      requireInteraction: true,
+      requireInteraction: false,
       ...options,
     });
 
@@ -84,23 +94,20 @@ class NotificationService {
     return address;
   }
 
-  // Monitor transactions for a specific wallet address
   startTransactionMonitoring(walletAddress: string) {
     if (!this.isNotificationEnabled() || this.monitoringInterval) {
       return;
     }
 
-    // Initialize transaction count
-    this.initializeTransactionCount(walletAddress);
+    this.initializeTransactionCount();
 
     // Check for new transactions every 30 seconds
     this.monitoringInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/transactions`);
+        const response = await fetch('/api/transactions');
         if (response.ok) {
           const transactions = await response.json();
           
-          // Check if there are new transactions
           if (transactions.length > this.previousTransactionCount) {
             const newTransactions = transactions.slice(0, transactions.length - this.previousTransactionCount);
             
@@ -118,12 +125,12 @@ class NotificationService {
       } catch (error) {
         console.error('Error monitoring transactions:', error);
       }
-    }, 30000); // Check every 30 seconds
+    }, 30000);
   }
 
-  private async initializeTransactionCount(walletAddress: string) {
+  private async initializeTransactionCount() {
     try {
-      const response = await fetch(`/api/transactions`);
+      const response = await fetch('/api/transactions');
       if (response.ok) {
         const transactions = await response.json();
         this.previousTransactionCount = transactions.length;
