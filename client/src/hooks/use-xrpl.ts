@@ -39,14 +39,20 @@ export function useXRPL() {
       setIsConnected(true);
       
       // Clear all XRPL-related cache when switching networks
-      queryClient.removeQueries({ queryKey: ['accountInfo'] });
-      queryClient.removeQueries({ queryKey: ['accountTransactions'] });
-      queryClient.removeQueries({ queryKey: ['accountLines'] });
+      queryClient.removeQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key === 'accountInfo' || key === 'accountTransactions' || key === 'accountLines';
+        }
+      });
       
-      // Also invalidate to trigger fresh fetches
-      queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
-      queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
-      queryClient.invalidateQueries({ queryKey: ['accountLines'] });
+      // Force fresh data fetch for the new network
+      queryClient.invalidateQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return key === 'accountInfo' || key === 'accountTransactions' || key === 'accountLines';
+        }
+      });
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to switch network');

@@ -18,8 +18,14 @@ class XRPLClient {
 
   async connect(): Promise<void> {
     if (!this.isConnected) {
-      await this.client.connect();
-      this.isConnected = true;
+      try {
+        await this.client.connect();
+        this.isConnected = true;
+      } catch (error) {
+        console.error('Failed to connect to XRPL:', error);
+        this.isConnected = false;
+        throw error;
+      }
     }
   }
 
@@ -33,15 +39,26 @@ class XRPLClient {
   async switchNetwork(network: XRPLNetwork): Promise<void> {
     if (network === this.currentNetwork) return;
     
-    // Disconnect from current network
-    await this.disconnect();
-    
-    // Create new client with different endpoint
-    this.client = new Client(this.networkEndpoints[network]);
-    this.currentNetwork = network;
-    
-    // Reconnect to new network
-    await this.connect();
+    try {
+      // Disconnect from current network
+      await this.disconnect();
+      
+      // Wait a moment to ensure clean disconnect
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Create new client with different endpoint
+      this.client = new Client(this.networkEndpoints[network]);
+      this.currentNetwork = network;
+      this.isConnected = false;
+      
+      // Reconnect to new network
+      await this.connect();
+    } catch (error) {
+      console.error('Error switching networks:', error);
+      // Reset state on error
+      this.isConnected = false;
+      throw error;
+    }
   }
 
   getCurrentNetwork(): XRPLNetwork {
