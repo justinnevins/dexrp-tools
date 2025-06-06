@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useWallet } from '@/hooks/use-wallet';
-import { useXRPL } from '@/hooks/use-xrpl';
+import { useXRPL, useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { NetworkSettings } from '@/components/network-settings';
 import { useState } from 'react';
@@ -17,12 +17,34 @@ export default function Profile() {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
+  
+  // Fetch real balance from XRPL
+  const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null);
 
   const formatAddress = (address: string) => {
     if (address.length > 16) {
       return `${address.slice(0, 8)}...${address.slice(-8)}`;
     }
     return address;
+  };
+
+  const getDisplayBalance = () => {
+    if (loadingAccountInfo) return "Loading...";
+    if (!accountInfo) return "0";
+    
+    // Check if account is not found (not activated)
+    if ('account_not_found' in accountInfo) {
+      return "0 (Not activated)";
+    }
+    
+    // Get balance from XRPL account data
+    if ('account_data' in accountInfo && accountInfo.account_data?.Balance) {
+      const balanceInDrops = accountInfo.account_data.Balance;
+      const balanceInXRP = parseInt(balanceInDrops) / 1000000; // Convert drops to XRP
+      return balanceInXRP.toFixed(6).replace(/\.?0+$/, ''); // Remove trailing zeros
+    }
+    
+    return "0";
   };
 
   const handleDisconnectWallet = async () => {
