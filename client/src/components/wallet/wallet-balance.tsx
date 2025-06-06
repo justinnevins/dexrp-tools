@@ -1,0 +1,78 @@
+import { ArrowUp, ArrowDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useWallet } from '@/hooks/use-wallet';
+import { useAccountInfo } from '@/hooks/use-xrpl';
+import { xrplClient } from '@/lib/xrpl-client';
+
+interface WalletBalanceProps {
+  onSendClick: () => void;
+  onReceiveClick: () => void;
+}
+
+export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
+  const { currentWallet } = useWallet();
+  const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
+
+  const balance = accountInfo?.account_data?.Balance 
+    ? xrplClient.formatXRPAmount(accountInfo.account_data.Balance)
+    : currentWallet?.balance || '0';
+    
+  const reservedBalance = accountInfo?.account_data?.OwnerCount 
+    ? ((accountInfo.account_data.OwnerCount * 2) + 10).toString()
+    : currentWallet?.reservedBalance || '20';
+
+  const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
+  const usdValue = (parseFloat(balance) * 0.50).toFixed(2); // Mock USD conversion rate
+
+  if (isLoading) {
+    return (
+      <section className="px-4 py-6 xrpl-gradient text-white">
+        <div className="text-center mb-6 animate-pulse">
+          <div className="h-4 bg-white/20 rounded w-24 mx-auto mb-2"></div>
+          <div className="h-8 bg-white/20 rounded w-32 mx-auto mb-1"></div>
+          <div className="h-4 bg-white/20 rounded w-20 mx-auto"></div>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="px-4 py-6 xrpl-gradient text-white">
+      <div className="text-center mb-6">
+        <p className="text-sm opacity-90 mb-2">Total Balance</p>
+        <h2 className="text-3xl font-bold mb-1">{balance} XRP</h2>
+        <p className="text-sm opacity-75">≈ ${usdValue} USD</p>
+      </div>
+      
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+          <p className="text-xs opacity-75 mb-1">Available</p>
+          <p className="font-semibold">{availableBalance} XRP</p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
+          <p className="text-xs opacity-75 mb-1">Reserved</p>
+          <p className="font-semibold">{reservedBalance} XRP</p>
+        </div>
+      </div>
+
+      <div className="flex space-x-3">
+        <Button
+          onClick={onSendClick}
+          className="flex-1 bg-white/20 backdrop-blur-sm hover:bg-white/30 border-0 rounded-xl py-3 px-4 touch-target"
+          variant="ghost"
+        >
+          <ArrowUp className="w-4 h-4 mr-2" />
+          Send
+        </Button>
+        <Button
+          onClick={onReceiveClick}
+          className="flex-1 bg-white/20 backdrop-blur-sm hover:bg-white/30 border-0 rounded-xl py-3 px-4 touch-target"
+          variant="ghost"
+        >
+          <ArrowDown className="w-4 h-4 mr-2" />
+          Receive
+        </Button>
+      </div>
+    </section>
+  );
+}
