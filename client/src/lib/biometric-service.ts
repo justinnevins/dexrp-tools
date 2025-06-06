@@ -27,21 +27,25 @@ class BiometricService {
 
     try {
       const challenge = crypto.getRandomValues(new Uint8Array(32));
+      const userId = crypto.getRandomValues(new Uint8Array(16));
 
       const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
         challenge,
-        rp: { name: "XRPL Wallet" },
+        rp: { 
+          name: "XRPL Wallet",
+          id: location.hostname
+        },
         user: {
-          id: crypto.getRandomValues(new Uint8Array(16)),
+          id: userId,
           name: "user",
           displayName: "Wallet User",
         },
         pubKeyCredParams: [{ alg: -7, type: "public-key" }],
         authenticatorSelection: {
-          userVerification: "preferred",
-          residentKey: "preferred",
+          authenticatorAttachment: "platform",
+          userVerification: "preferred"
         },
-        timeout: 30000,
+        timeout: 60000,
         attestation: "none",
       };
 
@@ -50,10 +54,11 @@ class BiometricService {
       }) as PublicKeyCredential;
 
       if (credential) {
+        // Store the credential ID as base64
         this.credentialId = credential.id;
         this.isEnabled = true;
         localStorage.setItem('biometric_enabled', 'true');
-        localStorage.setItem('biometric_credential_id', credential.id);
+        localStorage.setItem('biometric_credential_id', this.credentialId);
         return true;
       }
 
@@ -80,12 +85,12 @@ class BiometricService {
         challenge,
         allowCredentials: [
           {
-            id: Uint8Array.from(atob(this.credentialId), c => c.charCodeAt(0)),
+            id: new TextEncoder().encode(this.credentialId),
             type: "public-key",
           },
         ],
         userVerification: "preferred",
-        timeout: 30000,
+        timeout: 60000,
       };
 
       const assertion = await navigator.credentials.get({
