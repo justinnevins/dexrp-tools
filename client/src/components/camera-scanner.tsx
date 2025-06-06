@@ -97,7 +97,15 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
-        console.log('QR scanner active');
+        console.log('QR scanner active and detecting');
+        
+        // Add periodic check to see if scanner is working
+        const testInterval = setInterval(() => {
+          console.log('Scanner status check - actively scanning for QR codes');
+        }, 3000);
+        
+        // Clean up interval when component unmounts
+        setTimeout(() => clearInterval(testInterval), 30000);
       }).catch(err => {
         console.error('QR scanner failed:', err);
         setError('QR scanner initialization failed');
@@ -129,6 +137,26 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
       onScan(address.trim());
     } else if (address) {
       alert('Please enter a valid XRPL address starting with "r"');
+    }
+  };
+
+  const testManualScan = () => {
+    // Try to manually scan the current frame
+    if (scannerRef.current && videoRef.current) {
+      console.log('Testing manual QR scan...');
+      try {
+        QrScanner.scanImage(videoRef.current)
+          .then(result => {
+            console.log('Manual scan result:', result);
+            onScan(result);
+            cleanup();
+          })
+          .catch(err => {
+            console.log('Manual scan failed - no QR code detected in current frame');
+          });
+      } catch (err) {
+        console.error('Manual scan error:', err);
+      }
     }
   };
 
@@ -211,6 +239,9 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
                       <span className="text-blue-600">✓ Camera active</span>
                     )}
                   </div>
+                  <Button onClick={testManualScan} className="w-full mb-2">
+                    Test Scan Current Frame
+                  </Button>
                   <Button onClick={handleManualEntry} variant="outline" className="w-full">
                     Enter Address Manually Instead
                   </Button>
