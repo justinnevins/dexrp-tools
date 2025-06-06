@@ -57,39 +57,9 @@ class RealHardwareWalletService {
       throw new Error('Keystone not connected');
     }
 
-    return new Promise(async (resolve, reject) => {
-      let urString = '';
-      
-      // Create a proper UR format that Keystone Pro 3 can understand
-      try {
-        const { CryptoAccount, CryptoHDKey, CryptoKeypath } = await import('@keystonehq/bc-ur-registry');
-        
-        // Create derivation path for m/44'/144'/0'/0/0
-        const pathComponents = [
-          { index: 44, hardened: true },
-          { index: 144, hardened: true },
-          { index: 0, hardened: true },
-          { index: 0, hardened: false },
-          { index: 0, hardened: false }
-        ];
-        
-        const keypath = new CryptoKeypath(pathComponents);
-        const hdkey = new CryptoHDKey({
-          isMaster: false,
-          key: Buffer.alloc(33),
-          chainCode: Buffer.alloc(32),
-          origin: keypath
-        });
-        
-        const account = new CryptoAccount(Buffer.alloc(4), [hdkey]);
-        urString = account.toUREncoder().nextPart();
-        
-        console.log('Generated Keystone UR:', urString);
-      } catch (error) {
-        console.error('BC-UR generation failed, using simple format');
-        // Use a simplified format for XRP address request
-        urString = `ur:xrp-account-request/oeadcyemrewytyaolttaadmutaaddl`;
-      }
+    return new Promise((resolve, reject) => {
+      // For now, provide manual entry workflow
+      // The proper Keystone UR format requires specific protocol implementation
 
       // Show QR code modal to user
       const qrModal = document.createElement('div');
@@ -106,9 +76,11 @@ class RealHardwareWalletService {
             <canvas id="qrCanvas" style="max-width: 250px; max-height: 250px;"></canvas>
           </div>
           <p style="margin: 1rem 0; color: #666; font-size: 14px;">
-            1. Scan this QR code with your Keystone Pro 3<br>
-            2. Complete the action on your device<br>
-            3. Enter the XRP address shown on your device below
+            To connect your Keystone Pro 3:<br>
+            1. Go to your Keystone Pro 3 device<br>
+            2. Navigate to XRP > Accounts<br>
+            3. Copy the XRP address for path m/44'/144'/0'/0/0<br>
+            4. Enter the address below
           </p>
           <input type="text" id="keystoneAddress" placeholder="Enter XRP address from device" 
                  style="width: 100%; padding: 8px; margin: 8px 0; border: 1px solid #ccc; border-radius: 4px;">
@@ -121,27 +93,21 @@ class RealHardwareWalletService {
 
       document.body.appendChild(qrModal);
 
-      // Generate actual QR code
+      // Hide QR canvas for now and show instructions
       const canvas = qrModal.querySelector('#qrCanvas') as HTMLCanvasElement;
-      const qrData = urString;
+      canvas.style.display = 'none';
       
-      // Use dynamic import for QRCode to avoid build issues
-      import('qrcode').then((QRCode) => {
-        QRCode.default.toCanvas(canvas, qrData, {
-          width: 250,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        });
-      }).catch(() => {
-        // Fallback if QR code generation fails
-        canvas.style.display = 'none';
-        const fallback = document.createElement('div');
-        fallback.innerHTML = `<p style="color: #666;">QR Code: ${qrData.substring(0, 50)}...</p>`;
-        canvas.parentNode?.appendChild(fallback);
-      });
+      const instructions = document.createElement('div');
+      instructions.innerHTML = `
+        <div style="text-align: center; padding: 2rem; background: #f5f5f5; border-radius: 8px;">
+          <h4 style="margin-bottom: 1rem; color: #333;">Manual Address Entry</h4>
+          <p style="color: #666; margin-bottom: 1rem;">
+            Current QR code format compatibility is being implemented.<br>
+            Please manually enter your XRP address from your Keystone Pro 3.
+          </p>
+        </div>
+      `;
+      canvas.parentNode?.appendChild(instructions);
 
       const confirmBtn = qrModal.querySelector('#confirmAddress');
       const cancelBtn = qrModal.querySelector('#cancelAddress');
