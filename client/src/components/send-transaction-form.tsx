@@ -117,25 +117,45 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      // According to Keystone docs: "put the transaction json into the UR Bytes"
+      // Create JSON transaction
       const jsonTransaction = JSON.stringify(xrpTransaction);
       console.log('Transaction JSON for Keystone:', jsonTransaction);
       
-      // Convert JSON to hex for UR encoding
+      // Convert JSON to bytes
       const jsonBytes = new TextEncoder().encode(jsonTransaction);
-      const jsonHex = Array.from(jsonBytes)
+      const jsonLength = jsonBytes.length;
+      
+      console.log('JSON length:', jsonLength, 'bytes');
+      
+      // Create proper CBOR encoding as done by Keystone SDK
+      let cborHeader;
+      if (jsonLength <= 255) {
+        // Single byte length: 0x58 + length
+        cborHeader = new Uint8Array([0x58, jsonLength]);
+      } else {
+        // Two byte length: 0x59 + length (big endian)
+        cborHeader = new Uint8Array([0x59, (jsonLength >> 8) & 0xFF, jsonLength & 0xFF]);
+      }
+      
+      // Combine CBOR header with JSON data
+      const cborData = new Uint8Array(cborHeader.length + jsonLength);
+      cborData.set(cborHeader, 0);
+      cborData.set(jsonBytes, cborHeader.length);
+      
+      // Convert to hex
+      const cborHex = Array.from(cborData)
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      // Use ur:bytes format as specified in Keystone documentation
-      const urString = `ur:bytes/${jsonHex}`;
-      console.log('Keystone UR format (JSON):', urString.substring(0, 60) + '...');
-      console.log('JSON transaction length:', jsonBytes.length, 'bytes');
+      const urString = `ur:bytes/${cborHex}`;
+      console.log('Keystone CBOR format:', urString.substring(0, 60) + '...');
+      console.log('CBOR total length:', cborData.length, 'bytes');
+      console.log('CBOR header:', Array.from(cborHeader).map(b => '0x' + b.toString(16)).join(' '));
       
       return urString;
       
     } catch (error) {
-      console.error('Keystone JSON encoding failed:', error);
+      console.error('Keystone CBOR encoding failed:', error);
       throw new Error('Failed to encode transaction for Keystone Pro 3');
     }
   };
