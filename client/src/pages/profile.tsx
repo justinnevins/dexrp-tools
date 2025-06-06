@@ -4,12 +4,17 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { useWallet } from '@/hooks/use-wallet';
 import { useXRPL } from '@/hooks/use-xrpl';
+import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { NetworkSettings } from '@/components/network-settings';
 import { useState } from 'react';
+import { queryClient } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Profile() {
   const { currentWallet } = useWallet();
   const { isConnected, currentNetwork, switchNetwork } = useXRPL();
+  const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState(true);
   const [biometric, setBiometric] = useState(true);
 
@@ -18,6 +23,39 @@ export default function Profile() {
       return `${address.slice(0, 8)}...${address.slice(-8)}`;
     }
     return address;
+  };
+
+  const handleDisconnectWallet = async () => {
+    try {
+      // Disconnect hardware wallet
+      await disconnectHardwareWallet();
+      
+      // Clear all cached XRPL data
+      queryClient.removeQueries({ 
+        predicate: (query) => {
+          const key = query.queryKey[0] as string;
+          return ['accountInfo', 'accountTransactions', 'accountLines', 'wallets'].includes(key);
+        }
+      });
+      
+      // Clear local storage if any
+      localStorage.removeItem('currentWallet');
+      
+      toast({
+        title: "Wallet Disconnected",
+        description: "Successfully disconnected wallet and cleared all data",
+      });
+      
+      // Refresh the page to reset all state
+      window.location.reload();
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
+      toast({
+        title: "Disconnect Failed",
+        description: "Failed to disconnect wallet completely",
+        variant: "destructive",
+      });
+    }
   };
 
   const profileSettings = [
@@ -177,6 +215,7 @@ export default function Profile() {
         <h3 className="font-semibold text-red-800 dark:text-red-200 mb-4">Danger Zone</h3>
         
         <Button
+          onClick={handleDisconnectWallet}
           variant="outline"
           className="w-full border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 touch-target"
         >
