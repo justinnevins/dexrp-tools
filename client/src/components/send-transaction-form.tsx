@@ -95,28 +95,31 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Create the most compact possible format for Keystone Pro 3
-    // Try pipe-delimited format which is much shorter than JSON
-    const parts = [
-      transaction.Destination,
-      transaction.Amount.toString(), 
-      transaction.Fee.toString(),
-      transaction.Sequence.toString()
-    ];
+    // Try the actual Keystone Pro 3 format based on their documentation
+    // Use minimal transaction object for XRPL
+    const txObject = {
+      Account: currentWallet.address,
+      TransactionType: 'Payment',
+      Destination: transaction.Destination,
+      Amount: transaction.Amount.toString(),
+      Fee: transaction.Fee.toString(),
+      Sequence: transaction.Sequence
+    };
     
     // Add destination tag if present
     if (transaction.DestinationTag) {
-      parts.push(transaction.DestinationTag.toString());
+      txObject.DestinationTag = transaction.DestinationTag;
     }
     
-    // Create pipe-delimited string
-    const compactString = parts.join('|');
+    // Convert to hex string format that Keystone expects
+    const txJson = JSON.stringify(txObject);
+    const hexBytes = [];
+    for (let i = 0; i < txJson.length; i++) {
+      hexBytes.push(txJson.charCodeAt(i).toString(16).padStart(2, '0'));
+    }
+    const hexString = hexBytes.join('');
     
-    // Base64 encode for even more compactness
-    const base64Data = btoa(compactString);
-    
-    // Try the simplest possible format
-    return `xrp:${base64Data}`;
+    return `ur:xrp-sign-request/${hexString}`;
   };
 
   const onSubmit = async (data: TransactionFormData) => {
