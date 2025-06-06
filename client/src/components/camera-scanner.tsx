@@ -78,7 +78,7 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] p-4">
       <Card className="w-full max-w-md bg-white">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
