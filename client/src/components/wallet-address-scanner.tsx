@@ -13,11 +13,14 @@ interface WalletAddressScannerProps {
 
 export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Address", description = "Use your camera to scan the QR code or enter manually" }: WalletAddressScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
+  const frameAnalysisRef = useRef<number | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [detectionAttempts, setDetectionAttempts] = useState(0);
 
   useEffect(() => {
     initCamera();
@@ -67,6 +70,55 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
     }
   };
 
+  const startCanvasAnalysis = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const analyzeFrame = () => {
+      if (!videoRef.current || !canvasRef.current) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx || video.readyState < 2) {
+        frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+        return;
+      }
+
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+
+      // Draw current video frame to canvas
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      try {
+        // Use QrScanner to scan the canvas
+        QrScanner.scanImage(canvas).then(result => {
+          console.log('Canvas QR detection found:', result);
+          const qrData = typeof result === 'string' ? result : String(result);
+          
+          if (qrData && qrData.startsWith('r') && qrData.length >= 25 && qrData.length <= 34) {
+            console.log('Valid XRPL address from canvas analysis:', qrData);
+            onScan(qrData);
+            cleanup();
+            return;
+          }
+        }).catch(() => {
+          // No QR code found in this frame, continue
+          setDetectionAttempts(prev => prev + 1);
+        });
+      } catch (err) {
+        // Continue analysis even if this frame fails
+      }
+
+      frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+    };
+
+    frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+    console.log('Canvas-based QR analysis started');
+  };
+
   const startQRDetection = () => {
     if (!videoRef.current) return;
 
@@ -74,7 +126,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result: any) => {
-          console.log('QR Code detected in video feed:', result);
+          console.log('QR Code detected via QrScanner:', result);
           
           // Handle the result data
           const qrData = typeof result === 'string' ? result : String(result);
@@ -89,24 +141,51 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
             console.log('QR detected but not a valid XRPL address:', qrData);
             // Continue scanning for valid address
           }
+        },
+        {
+          returnDetailedScanResult: true,
+          maxScansPerSecond: 8,
+          highlightScanRegion: true,
+          highlightCodeOutline: true
         }
       );
+
+      // Set additional options for better detection
+      if (scannerRef.current) {
+        scannerRef.current.setInversionMode('both');
+      }
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
         console.log('QR scanner actively processing video feed');
+        
+        // Start fallback canvas analysis
+        setTimeout(() => {
+          startCanvasAnalysis();
+        }, 2000);
+        
       }).catch(err => {
         console.error('QR scanner failed to start:', err);
         setError('QR detection failed to initialize');
+        
+        // Use canvas analysis as fallback
+        startCanvasAnalysis();
       });
 
     } catch (err) {
       console.error('QR scanner setup error:', err);
       setError('Failed to setup QR detection');
+      
+      // Use canvas analysis as fallback
+      startCanvasAnalysis();
     }
   };
 
   const cleanup = () => {
+    if (frameAnalysisRef.current) {
+      cancelAnimationFrame(frameAnalysisRef.current);
+      frameAnalysisRef.current = null;
+    }
     if (scannerRef.current) {
       scannerRef.current.stop();
       scannerRef.current.destroy();
@@ -163,12 +242,12 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
             </div>
           ) : (
             <div className="space-y-4">
-              {/* Camera View */}
+              {/* Camera View - Square for QR codes */}
               <div 
-                className="relative border-2 border-gray-300 rounded-lg overflow-hidden"
+                className="relative border-2 border-gray-300 rounded-lg overflow-hidden mx-auto"
                 style={{ 
-                  width: '100%', 
-                  height: '200px',
+                  width: '280px', 
+                  height: '280px',
                   backgroundColor: '#000'
                 }}
               >
@@ -204,6 +283,12 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
                   </div>
                 )}
               </div>
+
+              {/* Hidden canvas for QR analysis */}
+              <canvas
+                ref={canvasRef}
+                style={{ display: 'none' }}
+              />
 
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
