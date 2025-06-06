@@ -95,41 +95,28 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Create Keystone Pro 3 compatible QR format
-    // Based on actual Keystone device requirements for XRPL
-    const keystonePayload = {
-      type: 'xrp-sign-request',
-      requestId: crypto.randomUUID().replace(/-/g, ''),
-      signData: {
-        TransactionType: 'Payment',
-        Flags: 0,
-        Sequence: transaction.Sequence,
-        DestinationTag: transaction.DestinationTag || undefined,
-        LastLedgerSequence: transaction.LastLedgerSequence || undefined,
-        Amount: transaction.Amount.toString(),
-        Fee: transaction.Fee.toString(),
-        SendMax: transaction.Amount.toString(),
-        Account: currentWallet.address,
-        Destination: transaction.Destination,
-        Memos: transaction.Memos || undefined
-      },
-      derivationPath: "44'/144'/0'/0/0",
-      address: currentWallet.address,
-      origin: 'XRPL Wallet'
-    };
+    // Create the most compact possible format for Keystone Pro 3
+    // Try pipe-delimited format which is much shorter than JSON
+    const parts = [
+      transaction.Destination,
+      transaction.Amount.toString(), 
+      transaction.Fee.toString(),
+      transaction.Sequence.toString()
+    ];
     
-    // Remove undefined values to clean up the payload
-    const cleanPayload = JSON.parse(JSON.stringify(keystonePayload));
+    // Add destination tag if present
+    if (transaction.DestinationTag) {
+      parts.push(transaction.DestinationTag.toString());
+    }
     
-    // Create UR format that Keystone Pro 3 recognizes
-    const jsonString = JSON.stringify(cleanPayload);
-    const bytes = new TextEncoder().encode(jsonString);
-    const hexString = Array.from(bytes)
-      .map(byte => byte.toString(16).padStart(2, '0'))
-      .join('');
+    // Create pipe-delimited string
+    const compactString = parts.join('|');
     
-    // Use proper UR scheme for Keystone compatibility
-    return `ur:xrp-sign-request/${hexString}`;
+    // Base64 encode for even more compactness
+    const base64Data = btoa(compactString);
+    
+    // Try the simplest possible format
+    return `xrp:${base64Data}`;
   };
 
   const onSubmit = async (data: TransactionFormData) => {
