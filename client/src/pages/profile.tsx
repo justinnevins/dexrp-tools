@@ -27,6 +27,9 @@ export default function Profile() {
 
   const handleDisconnectWallet = async () => {
     try {
+      // Disconnect hardware wallet first
+      await disconnectHardwareWallet();
+      
       // Clear server-side data
       await fetch('/api/wallets', { method: 'DELETE' });
       
@@ -39,23 +42,24 @@ export default function Profile() {
       // Clear all query cache
       queryClient.clear();
       
+      // Invalidate all queries to force refetch
+      await queryClient.invalidateQueries();
+      
       // Show confirmation toast
       toast({
         title: "Wallet Disconnected",
         description: "All data cleared, reloading application...",
       });
       
-      // Force page reload after brief delay
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // Force immediate page reload
+      window.location.href = '/';
     } catch (error) {
       console.error('Error clearing server data:', error);
       // Still proceed with local cleanup
       localStorage.clear();
       localStorage.setItem('xrpl_target_network', 'mainnet');
       queryClient.clear();
-      window.location.reload();
+      window.location.href = '/';
     }
   };
 
