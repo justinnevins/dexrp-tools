@@ -29,34 +29,20 @@ export function useXRPL() {
   }, []);
 
   const switchNetwork = async (network: XRPLNetwork) => {
+    if (network === currentNetwork) return;
+    
     try {
-      setError(null);
-      setIsConnected(false);
+      // Store the target network in localStorage for persistence
+      localStorage.setItem('xrpl_target_network', network);
       
+      // Perform the network switch
       await xrplClient.switchNetwork(network);
       
-      setCurrentNetwork(network);
-      setIsConnected(true);
-      
-      // Clear all XRPL-related cache when switching networks
-      queryClient.removeQueries({ 
-        predicate: (query) => {
-          const key = query.queryKey[0] as string;
-          return key === 'accountInfo' || key === 'accountTransactions' || key === 'accountLines';
-        }
-      });
-      
-      // Force fresh data fetch for the new network
-      queryClient.invalidateQueries({ 
-        predicate: (query) => {
-          const key = query.queryKey[0] as string;
-          return key === 'accountInfo' || key === 'accountTransactions' || key === 'accountLines';
-        }
-      });
-      
+      // Refresh the page to ensure clean state
+      window.location.reload();
     } catch (err) {
+      console.error('Network switch failed:', err);
       setError(err instanceof Error ? err.message : 'Failed to switch network');
-      setIsConnected(false);
     }
   };
 

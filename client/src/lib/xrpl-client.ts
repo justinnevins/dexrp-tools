@@ -5,7 +5,7 @@ export type XRPLNetwork = 'mainnet' | 'testnet';
 class XRPLClient {
   private client: Client | null = null;
   private isConnected: boolean = false;
-  private currentNetwork: XRPLNetwork = 'mainnet';
+  private currentNetwork: XRPLNetwork;
   private connectionPromise: Promise<void> | null = null;
 
   private networkEndpoints = {
@@ -14,6 +14,8 @@ class XRPLClient {
   };
 
   constructor() {
+    // Read stored network preference or default to mainnet
+    this.currentNetwork = (localStorage.getItem('xrpl_target_network') as XRPLNetwork) || 'mainnet';
     this.initializeClient();
   }
 
