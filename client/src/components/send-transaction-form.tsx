@@ -92,21 +92,29 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Create Keystone-compatible signing request
-    const requestData = JSON.stringify({
-      currency: 'XRP',
-      transaction: transaction,
-      derivationPath: "m/44'/144'/0'/0/0"
-    });
-    
-    const signingRequest = {
-      type: 'crypto-psbt',
-      cbor: new TextEncoder().encode(requestData).reduce((hex, byte) => 
-        hex + byte.toString(16).padStart(2, '0'), ''),
-      requestId: Date.now().toString()
+    // Create proper Keystone Pro 3 XRPL transaction QR
+    // Using the correct format that matches Keystone's XRPL implementation
+    const xrpSignRequest = {
+      requestId: Date.now().toString(),
+      intention: 'xrp-sign-request',
+      coinType: 144, // XRP coin type
+      derivationPath: "m/44'/144'/0'/0/0",
+      address: currentWallet.address,
+      transaction: {
+        fee: transaction.Fee,
+        sequence: transaction.Sequence,
+        payment: {
+          destination: transaction.Destination,
+          amount: transaction.Amount,
+          ...(transaction.DestinationTag && { destinationTag: transaction.DestinationTag })
+        }
+      }
     };
-
-    return JSON.stringify(signingRequest);
+    
+    // Encode as base64 for QR code
+    const qrData = btoa(JSON.stringify(xrpSignRequest));
+    
+    return `keystone://xrp-sign/${qrData}`;
   };
 
   const onSubmit = async (data: TransactionFormData) => {
