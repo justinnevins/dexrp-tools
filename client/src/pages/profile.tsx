@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { notificationService } from '@/lib/notification-service';
+import { biometricService } from '@/lib/biometric-service';
 
 export default function Profile() {
   const { currentWallet } = useWallet();
@@ -78,44 +79,45 @@ export default function Profile() {
   // Handle biometric authentication
   const handleBiometricToggle = async (enabled: boolean) => {
     if (enabled) {
-      if ('PublicKeyCredential' in window && 'navigator' in window && 'credentials' in navigator) {
-        try {
-          // Check if biometric authentication is available
-          const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-          if (available) {
-            setBiometric(true);
-            localStorage.setItem('biometric_enabled', 'true');
-            toast({
-              title: "Biometric Auth Enabled",
-              description: "Use fingerprint or face unlock for security",
-            });
-          } else {
-            toast({
-              title: "Not Available",
-              description: "Biometric authentication not available on this device",
-              variant: "destructive",
-            });
-          }
-        } catch (error) {
+      try {
+        const isAvailable = await biometricService.isAvailable();
+        if (!isAvailable) {
+          toast({
+            title: "Not Available",
+            description: "Biometric authentication not available on this device",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Register biometric authentication
+        const success = await biometricService.register();
+        if (success) {
+          setBiometric(true);
+          toast({
+            title: "Biometric Auth Enabled",
+            description: "Use fingerprint or face unlock for security",
+          });
+        } else {
           toast({
             title: "Setup Failed",
             description: "Could not enable biometric authentication",
             variant: "destructive",
           });
         }
-      } else {
+      } catch (error) {
         toast({
-          title: "Not Supported",
-          description: "Biometric authentication not supported in this browser",
+          title: "Setup Failed",
+          description: error instanceof Error ? error.message : "Could not enable biometric authentication",
           variant: "destructive",
         });
       }
     } else {
       setBiometric(false);
-      localStorage.setItem('biometric_enabled', 'false');
+      biometricService.disable();
       toast({
         title: "Biometric Auth Disabled",
-        description: "Password authentication will be used",
+        description: "Standard authentication will be used",
       });
     }
   };
