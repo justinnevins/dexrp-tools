@@ -15,6 +15,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const { currentWallet } = useWallet();
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
+  const [, setLocation] = useLocation();
 
   // Handle account not found on XRPL network (new/unactivated addresses)
   if (accountInfo && 'account_not_found' in accountInfo) {
@@ -104,9 +105,10 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
 
       <div className="flex space-x-3">
         <Button
-          onClick={onSendClick}
+          onClick={() => setLocation('/send')}
           className="flex-1 bg-white/20 backdrop-blur-sm hover:bg-white/30 border-0 rounded-xl py-3 px-4 touch-target"
           variant="ghost"
+          disabled={parseFloat(availableBalance) <= 0}
         >
           <ArrowUp className="w-4 h-4 mr-2" />
           Send

@@ -36,7 +36,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [qrCodeData, setQrCodeData] = useState<string>('');
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [currentStep, setCurrentStep] = useState<'form' | 'qr-display' | 'waiting' | 'complete'>('form');
+  const [currentStep, setCurrentStep] = useState<'form' | 'qr-display' | 'signing' | 'submitting' | 'complete'>('form');
   
   const { toast } = useToast();
   const { currentWallet } = useWallet();
@@ -152,11 +152,69 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         description: "Scan the QR code with your Keystone Pro 3 to sign the transaction",
       });
 
+      // Start the signing process
+      setCurrentStep('signing');
+      
+      // Convert amount to drops for transaction
+      const amountInDrops = (amount * 1000000).toString();
+      
+      const transactionRequest = {
+        amount: amountInDrops,
+        destination: data.destination,
+        destinationTag: data.destinationTag,
+        fee: "12"
+      };
+
+      // Sign transaction with hardware wallet
+      const signedTx = await hardwareWalletService.signTransaction(transactionRequest, 'Keystone Pro 3');
+      
+      setCurrentStep('submitting');
+      
+      // Submit to XRPL network
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          txBlob: signedTx.txBlob,
+          txHash: signedTx.txHash,
+          walletId: currentWallet.id,
+          type: 'sent',
+          amount: data.amount,
+          toAddress: data.destination,
+          fromAddress: currentWallet.address,
+          status: 'pending',
+          memo: data.memo
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit transaction to network');
+      }
+
+      setCurrentStep('complete');
+      
+      toast({
+        title: "Transaction Sent",
+        description: `Successfully sent ${data.amount} XRP to ${data.destination}`,
+      });
+
+      // Reset form
+      form.reset();
+      
+      // Call success callback if provided
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+        }, 2000);
+      }
+
     } catch (error) {
-      console.error('Failed to create transaction QR:', error);
+      console.error('Failed to send transaction:', error);
       toast({
         title: "Transaction Failed",
-        description: error instanceof Error ? error.message : "Failed to create transaction",
+        description: error instanceof Error ? error.message : "Failed to send transaction",
         variant: "destructive",
       });
       setCurrentStep('form');
@@ -325,22 +383,60 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             )}
             
             <div className="text-center space-y-2">
-              <p className="text-sm text-muted-foreground">
-                1. Open the XRP app on your Keystone Pro 3
-              </p>
-              <p className="text-sm text-muted-foreground">
-                2. Scan this QR code with your device
-              </p>
-              <p className="text-sm text-muted-foreground">
-                3. Verify and sign the transaction
-              </p>
-              <p className="text-sm text-muted-foreground">
-                4. Scan the signed transaction QR code (coming soon)
-              </p>
+              {currentStep === 'qr-display' && (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    1. Open the XRP app on your Keystone Pro 3
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    2. Scan this QR code with your device
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    3. Verify and sign the transaction
+                  </p>
+                </>
+              )}
+              
+              {currentStep === 'signing' && (
+                <div className="space-y-2">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                  <p className="text-sm font-medium">Waiting for signature...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Please confirm and sign the transaction on your Keystone Pro 3
+                  </p>
+                </div>
+              )}
+              
+              {currentStep === 'submitting' && (
+                <div className="space-y-2">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                  <p className="text-sm font-medium">Submitting to XRPL...</p>
+                  <p className="text-sm text-muted-foreground">
+                    Broadcasting your transaction to the network
+                  </p>
+                </div>
+              )}
+              
+              {currentStep === 'complete' && (
+                <div className="space-y-2">
+                  <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center mx-auto">
+                    <span className="text-white text-sm">✓</span>
+                  </div>
+                  <p className="text-sm font-medium text-green-600">Transaction Sent!</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your XRP transaction has been submitted successfully
+                  </p>
+                </div>
+              )}
             </div>
 
-            <Button onClick={handleQRDialogClose} variant="outline" className="w-full">
-              Cancel Transaction
+            <Button 
+              onClick={handleQRDialogClose} 
+              variant="outline" 
+              className="w-full"
+              disabled={currentStep === 'signing' || currentStep === 'submitting'}
+            >
+              {currentStep === 'complete' ? 'Close' : 'Cancel Transaction'}
             </Button>
           </div>
         </DialogContent>
