@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Send, QrCode, Loader2, AlertCircle } from 'lucide-react';
+import { Send, QrCode, Loader2, AlertCircle, CheckCircle, Camera } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
+import { SimpleQRScanner } from '@/components/simple-qr-scanner';
 import QRCode from 'qrcode';
 
 const transactionSchema = z.object({
@@ -501,6 +502,16 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* QR Scanner for Signed Transaction Response */}
+      {showSignedQRScanner && (
+        <SimpleQRScanner
+          onScan={handleSignedQRScan}
+          onClose={() => setShowSignedQRScanner(false)}
+          title="Scan Signed Transaction"
+          description="Scan the signed transaction QR code from your Keystone Pro 3 device"
+        />
+      )}
     </>
   );
 }
