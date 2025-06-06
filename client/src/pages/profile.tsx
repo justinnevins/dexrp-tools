@@ -82,7 +82,7 @@ export default function Profile() {
     }
   };
 
-  const profileSettings: any[] = [];
+
 
 
 
