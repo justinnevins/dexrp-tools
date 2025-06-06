@@ -38,6 +38,14 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
       scannerRef.current.destroy();
       scannerRef.current = null;
     }
+    
+    // Clean up video stream
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    
     setIsScanning(false);
   };
 
@@ -74,9 +82,24 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
     }
 
     try {
-      console.log('Starting QR scanner...');
+      console.log('Starting camera stream...');
       
-      // Create scanner instance
+      // First get the camera stream and display it
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        }
+      });
+      
+      // Set the stream to the video element
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      
+      console.log('Camera feed started, initializing QR scanner...');
+      
+      // Now create the QR scanner
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result) => {
@@ -87,19 +110,20 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
         {
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          preferredCamera: 'environment',
-          maxScansPerSecond: 5
+          maxScansPerSecond: 5,
+          returnDetailedScanResult: true
         }
       );
 
-      // Start scanning
+      // Start QR scanning (but don't start camera again since we already have the stream)
       await scannerRef.current.start();
       setIsScanning(true);
+      setHasPermission(true);
       setError(null);
-      console.log('QR scanner started successfully');
+      console.log('QR scanner started successfully with visible feed');
 
     } catch (err) {
-      console.error('Failed to start QR scanner:', err);
+      console.error('Failed to start camera/scanner:', err);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
           setError('Camera permission denied. Please allow camera access and try again.');
@@ -146,6 +170,13 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
                   className="w-full h-64 bg-black rounded-lg object-cover"
                   playsInline
                   muted
+                  autoPlay
+                  style={{ 
+                    transform: 'scaleX(-1)',
+                    display: 'block',
+                    width: '100%',
+                    height: '256px'
+                  }}
                 />
                 {!isScanning && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
