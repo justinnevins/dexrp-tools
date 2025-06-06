@@ -96,9 +96,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }),
     };
 
-    // Use proper XRPL binary encoding for Keystone Pro 3
-    // Create the transaction object in XRPL format
-    const xrplTransaction = {
+    // Based on Keystone documentation research, create proper format
+    const xrplTransaction: any = {
       TransactionType: 'Payment',
       Account: currentWallet.address,
       Destination: transaction.Destination,
@@ -114,39 +113,43 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     }
     
     try {
-      // Encode transaction using XRPL's official binary codec
+      // Create proper XRPL binary transaction blob
       const txBlob = encode(xrplTransaction);
       console.log('XRPL transaction blob:', txBlob);
       
       // Convert hex string to bytes
-      const binaryTx = new Uint8Array(txBlob.match(/.{2}/g).map(byte => parseInt(byte, 16)));
+      const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
       
-      // Create CBOR wrapper for the binary transaction
-      const cborPayload = new Uint8Array(2 + binaryTx.length);
-      cborPayload[0] = 0x58; // CBOR bytes type
-      cborPayload[1] = binaryTx.length; // Length
-      cborPayload.set(binaryTx, 2); // Binary transaction data
-      
-      // Convert to hex for UR
-      const hexString = Array.from(cborPayload)
+      // According to Keystone docs, use simple hex encoding without CBOR wrapper
+      // for single-part UR that fits in one QR code
+      const hexString = Array.from(binaryTx)
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      console.log('CBOR wrapped transaction hex:', hexString);
-      console.log('Original XRPL blob length:', binaryTx.length);
+      console.log('Raw transaction hex:', hexString);
+      console.log('Transaction length:', binaryTx.length, 'bytes');
       
+      // Try the documented Keystone Pro 3 format
       return `ur:xrp-sign-request/${hexString}`;
       
     } catch (error) {
-      console.error('Failed to encode XRPL transaction:', error);
+      console.error('XRPL encoding failed:', error);
       
-      // Fallback to simple JSON format if binary encoding fails
-      const fallbackPayload = JSON.stringify(xrplTransaction);
-      const fallbackHex = Array.from(new TextEncoder().encode(fallbackPayload))
+      // Fallback: create minimal transaction representation
+      const minimalTx = {
+        Account: currentWallet.address,
+        Destination: transaction.Destination,
+        Amount: transaction.Amount.toString(),
+        Fee: transaction.Fee.toString(),
+        Sequence: transaction.Sequence
+      };
+      
+      const jsonString = JSON.stringify(minimalTx);
+      const jsonHex = Array.from(new TextEncoder().encode(jsonString))
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      return `ur:xrp-tx/${fallbackHex}`;
+      return `ur:xrp-tx/${jsonHex}`;
     }
   };
 
