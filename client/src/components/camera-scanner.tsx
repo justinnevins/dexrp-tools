@@ -140,23 +140,47 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
     }
   };
 
-  const testManualScan = () => {
-    // Try to manually scan the current frame
-    if (scannerRef.current && videoRef.current) {
-      console.log('Testing manual QR scan...');
-      try {
-        QrScanner.scanImage(videoRef.current)
-          .then(result => {
-            console.log('Manual scan result:', result);
-            onScan(result);
+  const testManualScan = async () => {
+    if (!videoRef.current) return;
+    
+    console.log('Testing manual QR scan...');
+    
+    try {
+      // Create a canvas to capture the current video frame
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const video = videoRef.current;
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      if (ctx) {
+        ctx.drawImage(video, 0, 0);
+        
+        // Try to scan the canvas image
+        try {
+          const result = await QrScanner.scanImage(canvas);
+          console.log('Manual scan success:', result);
+          onScan(result);
+          cleanup();
+        } catch (scanErr) {
+          console.log('No QR code detected in current frame');
+          
+          // Also try scanning the video element directly
+          try {
+            const videoResult = await QrScanner.scanImage(video);
+            console.log('Video scan success:', videoResult);
+            onScan(videoResult);
             cleanup();
-          })
-          .catch(err => {
-            console.log('Manual scan failed - no QR code detected in current frame');
-          });
-      } catch (err) {
-        console.error('Manual scan error:', err);
+          } catch (videoErr) {
+            console.log('No QR code found in video element either');
+            alert('No QR code detected. Make sure the QR code is clearly visible and well-lit.');
+          }
+        }
       }
+    } catch (err) {
+      console.error('Manual scan error:', err);
+      alert('Scan failed. Please try manual entry instead.');
     }
   };
 
@@ -239,11 +263,16 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
                       <span className="text-blue-600">✓ Camera active</span>
                     )}
                   </div>
-                  <Button onClick={testManualScan} className="w-full mb-2">
-                    Test Scan Current Frame
-                  </Button>
-                  <Button onClick={handleManualEntry} variant="outline" className="w-full">
-                    Enter Address Manually Instead
+                  <div className="bg-blue-50 p-3 rounded-lg text-center mb-2">
+                    <p className="text-sm text-blue-700 mb-2">
+                      QR scanning is active but may have difficulty with this display.
+                    </p>
+                    <p className="text-xs text-blue-600">
+                      Use manual entry below for reliable connection.
+                    </p>
+                  </div>
+                  <Button onClick={handleManualEntry} className="w-full">
+                    Enter Wallet Address
                   </Button>
                 </div>
               ) : (
