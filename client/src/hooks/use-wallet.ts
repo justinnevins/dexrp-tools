@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
+import { browserStorage } from '@/lib/browser-storage';
 import type { Wallet, Transaction, Trustline, Escrow } from '@shared/schema';
 
 export function useWallet() {
@@ -8,7 +9,9 @@ export function useWallet() {
   const queryClient = useQueryClient();
 
   const walletsQuery = useQuery<Wallet[]>({
-    queryKey: ['/api/wallets'],
+    queryKey: ['browser-wallets'],
+    queryFn: () => Promise.resolve(browserStorage.getAllWallets()),
+    staleTime: 0,
   });
 
   useEffect(() => {
