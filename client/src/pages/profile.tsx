@@ -158,7 +158,7 @@ export default function Profile() {
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div className="bg-muted rounded-lg p-3 text-center">
             <p className="text-sm text-muted-foreground mb-1">Balance</p>
-            <p className="font-semibold">{currentWallet?.balance || '0'} XRP</p>
+            <p className="font-semibold">{getDisplayBalance()} XRP</p>
           </div>
           <div className="bg-muted rounded-lg p-3 text-center">
             <p className="text-sm text-muted-foreground mb-1">Network</p>
@@ -166,7 +166,7 @@ export default function Profile() {
               <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
                 isConnected ? 'bg-green-500' : 'bg-red-500'
               }`} />
-              {isConnected ? 'Testnet' : 'Disconnected'}
+              {isConnected ? currentNetwork.charAt(0).toUpperCase() + currentNetwork.slice(1) : 'Disconnected'}
             </p>
           </div>
         </div>

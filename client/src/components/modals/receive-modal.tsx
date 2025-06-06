@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Copy, Share2, QrCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
 
@@ -65,6 +65,9 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
               <X className="w-4 h-4" />
             </Button>
           </div>
+          <DialogDescription className="sr-only">
+            Share your XRP address with others to receive payments.
+          </DialogDescription>
         </DialogHeader>
         
         <div className="pt-4 text-center pb-6">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Shield, Usb, QrCode, Globe, CheckCircle, Loader2 } from 'lucide-react';
@@ -113,6 +113,9 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
             <Shield className="w-5 h-5 text-primary" />
             <span>Connect Hardware Wallet</span>
           </DialogTitle>
+          <DialogDescription>
+            Select and connect your hardware wallet for secure transaction signing.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-6">
