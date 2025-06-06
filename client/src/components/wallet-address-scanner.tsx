@@ -159,10 +159,8 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
         setIsScanning(true);
         console.log('QR scanner actively processing video feed');
         
-        // Start fallback canvas analysis
-        setTimeout(() => {
-          startCanvasAnalysis();
-        }, 2000);
+        // Start fallback canvas analysis immediately
+        startCanvasAnalysis();
         
       }).catch(err => {
         console.error('QR scanner failed to start:', err);
