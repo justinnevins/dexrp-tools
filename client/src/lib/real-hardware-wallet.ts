@@ -273,7 +273,7 @@ class RealHardwareWalletService {
       this.currentConnection = connection;
       return connection;
     } catch (error) {
-      if (error.message.includes('fetch')) {
+      if (error instanceof Error && error.message.includes('fetch')) {
         throw new Error('Install DCent Bridge from https://bridge.dcentwallet.com/ and ensure it\'s running');
       }
       throw error;
@@ -307,7 +307,7 @@ class RealHardwareWalletService {
         throw new Error('No address returned from DCent device');
       }
     } catch (error) {
-      throw new Error(`DCent address retrieval failed: ${error.message}`);
+      throw new Error(`DCent address retrieval failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 

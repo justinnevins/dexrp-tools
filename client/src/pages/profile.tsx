@@ -110,32 +110,7 @@ export default function Profile() {
     },
   ];
 
-  const accountActions = [
-    {
-      icon: Wallet,
-      title: 'Wallet Management',
-      description: 'Add or remove wallets',
-      onClick: () => {},
-    },
-    {
-      icon: Shield,
-      title: 'Security Settings',
-      description: 'Hardware wallet and backup',
-      onClick: () => {},
-    },
-    {
-      icon: Globe,
-      title: 'Network Settings',
-      description: 'Mainnet, Testnet configuration',
-      onClick: () => {},
-    },
-    {
-      icon: Settings,
-      title: 'App Preferences',
-      description: 'Currency, language, theme',
-      onClick: () => {},
-    },
-  ];
+
 
   return (
     <div className="px-4 py-6">
@@ -208,34 +183,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Account Actions */}
-      <div className="bg-white dark:bg-card border border-border rounded-xl p-4 mb-6">
-        <h3 className="font-semibold mb-4">Account</h3>
-        
-        <div className="space-y-2">
-          {accountActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <Button
-                key={index}
-                onClick={action.onClick}
-                variant="ghost"
-                className="w-full justify-start h-auto p-3 touch-target"
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-medium">{action.title}</p>
-                    <p className="text-sm text-muted-foreground">{action.description}</p>
-                  </div>
-                </div>
-              </Button>
-            );
-          })}
-        </div>
-      </div>
+
 
       {/* Danger Zone */}
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
