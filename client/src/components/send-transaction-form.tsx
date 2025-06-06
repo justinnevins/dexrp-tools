@@ -113,7 +113,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     }
     
     try {
-      // Create proper XRPL binary transaction blob
+      // Create XRPL binary transaction blob
       const txBlob = encode(xrplTransaction);
       console.log('XRPL transaction blob:', txBlob);
       
@@ -121,55 +121,69 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
       console.log('Transaction length:', binaryTx.length, 'bytes');
       
-      // Create CBOR map format that Keystone expects
-      // Based on Keystone's actual implementation: { 1: binary_transaction }
-      const cborMap = new Uint8Array(4 + binaryTx.length);
-      cborMap[0] = 0xA1; // CBOR map with 1 key-value pair
-      cborMap[1] = 0x01; // Key: 1
-      cborMap[2] = 0x58; // CBOR bytes type
-      cborMap[3] = binaryTx.length; // Length
-      cborMap.set(binaryTx, 4); // Binary transaction data
+      // Test Format 1: CBOR tagged value (tag 1) - Keystone standard
+      const taggedCbor = new Uint8Array(3 + binaryTx.length);
+      taggedCbor[0] = 0xC1; // CBOR tag 1
+      taggedCbor[1] = 0x58; // CBOR bytes type
+      taggedCbor[2] = binaryTx.length; // Length
+      taggedCbor.set(binaryTx, 3); // Binary transaction data
       
-      // Convert to hex
-      const cborHex = Array.from(cborMap)
+      const taggedHex = Array.from(taggedCbor)
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      const format1 = `ur:xrp-sign/${cborHex}`;
-      console.log('Testing CBOR Format - ur:xrp-sign/', format1.substring(0, 50) + '...');
+      const format1 = `ur:xrp-sign/${taggedHex}`;
+      console.log('Testing CBOR tagged format:', format1.substring(0, 50) + '...');
       
       return format1;
       
     } catch (error) {
-      console.error('CBOR encoding failed:', error);
+      console.error('CBOR tagged encoding failed:', error);
       
-      // Try direct hex format without CBOR wrapper
+      // Test Format 2: Simple UR with crypto-sign type
       try {
         const txBlob = encode(xrplTransaction);
-        const format2 = `ur:xrp-tx/${txBlob}`;
-        console.log('Testing direct hex - ur:xrp-tx/', format2.substring(0, 50) + '...');
+        const format2 = `ur:crypto-sign/${txBlob}`;
+        console.log('Testing crypto-sign format:', format2.substring(0, 50) + '...');
         return format2;
       } catch (e) {
-        console.error('Direct hex encoding failed:', e);
+        console.error('Crypto-sign encoding failed:', e);
         
-        // Final fallback: JSON format
-        const jsonTx = {
-          TransactionType: 'Payment',
-          Account: currentWallet.address,
-          Destination: transaction.Destination,
-          Amount: transaction.Amount.toString(),
-          Fee: transaction.Fee.toString(),
-          Sequence: transaction.Sequence
-        };
-        
-        const jsonString = JSON.stringify(jsonTx);
-        const jsonHex = Array.from(new TextEncoder().encode(jsonString))
-          .map(byte => byte.toString(16).padStart(2, '0'))
-          .join('');
-        
-        const format3 = `ur:xrp-sign-request/${jsonHex}`;
-        console.log('Final fallback - JSON hex:', format3.substring(0, 50) + '...');
-        return format3;
+        // Test Format 3: CBOR map with string key "transaction"
+        try {
+          const txBlob = encode(xrplTransaction);
+          const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+          
+          // Create CBOR map: {"transaction": binary_data}
+          const transactionKey = new TextEncoder().encode('transaction');
+          const cborMapWithStr = new Uint8Array(2 + transactionKey.length + 2 + binaryTx.length);
+          
+          let offset = 0;
+          cborMapWithStr[offset++] = 0xA1; // CBOR map with 1 pair
+          cborMapWithStr[offset++] = 0x6B; // Text string, 11 bytes ("transaction")
+          cborMapWithStr.set(transactionKey, offset);
+          offset += transactionKey.length;
+          cborMapWithStr[offset++] = 0x58; // CBOR bytes type
+          cborMapWithStr[offset++] = binaryTx.length; // Length
+          cborMapWithStr.set(binaryTx, offset);
+          
+          const mapHex = Array.from(cborMapWithStr)
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('');
+          
+          const format3 = `ur:xrp-sign/${mapHex}`;
+          console.log('Testing CBOR map format:', format3.substring(0, 50) + '...');
+          return format3;
+          
+        } catch (e2) {
+          console.error('CBOR map encoding failed:', e2);
+          
+          // Final fallback: Plain transaction hex
+          const txBlob = encode(xrplTransaction);
+          const format4 = `ur:xrp-tx/${txBlob}`;
+          console.log('Final fallback - plain hex:', format4.substring(0, 50) + '...');
+          return format4;
+        }
       }
     }
   };
