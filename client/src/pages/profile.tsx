@@ -29,6 +29,9 @@ export default function Profile() {
     // Clear all local storage data
     localStorage.clear();
     
+    // Set network back to mainnet as default
+    localStorage.setItem('xrpl_target_network', 'mainnet');
+    
     // Clear all query cache
     queryClient.clear();
     
