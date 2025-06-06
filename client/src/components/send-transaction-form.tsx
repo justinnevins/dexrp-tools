@@ -117,26 +117,23 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       const txBlob = encode(xrplTransaction);
       console.log('XRPL transaction blob:', txBlob);
       
-      // Convert hex string to bytes
-      const binaryTx = new Uint8Array(txBlob.match(/.{2}/g)!.map(byte => parseInt(byte, 16)));
+      // Convert hex string to bytes for length calculation
+      const binaryLength = txBlob.length / 2;
+      console.log('Transaction length:', binaryLength, 'bytes');
       
-      // According to Keystone docs, use simple hex encoding without CBOR wrapper
-      // for single-part UR that fits in one QR code
-      const hexString = Array.from(binaryTx)
-        .map(byte => byte.toString(16).padStart(2, '0'))
-        .join('');
+      // Test Format 1: Direct binary hex - ur:bytes/{hex}
+      // This is the most common Keystone format for raw transaction data
+      const format1 = `ur:bytes/${txBlob}`;
+      console.log('Testing Format 1 - ur:bytes/', format1.substring(0, 50) + '...');
       
-      console.log('Raw transaction hex:', hexString);
-      console.log('Transaction length:', binaryTx.length, 'bytes');
-      
-      // Try the documented Keystone Pro 3 format
-      return `ur:xrp-sign-request/${hexString}`;
+      return format1;
       
     } catch (error) {
-      console.error('XRPL encoding failed:', error);
+      console.error('XRPL binary encoding failed:', error);
       
-      // Fallback: create minimal transaction representation
-      const minimalTx = {
+      // Fallback Format 2: JSON hex encoding
+      const jsonTx = {
+        TransactionType: 'Payment',
         Account: currentWallet.address,
         Destination: transaction.Destination,
         Amount: transaction.Amount.toString(),
@@ -144,12 +141,15 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         Sequence: transaction.Sequence
       };
       
-      const jsonString = JSON.stringify(minimalTx);
+      const jsonString = JSON.stringify(jsonTx);
       const jsonHex = Array.from(new TextEncoder().encode(jsonString))
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      return `ur:xrp-tx/${jsonHex}`;
+      const format2 = `ur:xrp-sign-request/${jsonHex}`;
+      console.log('Using Fallback Format 2 - JSON hex:', format2.substring(0, 50) + '...');
+      
+      return format2;
     }
   };
 
