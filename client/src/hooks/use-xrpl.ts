@@ -28,22 +28,12 @@ export function useXRPL() {
     };
   }, []);
 
-  const switchNetwork = async (network: XRPLNetwork) => {
+  const switchNetwork = (network: XRPLNetwork) => {
     if (network === currentNetwork) return;
     
-    try {
-      // Store the target network in localStorage for persistence
-      localStorage.setItem('xrpl_target_network', network);
-      
-      // Perform the network switch
-      await xrplClient.switchNetwork(network);
-      
-      // Refresh the page to ensure clean state
-      window.location.reload();
-    } catch (err) {
-      console.error('Network switch failed:', err);
-      setError(err instanceof Error ? err.message : 'Failed to switch network');
-    }
+    // Store network preference and reload immediately
+    localStorage.setItem('xrpl_target_network', network);
+    window.location.reload();
   };
 
   return {

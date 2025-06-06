@@ -25,37 +25,23 @@ export default function Profile() {
     return address;
   };
 
-  const handleDisconnectWallet = async () => {
-    try {
-      // Disconnect hardware wallet
-      await disconnectHardwareWallet();
-      
-      // Clear all cached XRPL data
-      queryClient.removeQueries({ 
-        predicate: (query) => {
-          const key = query.queryKey[0] as string;
-          return ['accountInfo', 'accountTransactions', 'accountLines', 'wallets'].includes(key);
-        }
-      });
-      
-      // Clear local storage if any
-      localStorage.removeItem('currentWallet');
-      
-      toast({
-        title: "Wallet Disconnected",
-        description: "Successfully disconnected wallet and cleared all data",
-      });
-      
-      // Refresh the page to reset all state
+  const handleDisconnectWallet = () => {
+    // Clear all local storage data
+    localStorage.clear();
+    
+    // Clear all query cache
+    queryClient.clear();
+    
+    // Show confirmation toast
+    toast({
+      title: "Wallet Disconnected",
+      description: "All data cleared, reloading application...",
+    });
+    
+    // Force page reload after brief delay
+    setTimeout(() => {
       window.location.reload();
-    } catch (error) {
-      console.error('Error disconnecting wallet:', error);
-      toast({
-        title: "Disconnect Failed",
-        description: "Failed to disconnect wallet completely",
-        variant: "destructive",
-      });
-    }
+    }, 1000);
   };
 
   const profileSettings = [
