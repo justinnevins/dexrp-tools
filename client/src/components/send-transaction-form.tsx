@@ -116,19 +116,47 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // The transaction must be wrapped in a CryptoSignRequest structure
       const requestId = crypto.randomUUID().replace(/-/g, '').substring(0, 32);
       
-      // Create the CryptoSignRequest structure for Keystone
-      const signRequest = {
+      // Test different CBOR structures to identify the correct format
+      console.log('=== DEBUGGING KEYSTONE FORMAT ===');
+      
+      // Option 1: Direct transaction CBOR (minimal)
+      const directTx = cborEncode(xrpTransaction);
+      console.log('Option 1 - Direct transaction CBOR length:', directTx.length);
+      
+      // Option 2: JSON string wrapped
+      const jsonWrapped = {
         requestId: requestId,
-        signData: JSON.stringify(xrpTransaction), // Keystone expects JSON string, not CBOR object
-        dataType: 1, // 1 = transaction data
-        chainType: 144, // 144 = XRP ledger chain ID
-        path: "m/44'/144'/0'/0/0", // Standard XRP derivation path
-        xfp: "73c5da0a", // Master fingerprint (placeholder)
+        signData: JSON.stringify(xrpTransaction),
+        dataType: 1,
+        chainType: 144,
+        path: "m/44'/144'/0'/0/0",
+        xfp: "73c5da0a",
         address: currentWallet.address,
         origin: "XRPL Wallet"
       };
+      console.log('Option 2 - JSON wrapped structure:', jsonWrapped);
       
-      console.log('Keystone sign request structure:', signRequest);
+      // Option 3: CBOR transaction wrapped
+      const cborWrapped = {
+        requestId: requestId,
+        signData: xrpTransaction, // Direct object, not JSON string
+        dataType: 1,
+        chainType: 144,
+        path: "m/44'/144'/0'/0/0",
+        xfp: "73c5da0a",
+        address: currentWallet.address,
+        origin: "XRPL Wallet"
+      };
+      console.log('Option 3 - CBOR object wrapped structure:', cborWrapped);
+      
+      // Option 4: Try different UR types
+      console.log('Testing different approaches...');
+      console.log('- ur:xrp-sign-request (current)');
+      console.log('- ur:bytes (alternative)');
+      console.log('- Direct transaction encoding');
+      
+      // Let's try the direct transaction approach first
+      const signRequest = xrpTransaction; // Try direct transaction without wrapper
       
       // Encode using CBOR
       const cborData = cborEncode(signRequest);
@@ -139,9 +167,24 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      // Use the correct UR type for XRP sign requests
-      const urString = `ur:xrp-sign-request/${cborHex}`;
-      console.log('Keystone XRP sign request UR:', urString.substring(0, 60) + '...');
+      console.log('CBOR hex preview:', cborHex.substring(0, 40) + '...');
+      
+      // Test multiple UR format variations
+      const variations = [
+        { type: 'ur:bytes', data: cborHex },
+        { type: 'ur:xrp-sign-request', data: cborHex },
+        { type: 'ur:crypto-sign-request', data: cborHex }
+      ];
+      
+      console.log('=== TESTING UR VARIATIONS ===');
+      variations.forEach((v, i) => {
+        console.log(`Variation ${i + 1}: ${v.type}/${v.data.substring(0, 20)}...`);
+      });
+      
+      // For this test, return the simplest format first
+      const urString = `ur:bytes/${cborHex}`;
+      console.log('Using ur:bytes format for testing...');
+      console.log('Complete UR preview:', urString.substring(0, 80) + '...');
       console.log('Total UR length:', urString.length);
       
       return urString;
