@@ -112,12 +112,26 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // @ts-ignore
       const { encode: cborEncode } = await import('cbor-web');
       
-      // According to Keystone documentation, XRP transactions should be encoded as:
-      // CBOR map with the transaction as the direct content, not wrapped
-      console.log('Encoding transaction for Keystone:', xrpTransaction);
+      // Keystone XRP transactions require specific UR registry format
+      // The transaction must be wrapped in a CryptoSignRequest structure
+      const requestId = crypto.randomUUID().replace(/-/g, '').substring(0, 32);
       
-      // Encode the transaction directly using CBOR
-      const cborData = cborEncode(xrpTransaction);
+      // Create the CryptoSignRequest structure for Keystone
+      const signRequest = {
+        requestId: requestId,
+        signData: JSON.stringify(xrpTransaction), // Keystone expects JSON string, not CBOR object
+        dataType: 1, // 1 = transaction data
+        chainType: 144, // 144 = XRP ledger chain ID
+        path: "m/44'/144'/0'/0/0", // Standard XRP derivation path
+        xfp: "73c5da0a", // Master fingerprint (placeholder)
+        address: currentWallet.address,
+        origin: "XRPL Wallet"
+      };
+      
+      console.log('Keystone sign request structure:', signRequest);
+      
+      // Encode using CBOR
+      const cborData = cborEncode(signRequest);
       console.log('CBOR encoded data length:', cborData.length);
       
       // Convert to hex string
@@ -125,8 +139,9 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      const urString = `ur:bytes/${cborHex}`;
-      console.log('Keystone UR format:', urString.substring(0, 60) + '...');
+      // Use the correct UR type for XRP sign requests
+      const urString = `ur:xrp-sign-request/${cborHex}`;
+      console.log('Keystone XRP sign request UR:', urString.substring(0, 60) + '...');
       console.log('Total UR length:', urString.length);
       
       return urString;
@@ -230,11 +245,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         // Handle Keystone UR format for signed transactions
         const upperData = signedQRData.toUpperCase();
         
-        if (upperData.startsWith('UR:BYTES/')) {
+        if (upperData.startsWith('UR:XRP-SIGNATURE/') || upperData.startsWith('UR:BYTES/')) {
           console.log('Keystone signed UR detected, decoding...');
           
-          // Extract the UR content (remove UR:BYTES/ prefix)
-          const urContent = signedQRData.substring(9);
+          // Extract the UR content (remove prefix)
+          const urContent = upperData.startsWith('UR:XRP-SIGNATURE/') 
+            ? signedQRData.substring(17) // Remove 'UR:XRP-SIGNATURE/'
+            : signedQRData.substring(9);  // Remove 'UR:BYTES/'
           
           // For Keystone signed transactions, the format is typically:
           // UR:BYTES/[CBOR encoded signed transaction]
