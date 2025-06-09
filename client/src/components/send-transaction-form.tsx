@@ -245,19 +245,69 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       setCurrentStep('submitting');
       setShowSignedQRScanner(false);
 
+      console.log('Processing signed QR from Keystone:', signedQRData.substring(0, 50));
+
       // Parse the signed transaction QR code from Keystone device
       let signedTransaction;
       try {
-        // Handle different QR formats from Keystone
-        if (signedQRData.startsWith('keystone://')) {
-          const base64Data = signedQRData.replace('keystone://xrp-signed/', '');
-          const decodedData = JSON.parse(atob(base64Data));
-          signedTransaction = decodedData;
-        } else {
+        // Handle Keystone UR format for signed transactions
+        const upperData = signedQRData.toUpperCase();
+        
+        if (upperData.startsWith('UR:BYTES/')) {
+          console.log('Keystone signed UR detected, decoding...');
+          
+          // Extract the UR content (remove UR:BYTES/ prefix)
+          const urContent = signedQRData.substring(9);
+          
+          // For Keystone signed transactions, the format is typically:
+          // UR:BYTES/[CBOR encoded signed transaction]
+          // We need to decode this to get the transaction blob
+          
+          try {
+            // Convert the UR hex content to bytes
+            const cborBytes = new Uint8Array(
+              urContent.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []
+            );
+            
+            console.log('CBOR bytes length:', cborBytes.length);
+            
+            // Decode CBOR to get the signed transaction data
+            const { decode: cborDecode } = await import('cbor-web');
+            const decodedData = cborDecode(cborBytes);
+            console.log('Decoded signed transaction:', decodedData);
+            
+            // Extract transaction blob and hash from decoded data
+            if (decodedData && typeof decodedData === 'object') {
+              signedTransaction = {
+                txBlob: decodedData.txBlob || decodedData.signedTransaction || decodedData.blob,
+                txHash: decodedData.txHash || decodedData.hash || decodedData.txid
+              };
+            } else {
+              throw new Error('Invalid signed transaction structure');
+            }
+            
+          } catch (cborError) {
+            console.error('CBOR decoding failed:', cborError);
+            throw new Error('Failed to decode signed transaction from Keystone device');
+          }
+          
+        } else if (signedQRData.startsWith('{')) {
+          // Handle JSON format (fallback)
           signedTransaction = JSON.parse(signedQRData);
+        } else {
+          throw new Error('Unsupported signed transaction format');
         }
+        
+        // Validate we have the required fields
+        if (!signedTransaction.txBlob) {
+          throw new Error('Signed transaction missing transaction blob');
+        }
+        
+        console.log('Parsed signed transaction:', signedTransaction);
+        
       } catch (parseError) {
-        throw new Error('Invalid signed transaction QR code format');
+        console.error('Failed to parse signed QR:', parseError);
+        throw new Error('Invalid signed transaction QR code format. Please ensure you scanned the signed transaction from your Keystone device.');
       }
 
       // Submit signed transaction to XRPL network
