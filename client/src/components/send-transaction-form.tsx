@@ -143,31 +143,27 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       console.log('Transaction JSON:', txStr);
       console.log('JSON length:', txStr.length);
       
-      // Use CBOR-web library for proper encoding that matches Keystone SDK
-      // @ts-ignore
-      const { encode: cborEncode } = await import('cbor-web');
+      // Keystone SDK analysis shows it uses raw JSON bytes, NOT CBOR encoding
+      // The SDK does: UR.fromBuffer(Buffer.from(JSON.stringify(tx)))
+      // Which means raw UTF-8 bytes, not CBOR-wrapped data
       
-      // Encode the JSON string as CBOR bytes (same as SDK's Buffer.from approach)
       const encoder = new TextEncoder();
       const jsonBytes = encoder.encode(txStr);
       
-      // CBOR encode the byte array
-      const cborData = cborEncode(jsonBytes);
-      const cborBytes = new Uint8Array(cborData);
-      
-      // Convert to hex string
-      let cborHex = '';
-      for (let i = 0; i < cborBytes.length; i++) {
-        cborHex += cborBytes[i].toString(16).padStart(2, '0');
+      // Convert directly to hex (no CBOR wrapping)
+      let jsonHex = '';
+      for (let i = 0; i < jsonBytes.length; i++) {
+        jsonHex += jsonBytes[i].toString(16).padStart(2, '0');
       }
       
-      const urString = `ur:bytes/${cborHex}`;
-      console.log('CBOR-encoded UR:', urString.substring(0, 80) + '...');
+      const urString = `ur:bytes/${jsonHex}`;
+      console.log('Raw JSON UR (no CBOR):', urString.substring(0, 80) + '...');
       console.log('Total UR length:', urString.length);
-      console.log('CBOR data length:', cborBytes.length);
+      console.log('JSON bytes length:', jsonBytes.length);
       
-      // Verify the encoding matches expected format
-      console.log('First 10 CBOR bytes:', Array.prototype.slice.call(cborBytes, 0, 10).map((b: number) => '0x' + b.toString(16)).join(' '));
+      // Verify first bytes match expected format (should start with 0x7b = '{')
+      console.log('First 10 JSON bytes:', Array.prototype.slice.call(jsonBytes, 0, 10).map((b: number) => '0x' + b.toString(16)).join(' '));
+      console.log('Starts with {:', jsonBytes[0] === 0x7b);
       
       return urString;
       
