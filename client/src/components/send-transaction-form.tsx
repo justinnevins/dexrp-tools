@@ -132,33 +132,36 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      console.log('=== XRPL BINARY ENCODING FOR KEYSTONE ===');
+      console.log('=== USING PROPER UR ENCODER ===');
       
       // Remove SigningPubKey as Keystone adds it during signing
       const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
-      console.log('Transaction for binary encoding:', transactionForSigning);
+      console.log('Transaction for Keystone:', transactionForSigning);
       
-      // Use ripple-binary-codec to encode transaction as hardware wallets expect
-      const { encode } = await import('ripple-binary-codec');
-      const txBlob = encode(transactionForSigning);
+      // Create JSON string as Keystone SDK does
+      const txStr = JSON.stringify(transactionForSigning);
+      console.log('Transaction JSON:', txStr);
       
-      console.log('Binary encoded transaction blob:', txBlob);
-      console.log('Transaction blob length:', txBlob.length, 'chars');
+      // Create UR using proper BC-UR library
+      const { UR, UREncoder } = await import('@ngraveio/bc-ur');
+      const encoder = new TextEncoder();
+      const jsonBytes = encoder.encode(txStr);
       
-      // Create UR from binary blob (lowercase hex as standard)
-      const urString = `ur:bytes/${txBlob.toLowerCase()}`;
-      console.log('Binary UR for Keystone:', urString.substring(0, 80) + '...');
-      console.log('Total UR length:', urString.length);
+      // Create UR from buffer exactly as Keystone SDK does
+      const ur = UR.fromBuffer(jsonBytes);
+      console.log('UR type:', ur.type);
       
-      // Verify the binary encoding
-      try {
-        const { decode } = await import('ripple-binary-codec');
-        const decoded = decode(txBlob);
-        console.log('Verification - decoded transaction type:', decoded.TransactionType);
-        console.log('Verification - decoded amount:', decoded.Amount);
-      } catch (e) {
-        console.log('Decode verification failed:', e);
-      }
+      // Use UREncoder to get proper string representation
+      const urEncoder = new UREncoder(ur, 1000); // Max fragment length
+      const urString = urEncoder.nextPart();
+      
+      console.log('Proper UR string:', urString);
+      console.log('UR string length:', urString.length);
+      
+      // Verify by decoding
+      const decoded = ur.decodeCBOR();
+      const decodedStr = new TextDecoder().decode(decoded);
+      console.log('Verification - decoded matches:', decodedStr === txStr);
       
       return urString;
       
