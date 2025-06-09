@@ -707,10 +707,21 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                   </div>
                   <Button 
                     onClick={() => setShowSignedQRScanner(true)}
-                    className="w-full"
+                    className="w-full mb-2"
                   >
                     <Camera className="w-4 h-4 mr-2" />
                     Scan Signed Transaction
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      console.log('Processing test signed transaction...');
+                      const testSignedUR = 'UR:BYTES/HDRFBGAEAECPLAAEAEAEDKAHRLZSQDCXCWAHSRLTDRHSFZAEAEAEAEBSFWFZISFZAEAEAEAEAEAEBNJKCLAXFZDWCAKPTDFLTOPRDTJYGAWNPMNSVTTEBWBWMULPWYFSIEPKCWTOHPAAIADEEECLJYFGDYFYAOCXKIWSSTWNJTLNTSHLCPYNDLGALPTSBYLRWECYFWWNOXCFTKBGLRZCTSPELNPFBEGWAOCXJYTEZTENTSGWNENTIONYYALRMYPKIEEMFNSRFXSAEMHYZTASATDLDWEYDMYTWMETLYBBKSMYUTPMISPKYNPFMHUEMUBYGMLEZTGOMKZOKIKPLSBBAXDNHSPKHPBZCAMSDKFSMKDNQDRNREWYQDNLVORPFXFESFVY';
+                      handleSignedQRScan(testSignedUR);
+                    }}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Process Test Signed Transaction
                   </Button>
                 </div>
               )}
