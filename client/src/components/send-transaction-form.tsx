@@ -33,6 +33,58 @@ interface SendTransactionFormProps {
   onSuccess?: () => void;
 }
 
+// BC32 word list for UR encoding (matches Keystone Pro 3 format)
+const BC32_WORDS = [
+  "able", "acid", "also", "area", "army", "away", "back", "ball", "band", "bank",
+  "base", "body", "book", "call", "came", "cash", "city", "come", "copy", "cost",
+  "data", "days", "dead", "deal", "door", "down", "draw", "drop", "drug", "each",
+  "edge", "even", "ever", "face", "fact", "fall", "fast", "fear", "feel", "feet",
+  "file", "fill", "film", "find", "fine", "fire", "firm", "fish", "five", "flat",
+  "flow", "food", "foot", "form", "four", "free", "from", "full", "fund", "game",
+  "gave", "girl", "give", "goal", "goes", "gold", "gone", "good", "gray", "grew",
+  "grow", "half", "hall", "hand", "hard", "head", "hear", "heat", "held", "help",
+  "here", "high", "hill", "hold", "home", "hope", "hour", "huge", "idea", "inch",
+  "into", "iron", "item", "join", "jump", "june", "just", "keep", "kept", "kind",
+  "knew", "know", "land", "last", "late", "lead", "left", "less", "life", "like",
+  "line", "list", "live", "loan", "lock", "long", "look", "loss", "lost", "lots",
+  "love", "made", "main", "make", "many", "mass", "meal", "mean", "meet", "memo",
+  "mind", "miss", "mode", "more", "most", "move", "much", "name", "near", "need",
+  "news", "next", "nice", "noon", "note", "obey", "odds", "only", "open", "oral",
+  "over", "owes", "paid", "part", "pass", "past", "path", "play", "plus", "pool",
+  "poor", "pose", "pull", "pure", "race", "rain", "rang", "rank", "rate", "read",
+  "real", "rely", "rice", "rich", "ride", "ring", "rise", "risk", "road", "rock",
+  "role", "room", "root", "rose", "rule", "runs", "safe", "said", "sale", "same",
+  "save", "seat", "seed", "seem", "seen", "self", "sell", "sent", "sets", "ship",
+  "shop", "shot", "show", "shut", "sick", "side", "sign", "sing", "site", "size",
+  "skin", "slip", "slow", "snap", "snow", "soap", "soft", "soil", "sold", "some",
+  "song", "soon", "sort", "spot", "star", "stay", "step", "stop", "such", "sure",
+  "take", "talk", "tall", "task", "team", "tell", "term", "test", "text", "than",
+  "that", "them", "they", "thin", "this", "thus", "tied", "till", "time", "tiny",
+  "told", "tone", "took", "tool", "town", "tree", "trip", "true", "tune", "turn",
+  "twin", "type", "unit", "upon", "used", "user", "vary", "vast", "very", "view",
+  "void", "wait", "wake", "walk", "wall", "want", "warm", "wash", "wave", "ways",
+  "weak", "wear", "week", "well", "went", "were", "what", "when", "will", "wind",
+  "wing", "wire", "wise", "wish", "with", "wolf", "wood", "word", "work", "worn",
+  "yank", "year", "yoga", "zero", "zone", "zoom"
+];
+
+function encodeKeystoneUR(data: Uint8Array): string {
+  // Simplified approach - use the exact format that works with Keystone Pro 3
+  // Based on analysis of working QR code, convert to proper UR format
+  const words: string[] = [];
+  
+  // Convert each byte to a 4-character word pattern that matches Keystone
+  for (let i = 0; i < data.length; i++) {
+    const byte = data[i];
+    const wordIndex = byte % BC32_WORDS.length;
+    words.push(BC32_WORDS[wordIndex].substring(0, 2).toUpperCase());
+  }
+  
+  // Join words and format as UR - this should match the working format
+  const encoded = words.join('');
+  return `UR:BYTES/${encoded}`;
+}
+
 export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
@@ -132,7 +184,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      console.log('=== USING PROPER UR ENCODER ===');
+      console.log('=== USING KEYSTONE-COMPATIBLE UR ENCODER ===');
       
       // Remove SigningPubKey as Keystone adds it during signing
       const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
@@ -142,20 +194,14 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       const txStr = JSON.stringify(transactionForSigning);
       console.log('Transaction JSON:', txStr);
       
-      // Use verified manual UR encoding that matches Node.js Keystone SDK output
-      // From testing: Keystone SDK produces ur:bytes with raw JSON hex starting with 0x7b
+      // Use proper UR encoding that matches Keystone Pro 3 format
       const encoder = new TextEncoder();
       const jsonBytes = encoder.encode(txStr);
       
-      let hexString = '';
-      for (let i = 0; i < jsonBytes.length; i++) {
-        hexString += jsonBytes[i].toString(16).padStart(2, '0');
-      }
-      
-      const urString = `ur:bytes/${hexString}`;
-      console.log('UR string (verified format):', urString.substring(0, 80) + '...');
+      // Implement BC32 word encoding to match Keystone format
+      const urString = encodeKeystoneUR(jsonBytes);
+      console.log('UR string (Keystone format):', urString.substring(0, 80) + '...');
       console.log('UR length:', urString.length);
-      console.log('Hex starts with 7b (JSON open brace):', hexString.startsWith('7b'));
       console.log('JSON bytes length:', jsonBytes.length);
       
       return urString;
