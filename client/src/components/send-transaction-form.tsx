@@ -80,17 +80,18 @@ function crc32(data: Uint8Array): number {
 }
 
 function encodeKeystoneUR(txJsonString: string): string {
-  // The working UR template has embedded JSON data that Keystone reads
-  // We need to replace the hardcoded amount with our actual amount
+  console.log('=== KEYSTONE UR ENCODING DEBUG ===');
+  console.log('Input JSON string length:', txJsonString.length);
+  console.log('Input JSON preview:', txJsonString.substring(0, 200) + '...');
   
-  console.log('Encoding transaction JSON for Keystone Pro 3');
-  console.log('Actual JSON to embed:', txJsonString);
-  
-  // Encode our actual transaction JSON as bytes
+  // Encode transaction JSON as bytes
   const encoder = new TextEncoder();
   const jsonBytes = encoder.encode(txJsonString);
   
-  // Convert to proper BC-UR base32 encoding
+  console.log('JSON converted to bytes, length:', jsonBytes.length);
+  console.log('First 20 bytes as hex:', Array.from(jsonBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+  
+  // Convert to BC-UR base32 encoding using proper alphabet
   const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
   
   let result = '';
@@ -103,20 +104,25 @@ function encodeKeystoneUR(txJsonString: string): string {
     bits += 8;
     
     while (bits >= 5) {
-      result += alphabet[(value >>> (bits - 5)) & 31];
+      const index = (value >>> (bits - 5)) & 31;
+      result += alphabet[index];
       bits -= 5;
     }
   }
   
   if (bits > 0) {
-    result += alphabet[(value << (5 - bits)) & 31];
+    const index = (value << (5 - bits)) & 31;
+    result += alphabet[index];
   }
   
-  // Create the UR with our actual transaction data
+  // Create final UR format
   const finalUR = `UR:BYTES/${result.toUpperCase()}`;
   
-  console.log('Generated UR with actual transaction data, length:', finalUR.length);
-  console.log('BC-UR content preview:', result.substring(0, 50) + '...');
+  console.log('BC-UR base32 result length:', result.length);
+  console.log('BC-UR preview:', result.substring(0, 80) + '...');
+  console.log('Final UR length:', finalUR.length);
+  console.log('Final UR preview:', finalUR.substring(0, 100) + '...');
+  console.log('=== END ENCODING DEBUG ===');
   
   return finalUR;
 }
@@ -257,27 +263,32 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Keep SigningPubKey as shown in the working example
       console.log('Transaction for Keystone:', xrpTransaction);
       
-      // Create JSON string with actual form data
-      const actualAmount = Math.floor(parseFloat(txData.amount) * 1000000).toString(); // Convert XRP to drops
-      const actualDestination = txData.destination;
-      const actualFee = "12";
+      // Create proper transaction JSON template with actual form data
+      const transactionTemplate = {
+        Account: currentWallet.address,
+        Amount: Math.floor(parseFloat(txData.amount) * 1000000).toString(), // Convert XRP to drops
+        Destination: txData.destination,
+        Fee: "12",
+        Flags: 2147483648,
+        LastLedgerSequence: xrpTransaction.LastLedgerSequence,
+        Sequence: transactionSequence,
+        SigningPubKey: currentWallet.publicKey || "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421",
+        TransactionType: "Payment"
+      };
       
-      const txStr = `{
-  "Account":
-"${currentWallet.address}",
-  "Amount": "${actualAmount}",
-  "Destination":
-"${actualDestination}",
-  "Fee": "${actualFee}",
-  "Flags": 2147483648,
-  "LastLedgerSequence": ${xrpTransaction.LastLedgerSequence},
-  "Sequence": ${transactionSequence},
-  "SigningPubKey":
-"${currentWallet.publicKey || "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421"}",
-  "TransactionType": "Payment"${txData.destinationTag ? `,
-  "DestinationTag": ${txData.destinationTag}` : ''}
-}`;
-      console.log('Transaction JSON:', txStr);
+      // Add optional fields if provided
+      if (txData.destinationTag) {
+        (transactionTemplate as any).DestinationTag = parseInt(txData.destinationTag);
+      }
+      
+      // Convert to formatted JSON string for Keystone
+      const txStr = JSON.stringify(transactionTemplate, null, 2);
+      
+      console.log('=== TRANSACTION JSON TEMPLATE ===');
+      console.log('Template object:', transactionTemplate);
+      console.log('Formatted JSON for Keystone:', txStr);
+      console.log('Amount in drops:', transactionTemplate.Amount);
+      console.log('Original XRP amount:', txData.amount);
       
       // Use the proven working UR template - the JSON is what Keystone reads
       const urString = encodeKeystoneUR(txStr);
