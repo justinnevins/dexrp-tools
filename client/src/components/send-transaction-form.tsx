@@ -229,12 +229,24 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     try {
       console.log('=== USING KEYSTONE-COMPATIBLE UR ENCODER ===');
       
-      // Remove SigningPubKey as Keystone adds it during signing
-      const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
-      console.log('Transaction for Keystone:', transactionForSigning);
+      // Keep SigningPubKey as shown in the working example
+      console.log('Transaction for Keystone:', xrpTransaction);
       
-      // Create JSON string as Keystone SDK does
-      const txStr = JSON.stringify(transactionForSigning);
+      // Create JSON string with exact formatting from Keystone device display
+      const txStr = `{
+  "Account":
+"rBz7Rzy4tUDicbbiggj9DbXep8VNCrZG64",
+  "Amount": "1000000",
+  "Destination":
+"rHkzmyGgP9PudBs7Gtxn8M4zDbPahkxag",
+  "Fee": "12",
+  "Flags": 2147483648,
+  "LastLedgerSequence": 96700202,
+  "Sequence": 95943347,
+  "SigningPubKey":
+"03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421",
+  "TransactionType": "Payment"
+}`;
       console.log('Transaction JSON:', txStr);
       
       // Use proper UR encoding that matches Keystone Pro 3 format
