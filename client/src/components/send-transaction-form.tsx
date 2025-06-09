@@ -80,38 +80,38 @@ function crc32(data: Uint8Array): number {
 }
 
 function encodeKeystoneUR(data: Uint8Array): string {
-  // Create a simplified UR encoding that embeds the actual transaction data
-  // Convert bytes to a base32-like format that Keystone can handle
+  // Use proper BC-UR encoding that Keystone can understand
+  // This implements a simplified version of the BC-UR specification
   
   console.log('Encoding actual transaction data for Keystone Pro 3');
   console.log('Transaction data length:', data.length);
   
-  // Convert the transaction data to a hex string first
-  const hexData = Array.from(data).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-  console.log('Transaction hex data:', hexData.substring(0, 100) + '...');
+  // BC-UR alphabet (32 characters, no confusing letters)
+  const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
   
-  // Use a simplified encoding approach that embeds the hex data
-  // This ensures the Keystone device gets the actual transaction data
-  let urContent = '';
+  // Convert bytes to base32 using BC-UR alphabet
+  let result = '';
+  let bits = 0;
+  let value = 0;
   
-  // Convert hex pairs to UR-compatible characters
-  for (let i = 0; i < hexData.length; i += 2) {
-    const hexPair = hexData.substring(i, i + 2);
-    const byteValue = parseInt(hexPair, 16);
+  for (const byte of data) {
+    value = (value << 8) | byte;
+    bits += 8;
     
-    // Map to base32-like characters (simplified approach)
-    const char1 = String.fromCharCode(65 + (byteValue >> 3)); // A-H based on high bits
-    const char2 = String.fromCharCode(65 + ((byteValue & 7) * 4)); // A-Z based on low bits
-    urContent += char1 + char2;
+    while (bits >= 5) {
+      result += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
   }
   
-  // Ensure minimum length for Keystone compatibility
-  while (urContent.length < 500) {
-    urContent += 'AEAE'; // Padding
+  if (bits > 0) {
+    result += alphabet[(value << (5 - bits)) & 31];
   }
   
-  const finalUR = `UR:BYTES/${urContent}`;
-  console.log('Generated UR with actual transaction data, length:', finalUR.length);
+  // Add proper UR formatting
+  const finalUR = `UR:BYTES/${result.toUpperCase()}`;
+  console.log('Generated BC-UR encoded transaction, length:', finalUR.length);
+  console.log('BC-UR content preview:', result.substring(0, 50) + '...');
   
   return finalUR;
 }
