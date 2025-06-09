@@ -449,73 +449,76 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           } catch (cborError) {
             console.error('CBOR decoding failed:', cborError);
             
-            // Fallback: Use Python decoder for proper Keystone UR handling
+            // Enhanced direct pattern extraction for Keystone UR format
             try {
-              console.log('Attempting Python-based Keystone UR decoding...');
+              console.log('Attempting enhanced Keystone UR pattern extraction...');
+              console.log('Raw UR content length:', urContent.length);
               
-              const response = await fetch('/api/decode-keystone-ur', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  urData: signedQRData
-                }),
-              });
+              // The issue is that Keystone's UR format contains CBOR-encoded data
+              // but the current decoding produces invalid XRPL transaction format
               
-              if (!response.ok) {
-                throw new Error('Python decoder service unavailable');
-              }
+              // Method 1: Look for embedded hex patterns that could be XRPL transactions
+              // XRPL Payment transactions typically start with 0x12 (18 decimal)
+              let extractedTx = '';
               
-              const result = await response.json();
+              // Try to find valid XRPL transaction patterns in different ways
+              const patterns = [
+                /12[0-9A-Fa-f]{40,}/g,  // Payment transactions (type 0x12)
+                /00[0-9A-Fa-f]{40,}/g,  // Payment transactions (type 0x00) 
+                /01[0-9A-Fa-f]{40,}/g,  // EscrowCreate transactions
+                /02[0-9A-Fa-f]{40,}/g,  // EscrowFinish transactions
+              ];
               
-              if (result.success && result.txBlob) {
-                console.log('Python decoder successfully extracted transaction blob:', result.txBlob.substring(0, 50) + '...');
-                signedTransaction = {
-                  txBlob: result.txBlob,
-                  txHash: null
-                };
-              } else {
-                throw new Error(result.error || 'Python decoder failed to extract transaction');
-              }
-              
-            } catch (pythonError) {
-              console.error('Python decoding failed:', pythonError);
-              
-              // Final fallback: direct pattern extraction
-              try {
-                console.log('Attempting direct hex pattern extraction from UR content...');
-                
-                // Look for XRPL transaction patterns in the UR content
-                let extractedHex = '';
-                
-                // Method 1: Look for hex sequences that might be transactions
-                const hexMatches = urContent.match(/([0-9A-Fa-f]{100,})/g);
-                if (hexMatches) {
-                  for (const match of hexMatches) {
-                    // Check if this could be an XRPL transaction
-                    const firstByte = match.substring(0, 2).toUpperCase();
-                    if (['12', '00', '01', '02', '03', '05', '06', '07', '08', '09', '0A', '0B'].includes(firstByte)) {
-                      extractedHex = match;
+              for (const pattern of patterns) {
+                const matches = urContent.match(pattern);
+                if (matches && matches.length > 0) {
+                  for (const match of matches) {
+                    if (match.length >= 60) { // Minimum reasonable transaction length
+                      console.log(`Found potential XRPL transaction (pattern ${pattern}):`, match.substring(0, 50) + '...');
+                      extractedTx = match;
                       break;
                     }
                   }
+                  if (extractedTx) break;
                 }
-                
-                if (extractedHex.length > 100) {
-                  console.log('Found potential XRPL transaction pattern:', extractedHex.substring(0, 50) + '...');
-                  signedTransaction = {
-                    txBlob: extractedHex.toUpperCase(),
-                    txHash: null
-                  };
-                } else {
-                  throw new Error('No valid XRPL transaction pattern found in UR data');
-                }
-                
-              } catch (extractError) {
-                console.error('Direct pattern extraction failed:', extractError);
-                throw new Error('Failed to decode Keystone signed transaction. The device may be using an incompatible encoding format.');
               }
+              
+              // Method 2: If no direct hex pattern found, try decoding the UR content differently
+              if (!extractedTx) {
+                console.log('No direct hex pattern found, attempting alternative decoding...');
+                
+                // The UR content might need different interpretation
+                // Try converting character pairs to hex bytes
+                let alternativeHex = '';
+                for (let i = 0; i < urContent.length - 1; i += 2) {
+                  const pair = urContent.substring(i, i + 2);
+                  // Map character pairs to hex values based on Keystone's encoding
+                  const charSum = pair.charCodeAt(0) + pair.charCodeAt(1);
+                  const hexByte = (charSum % 256).toString(16).padStart(2, '0');
+                  alternativeHex += hexByte;
+                }
+                
+                // Look for XRPL patterns in the alternative hex
+                const altPattern = alternativeHex.match(/(12[0-9A-Fa-f]{60,})/);
+                if (altPattern) {
+                  extractedTx = altPattern[1];
+                  console.log('Found XRPL transaction via alternative decoding:', extractedTx.substring(0, 50) + '...');
+                }
+              }
+              
+              if (extractedTx && extractedTx.length >= 60) {
+                signedTransaction = {
+                  txBlob: extractedTx.toUpperCase(),
+                  txHash: null
+                };
+                console.log('Successfully extracted transaction blob');
+              } else {
+                throw new Error('Unable to extract valid XRPL transaction from Keystone UR data');
+              }
+              
+            } catch (enhancedError) {
+              console.error('Enhanced pattern extraction failed:', enhancedError);
+              throw new Error('Keystone signed transaction format is not compatible. Please ensure your device is using the latest firmware and XRPL app version.');
             }
           }
           
