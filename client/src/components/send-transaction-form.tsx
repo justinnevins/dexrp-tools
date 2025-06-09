@@ -94,7 +94,8 @@ function encodeKeystoneUR(data: Uint8Array): string {
   let bits = 0;
   let value = 0;
   
-  for (const byte of data) {
+  for (let i = 0; i < data.length; i++) {
+    const byte = data[i];
     value = (value << 8) | byte;
     bits += 8;
     
@@ -274,17 +275,41 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
 }`;
       console.log('Transaction JSON:', txStr);
       
-      // Use proper UR encoding that matches Keystone Pro 3 format
-      const encoder = new TextEncoder();
-      const jsonBytes = encoder.encode(txStr);
-      
-      // Implement BC32 word encoding to match Keystone format
-      const urString = encodeKeystoneUR(jsonBytes);
-      console.log('UR string (Keystone format):', urString.substring(0, 80) + '...');
-      console.log('UR length:', urString.length);
-      console.log('JSON bytes length:', jsonBytes.length);
-      
-      return urString;
+      // Keystone Pro 3 requires XRPL binary-encoded transaction data
+      try {
+        // Use XRPL binary codec to create proper transaction blob
+        const { encode } = await import('ripple-binary-codec');
+        
+        // Create transaction blob using XRPL standard encoding
+        const txBlob = encode(xrpTransaction);
+        console.log('Generated XRPL transaction blob:', txBlob.substring(0, 50) + '...');
+        
+        // Convert hex blob to bytes for UR encoding
+        const blobBytes = new Uint8Array(Buffer.from(txBlob, 'hex'));
+        const urString = encodeKeystoneUR(blobBytes);
+        
+        console.log('UR string (XRPL blob format):', urString.substring(0, 80) + '...');
+        console.log('UR length:', urString.length);
+        console.log('XRPL blob length:', txBlob.length);
+        
+        return urString;
+        
+      } catch (codecError) {
+        console.error('XRPL binary codec failed:', codecError);
+        
+        // Fallback: Use CBOR-encoded JSON for Keystone compatibility
+        const { encode: cborEncode } = await import('cbor-web');
+        
+        // Encode transaction as CBOR which Keystone can decode
+        const cborData = cborEncode(xrpTransaction);
+        const urString = encodeKeystoneUR(new Uint8Array(cborData));
+        
+        console.log('UR string (CBOR format):', urString.substring(0, 80) + '...');
+        console.log('UR length:', urString.length);
+        console.log('CBOR data length:', cborData.byteLength);
+        
+        return urString;
+      }
       
     } catch (error) {
       console.error('Keystone encoding failed:', error);
