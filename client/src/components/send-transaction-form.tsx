@@ -366,75 +366,71 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           const urContent = signedQRData.substring(9); // Remove 'UR:BYTES/'
           
           try {
-            // Use BC-UR library to decode Keystone's bytewords format
-            const { URDecoder } = await import('@ngraveio/bc-ur');
+            // Use Keystone SDK to properly decode signed transactions
+            const { KeystoneSDK, UR } = await import('@keystonehq/keystone-sdk');
             
-            console.log('Decoding BC-UR signed transaction...');
-            const decoder = new URDecoder();
+            console.log('Using Keystone SDK to decode signed transaction...');
             
-            // Keystone Pro 3 uses single-part UR encoding for signed transactions
-            const decodedResult = decoder.receivePart(signedQRData);
+            const keystoneSDK = new KeystoneSDK();
             
-            if (decodedResult && typeof decodedResult === 'object' && 'isComplete' in decodedResult) {
-              if (decodedResult.isComplete()) {
+            // Parse the UR using Keystone SDK
+            const ur = UR.fromString(signedQRData);
+            const decodedData = keystoneSDK.xrp.parseSignature(ur);
+            
+            console.log('Keystone SDK decoded data:', decodedData);
+            
+            if (decodedData && decodedData.signature) {
+              signedTransaction = {
+                txBlob: decodedData.signature,
+                txHash: decodedData.txHash || null
+              };
+            } else {
+              throw new Error('Invalid Keystone signature format');
+            }
+            
+          } catch (keystoneError) {
+            console.error('Keystone SDK decoding failed:', keystoneError);
+            
+            // Fallback: try BC-UR library
+            try {
+              const { URDecoder } = await import('@ngraveio/bc-ur');
+              
+              console.log('Falling back to BC-UR decoding...');
+              const decoder = new URDecoder();
+              const decodedResult = decoder.receivePart(signedQRData);
+              
+              if (decodedResult && (decodedResult as any).isComplete && (decodedResult as any).isComplete()) {
                 const urData = (decodedResult as any).resultUR();
-                console.log('UR decoded successfully:', urData);
+                console.log('BC-UR decoded successfully:', urData);
                 
-                // The UR data should contain the signed transaction
-                const signedBytes = urData.cbor;
-                
-                // Decode CBOR to get the actual signed transaction
+                // Try to extract hex transaction from CBOR
                 const { decode: cborDecode } = await import('cbor-web');
-                const decodedData = cborDecode(signedBytes);
+                const decodedData = cborDecode(urData.cbor);
                 
-                console.log('Decoded signed transaction data:', decodedData);
+                console.log('CBOR decoded data:', decodedData);
                 
-                // Extract transaction blob from decoded CBOR
-                if (decodedData && decodedData.signedTransaction) {
-                  signedTransaction = {
-                    txBlob: decodedData.signedTransaction,
-                    txHash: decodedData.txHash || null
-                  };
-                } else if (typeof decodedData === 'string') {
-                  // Direct transaction blob
+                // Look for hex transaction blob in the decoded data
+                if (typeof decodedData === 'string' && /^[0-9A-Fa-f]+$/.test(decodedData)) {
                   signedTransaction = {
                     txBlob: decodedData,
                     txHash: null
                   };
+                } else if (decodedData && decodedData.txBlob) {
+                  signedTransaction = {
+                    txBlob: decodedData.txBlob,
+                    txHash: decodedData.txHash || null
+                  };
                 } else {
-                  throw new Error('Unexpected signed transaction structure');
+                  throw new Error('No valid transaction blob found in decoded data');
                 }
                 
               } else {
                 throw new Error('BC-UR decoding incomplete');
               }
-            } else {
-              throw new Error('BC-UR decoder returned unexpected result');
-            }
-            
-          } catch (error) {
-            console.error('BC-UR decoding failed:', error);
-            
-            // Fallback: try manual bytewords decoding
-            try {
-              console.log('Attempting manual bytewords decoding...');
               
-              // Keystone uses a simplified approach - the signed transaction might be
-              // encoded directly in the UR content as a hex string after bytewords conversion
-              // For now, let's try to extract the hex transaction blob from the pattern
-              
-              // This is a temporary solution - the UR content contains the signed transaction
-              // but we need proper BC-UR decoding. For testing, we'll use the raw content
-              signedTransaction = {
-                txBlob: urContent, // This will likely fail, but helps with debugging
-                txHash: null
-              };
-              
-              console.log('Using raw UR content as fallback (may not work)');
-              
-            } catch (fallbackError) {
-              console.error('Manual decoding also failed:', fallbackError);
-              throw new Error('Failed to decode Keystone signed transaction. Please ensure you scanned the correct QR code from the device.');
+            } catch (bcurError) {
+              console.error('BC-UR decoding also failed:', bcurError);
+              throw new Error('Failed to decode Keystone signed transaction. The UR format may not be supported or the QR code may be corrupted.');
             }
           }
           
