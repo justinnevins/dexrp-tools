@@ -309,13 +309,21 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   };
 
   const handleSignedQRScan = async (signedQRData: string) => {
-    if (!currentWallet || !pendingTransactionData) return;
+    console.log('=== HANDLE SIGNED QR SCAN STARTED ===');
+    console.log('Current wallet:', !!currentWallet);
+    console.log('Pending transaction data:', !!pendingTransactionData);
+    
+    if (!currentWallet || !pendingTransactionData) {
+      console.error('Missing current wallet or pending transaction data');
+      return;
+    }
 
     try {
+      console.log('Setting step to submitting and closing scanner...');
       setCurrentStep('submitting');
       setShowSignedQRScanner(false);
 
-      console.log('Processing signed QR from Keystone:', signedQRData.substring(0, 50));
+      console.log('Processing signed QR from Keystone:', signedQRData.substring(0, 50) + '...');
 
       // Parse the signed transaction QR code from Keystone device
       let signedTransaction;
