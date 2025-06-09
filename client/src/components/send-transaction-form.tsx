@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
-import { SimpleQRScanner } from '@/components/simple-qr-scanner';
+import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { encode } from 'ripple-binary-codec';
 import QRCode from 'qrcode';
 
@@ -763,7 +763,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
 
       {/* QR Scanner for Signed Transaction Response */}
       {showSignedQRScanner && (
-        <SimpleQRScanner
+        <KeystoneQRScanner
           onScan={handleSignedQRScan}
           onClose={() => setShowSignedQRScanner(false)}
           title="Scan Signed Transaction"
