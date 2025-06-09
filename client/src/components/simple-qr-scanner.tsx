@@ -96,17 +96,25 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
   };
 
   const manualEntry = () => {
-    // Prompt user to enter address manually
-    const address = prompt('Enter XRPL wallet address (starting with "r"):');
-    if (address && address.startsWith('r') && address.length >= 25) {
-      onScan(address);
-    } else if (address) {
-      alert('Invalid XRPL address format');
+    // Handle different types of manual entry based on title
+    if (title.includes('Signed Transaction')) {
+      const signedData = prompt('Enter the signed transaction data from your Keystone device:');
+      if (signedData && signedData.trim()) {
+        onScan(signedData.trim());
+      }
+    } else {
+      // For wallet addresses
+      const address = prompt('Enter XRPL wallet address (starting with "r"):');
+      if (address && address.startsWith('r') && address.length >= 25) {
+        onScan(address);
+      } else if (address) {
+        alert('Invalid XRPL address format');
+      }
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
@@ -172,10 +180,13 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
               {isActive && (
                 <div className="text-center space-y-2">
                   <Button onClick={manualEntry} variant="outline" className="w-full">
-                    Enter Address Manually
+                    {title.includes('Signed Transaction') ? 'Enter Signed Data Manually' : 'Enter Address Manually'}
                   </Button>
                   <p className="text-xs text-muted-foreground">
-                    Camera feed is active. Use manual entry for now.
+                    {title.includes('Signed Transaction') 
+                      ? 'Camera feed is active. You can also copy/paste the signed transaction data manually.'
+                      : 'Camera feed is active. Use manual entry for now.'
+                    }
                   </p>
                 </div>
               )}

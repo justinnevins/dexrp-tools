@@ -320,55 +320,84 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Parse the signed transaction QR code from Keystone device
       let signedTransaction;
       try {
-        // Handle Keystone UR format for signed transactions
-        const upperData = signedQRData.toUpperCase();
+        console.log('Raw signed QR data:', signedQRData.substring(0, 100) + '...');
         
-        if (upperData.startsWith('UR:XRP-SIGNATURE/') || upperData.startsWith('UR:BYTES/')) {
-          console.log('Keystone signed UR detected, decoding...');
+        // Handle different Keystone signed transaction formats
+        if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/')) {
+          console.log('Keystone XRP signature format detected');
           
-          // Extract the UR content (remove prefix)
-          const urContent = upperData.startsWith('UR:XRP-SIGNATURE/') 
-            ? signedQRData.substring(17) // Remove 'UR:XRP-SIGNATURE/'
-            : signedQRData.substring(9);  // Remove 'UR:BYTES/'
-          
-          // For Keystone signed transactions, the format is typically:
-          // UR:BYTES/[CBOR encoded signed transaction]
-          // We need to decode this to get the transaction blob
+          const urContent = signedQRData.substring(17); // Remove 'UR:XRP-SIGNATURE/'
           
           try {
-            // Convert the UR hex content to bytes
-            const cborBytes = new Uint8Array(
+            // Keystone XRP signatures are typically CBOR encoded
+            const { decode: cborDecode } = await import('cbor-web');
+            
+            // Convert UR content to bytes - handle Keystone's custom encoding
+            const urBytes = new TextEncoder().encode(urContent);
+            const decodedData = cborDecode(urBytes);
+            
+            console.log('Decoded XRP signature:', decodedData);
+            
+            signedTransaction = {
+              txBlob: decodedData.signedTransaction || decodedData.txBlob || decodedData,
+              txHash: decodedData.txHash || decodedData.hash
+            };
+            
+          } catch (error) {
+            console.error('XRP signature decoding failed:', error);
+            // Fallback: treat as hex-encoded transaction blob
+            signedTransaction = {
+              txBlob: urContent,
+              txHash: null
+            };
+          }
+          
+        } else if (signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
+          console.log('Keystone bytes format detected');
+          
+          const urContent = signedQRData.substring(9); // Remove 'UR:BYTES/'
+          
+          try {
+            // Try to decode as CBOR first
+            const { decode: cborDecode } = await import('cbor-web');
+            
+            // Convert hex string to bytes
+            const hexBytes = new Uint8Array(
               urContent.match(/.{2}/g)?.map(byte => parseInt(byte, 16)) || []
             );
             
-            console.log('CBOR bytes length:', cborBytes.length);
+            const decodedData = cborDecode(hexBytes);
+            console.log('Decoded bytes data:', decodedData);
             
-            // Decode CBOR to get the signed transaction data
-            // @ts-ignore
-            const { decode: cborDecode } = await import('cbor-web');
-            const decodedData = cborDecode(cborBytes);
-            console.log('Decoded signed transaction:', decodedData);
+            signedTransaction = {
+              txBlob: decodedData.signedTransaction || decodedData.txBlob || decodedData,
+              txHash: decodedData.txHash || decodedData.hash
+            };
             
-            // Extract transaction blob and hash from decoded data
-            if (decodedData && typeof decodedData === 'object') {
-              signedTransaction = {
-                txBlob: decodedData.txBlob || decodedData.signedTransaction || decodedData.blob,
-                txHash: decodedData.txHash || decodedData.hash || decodedData.txid
-              };
-            } else {
-              throw new Error('Invalid signed transaction structure');
-            }
-            
-          } catch (cborError) {
-            console.error('CBOR decoding failed:', cborError);
-            throw new Error('Failed to decode signed transaction from Keystone device');
+          } catch (error) {
+            console.error('Bytes decoding failed, trying as hex blob:', error);
+            // Fallback: treat as hex-encoded transaction blob
+            signedTransaction = {
+              txBlob: urContent,
+              txHash: null
+            };
           }
           
         } else if (signedQRData.startsWith('{')) {
-          // Handle JSON format (fallback)
+          // Handle JSON format
+          console.log('JSON format detected');
           signedTransaction = JSON.parse(signedQRData);
+          
+        } else if (/^[0-9A-Fa-f]+$/.test(signedQRData)) {
+          // Handle raw hex transaction blob
+          console.log('Raw hex transaction blob detected');
+          signedTransaction = {
+            txBlob: signedQRData,
+            txHash: null
+          };
+          
         } else {
-          throw new Error('Unsupported signed transaction format');
+          throw new Error('Unrecognized signed transaction format. Expected UR:XRP-SIGNATURE/, UR:BYTES/, JSON, or hex data.');
         }
         
         // Validate we have the required fields
