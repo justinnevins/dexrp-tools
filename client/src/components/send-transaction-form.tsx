@@ -132,36 +132,31 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      console.log('=== USING ACTUAL KEYSTONE SDK FORMAT ===');
-      
-      // Found the actual Keystone XRP SDK implementation:
-      // generateSignRequest(tx) {
-      //     const txStr = JSON.stringify(tx);
-      //     return bc_ur_1.UR.fromBuffer(Buffer.from(txStr));
-      // }
+      console.log('=== USING KEYSTONE SDK DIRECTLY ===');
       
       // Remove SigningPubKey as Keystone adds it during signing
       const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
-      console.log('Transaction for Keystone (no SigningPubKey):', transactionForSigning);
+      console.log('Transaction for Keystone SDK:', transactionForSigning);
       
-      // Convert to JSON string exactly as Keystone SDK does
-      const txStr = JSON.stringify(transactionForSigning);
-      console.log('Transaction JSON string:', txStr);
-      console.log('JSON string length:', txStr.length);
+      // Use the actual Keystone SDK to generate the UR
+      const { KeystoneXrpSDK } = await import('@keystonehq/keystone-sdk/dist/chains/xrp/xrp');
+      const keystoneSDK = new KeystoneXrpSDK();
       
-      // Convert to buffer and then to hex (equivalent to UR.fromBuffer)
-      const txBuffer = new TextEncoder().encode(txStr);
-      const txHex = Array.from(txBuffer)
-        .map(byte => byte.toString(16).padStart(2, '0'))
-        .join('');
+      console.log('Generating UR with actual Keystone SDK...');
+      const ur = keystoneSDK.generateSignRequest(transactionForSigning);
       
-      console.log('Transaction buffer hex:', txHex.substring(0, 60) + '...');
-      console.log('Buffer length:', txBuffer.length);
-      
-      // Create UR format exactly as Keystone SDK does
-      const urString = `ur:bytes/${txHex}`;
-      console.log('Keystone SDK format:', urString.substring(0, 80) + '...');
+      console.log('Keystone SDK UR type:', ur.type);
+      const urString = ur.toString();
+      console.log('Keystone SDK UR string:', urString.substring(0, 80) + '...');
       console.log('Total UR length:', urString.length);
+      
+      // Verify the content by decoding
+      try {
+        const decoded = ur.decodeCBOR().toString();
+        console.log('Verified decoded content:', decoded.substring(0, 100) + '...');
+      } catch (decodeError) {
+        console.log('Decode verification failed:', decodeError);
+      }
       
       return urString;
       
