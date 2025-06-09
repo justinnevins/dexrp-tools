@@ -76,81 +76,58 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     // Get current sequence number
     const sequence = ('account_data' in accountInfo && accountInfo.account_data?.Sequence) || 1;
 
-    // Create XRP transaction object
-    const transaction = {
-      TransactionType: 'Payment',
+    // Get current ledger for proper LastLedgerSequence
+    const currentLedger = ('account_data' in accountInfo && accountInfo.ledger_current_index) || 95943347;
+    
+    // Create XRP transaction object exactly as Keystone expects
+    const xrpTransaction = {
+      TransactionType: "Payment",
       Account: currentWallet.address,
       Destination: txData.destination,
       Amount: amountInDrops,
-      Fee: '12', // 12 drops = 0.000012 XRP
+      Fee: "12",
       Sequence: sequence,
-      NetworkID: 0, // 0 for mainnet, 1 for testnet
-      ...(txData.destinationTag && { DestinationTag: parseInt(txData.destinationTag) }),
-      ...(txData.memo && { 
-        Memos: [{
-          Memo: {
-            MemoData: new TextEncoder().encode(txData.memo).reduce((hex, byte) => 
-              hex + byte.toString(16).padStart(2, '0'), '').toUpperCase()
-          }
-        }]
-      }),
+      LastLedgerSequence: currentLedger + 20, // Reasonable buffer for transaction validity
+      Flags: 2147483648, // tfFullyCanonicalSig flag
+      SigningPubKey: currentWallet.publicKey || "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6"
     };
 
-    // Create transaction object exactly as shown in Keystone documentation
-    const xrpTransaction = {
-      TransactionType: "Payment",
-      Amount: transaction.Amount.toString(),
-      Destination: transaction.Destination,
-      Flags: 2147483648, // tfFullyCanonicalSig flag as shown in Keystone docs
-      Account: currentWallet.address,
-      Fee: transaction.Fee.toString(),
-      Sequence: transaction.Sequence,
-      LastLedgerSequence: (accountInfo?.ledger_current_index || 0) + 10,
-      SigningPubKey: currentWallet.publicKey || "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6" // Use real public key from device
-    };
-
-    // Add destination tag if present
-    if (transaction.DestinationTag) {
-      (xrpTransaction as any).DestinationTag = transaction.DestinationTag;
+    // Add optional fields
+    if (txData.destinationTag) {
+      (xrpTransaction as any).DestinationTag = parseInt(txData.destinationTag);
+    }
+    
+    if (txData.memo) {
+      (xrpTransaction as any).Memos = [{
+        Memo: {
+          MemoData: new TextEncoder().encode(txData.memo).reduce((hex, byte) => 
+            hex + byte.toString(16).padStart(2, '0'), '').toUpperCase()
+        }
+      }];
     }
 
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      // Create JSON transaction
-      const jsonTransaction = JSON.stringify(xrpTransaction);
-      console.log('Transaction JSON for Keystone:', jsonTransaction);
+      // @ts-ignore
+      const { encode: cborEncode } = await import('cbor-web');
       
-      // Convert JSON to bytes
-      const jsonBytes = new TextEncoder().encode(jsonTransaction);
-      const jsonLength = jsonBytes.length;
+      // According to Keystone documentation, XRP transactions should be encoded as:
+      // CBOR map with the transaction as the direct content, not wrapped
+      console.log('Encoding transaction for Keystone:', xrpTransaction);
       
-      console.log('JSON length:', jsonLength, 'bytes');
+      // Encode the transaction directly using CBOR
+      const cborData = cborEncode(xrpTransaction);
+      console.log('CBOR encoded data length:', cborData.length);
       
-      // Create proper CBOR encoding as done by Keystone SDK
-      let cborHeader;
-      if (jsonLength <= 255) {
-        // Single byte length: 0x58 + length
-        cborHeader = new Uint8Array([0x58, jsonLength]);
-      } else {
-        // Two byte length: 0x59 + length (big endian)
-        cborHeader = new Uint8Array([0x59, (jsonLength >> 8) & 0xFF, jsonLength & 0xFF]);
-      }
-      
-      // Combine CBOR header with JSON data
-      const cborData = new Uint8Array(cborHeader.length + jsonLength);
-      cborData.set(cborHeader, 0);
-      cborData.set(jsonBytes, cborHeader.length);
-      
-      // Convert to hex
-      const cborHex = Array.from(cborData)
+      // Convert to hex string
+      const cborHex = Array.from(new Uint8Array(cborData))
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
       const urString = `ur:bytes/${cborHex}`;
-      console.log('Keystone CBOR format:', urString.substring(0, 60) + '...');
-      console.log('CBOR total length:', cborData.length, 'bytes');
-      console.log('CBOR header:', Array.from(cborHeader).map(b => '0x' + b.toString(16)).join(' '));
+      console.log('Keystone UR format:', urString.substring(0, 60) + '...');
+      console.log('Total UR length:', urString.length);
       
       return urString;
       
@@ -272,6 +249,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             console.log('CBOR bytes length:', cborBytes.length);
             
             // Decode CBOR to get the signed transaction data
+            // @ts-ignore
             const { decode: cborDecode } = await import('cbor-web');
             const decodedData = cborDecode(cborBytes);
             console.log('Decoded signed transaction:', decodedData);
