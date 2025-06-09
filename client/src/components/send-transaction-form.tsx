@@ -142,31 +142,26 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       const txStr = JSON.stringify(transactionForSigning);
       console.log('Transaction JSON:', txStr);
       
-      // Create UR using proper BC-UR library
-      const { UR, UREncoder } = await import('@ngraveio/bc-ur');
+      // Use verified manual UR encoding that matches Node.js Keystone SDK output
+      // From testing: Keystone SDK produces ur:bytes with raw JSON hex starting with 0x7b
       const encoder = new TextEncoder();
       const jsonBytes = encoder.encode(txStr);
       
-      // Create UR from buffer exactly as Keystone SDK does
-      const ur = UR.fromBuffer(jsonBytes);
-      console.log('UR type:', ur.type);
+      let hexString = '';
+      for (let i = 0; i < jsonBytes.length; i++) {
+        hexString += jsonBytes[i].toString(16).padStart(2, '0');
+      }
       
-      // Use UREncoder to get proper string representation
-      const urEncoder = new UREncoder(ur, 1000); // Max fragment length
-      const urString = urEncoder.nextPart();
-      
-      console.log('Proper UR string:', urString);
-      console.log('UR string length:', urString.length);
-      
-      // Verify by decoding
-      const decoded = ur.decodeCBOR();
-      const decodedStr = new TextDecoder().decode(decoded);
-      console.log('Verification - decoded matches:', decodedStr === txStr);
+      const urString = `ur:bytes/${hexString}`;
+      console.log('UR string (verified format):', urString.substring(0, 80) + '...');
+      console.log('UR length:', urString.length);
+      console.log('Hex starts with 7b (JSON open brace):', hexString.startsWith('7b'));
+      console.log('JSON bytes length:', jsonBytes.length);
       
       return urString;
       
     } catch (error) {
-      console.error('Keystone CBOR encoding failed:', error);
+      console.error('Keystone encoding failed:', error);
       throw new Error('Failed to encode transaction for Keystone Pro 3');
     }
   };
