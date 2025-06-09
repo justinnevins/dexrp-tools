@@ -211,6 +211,18 @@ Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
                   <Button onClick={manualEntry} variant="outline" className="w-full">
                     {title.includes('Signed Transaction') ? 'Enter Signed Data Manually' : 'Enter Address Manually'}
                   </Button>
+                  <Button 
+                    onClick={() => {
+                      console.log('Test button clicked');
+                      const testData = 'UR:BYTES/HDRFBGAEAECPLAAEAEAEDKAHRLZSQDCXCWAHSRLTDRHSFZAEAEAEAEBSFWFZISFZAEAEAEAEAEAEBNJKCLAXFZDWCAKPTDFLTOPRDTJYGAWNPMNSVTTEBWBWMULPWYFSIEPKCWTOHPAAIADEEECLJYFGDYFYAOCXKIWSSTWNJTLNTSHLCPYNDLGALPTSBYLRWECYFWWNOXCFTKBGLRZCTSPELNPFBEGWAOCXJYTEZTENTSGWNENTIONYYALRMYPKIEEMFNSRFXSAEMHYZTASATDLDWEYDMYTWMETLYBBKSMYUTPMISPKYNPFMHUEMUBYGMLEZTGOMKZOKIKPLSBBAXDNHSPKHPBZCAMSDKFSMKDNQDRNREWYQDNLVORPFXFESFVY';
+                      console.log('Calling onScan with test data...');
+                      onScan(testData);
+                    }}
+                    variant="default" 
+                    className="w-full"
+                  >
+                    Test With Your Keystone Data
+                  </Button>
                   <p className="text-xs text-muted-foreground">
                     {title.includes('Signed Transaction') 
                       ? 'Camera feed is active. You can also copy/paste the signed transaction data manually.'
