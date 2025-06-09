@@ -132,38 +132,33 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      console.log('=== BROWSER-COMPATIBLE KEYSTONE FORMAT ===');
+      console.log('=== XRPL BINARY ENCODING FOR KEYSTONE ===');
       
       // Remove SigningPubKey as Keystone adds it during signing
       const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
-      console.log('Transaction for Keystone:', transactionForSigning);
+      console.log('Transaction for binary encoding:', transactionForSigning);
       
-      // Create exact JSON format that Keystone expects (verified from SDK test)
-      const txStr = JSON.stringify(transactionForSigning);
-      console.log('Transaction JSON:', txStr);
-      console.log('JSON length:', txStr.length);
+      // Use ripple-binary-codec to encode transaction as hardware wallets expect
+      const { encode } = await import('ripple-binary-codec');
+      const txBlob = encode(transactionForSigning);
       
-      // Keystone SDK analysis shows it uses raw JSON bytes, NOT CBOR encoding
-      // The SDK does: UR.fromBuffer(Buffer.from(JSON.stringify(tx)))
-      // Which means raw UTF-8 bytes, not CBOR-wrapped data
+      console.log('Binary encoded transaction blob:', txBlob);
+      console.log('Transaction blob length:', txBlob.length, 'chars');
       
-      const encoder = new TextEncoder();
-      const jsonBytes = encoder.encode(txStr);
-      
-      // Convert directly to hex (no CBOR wrapping)
-      let jsonHex = '';
-      for (let i = 0; i < jsonBytes.length; i++) {
-        jsonHex += jsonBytes[i].toString(16).padStart(2, '0');
-      }
-      
-      const urString = `ur:bytes/${jsonHex}`;
-      console.log('Raw JSON UR (no CBOR):', urString.substring(0, 80) + '...');
+      // Create UR from binary blob (lowercase hex as standard)
+      const urString = `ur:bytes/${txBlob.toLowerCase()}`;
+      console.log('Binary UR for Keystone:', urString.substring(0, 80) + '...');
       console.log('Total UR length:', urString.length);
-      console.log('JSON bytes length:', jsonBytes.length);
       
-      // Verify first bytes match expected format (should start with 0x7b = '{')
-      console.log('First 10 JSON bytes:', Array.prototype.slice.call(jsonBytes, 0, 10).map((b: number) => '0x' + b.toString(16)).join(' '));
-      console.log('Starts with {:', jsonBytes[0] === 0x7b);
+      // Verify the binary encoding
+      try {
+        const { decode } = await import('ripple-binary-codec');
+        const decoded = decode(txBlob);
+        console.log('Verification - decoded transaction type:', decoded.TransactionType);
+        console.log('Verification - decoded amount:', decoded.Amount);
+      } catch (e) {
+        console.log('Decode verification failed:', e);
+      }
       
       return urString;
       
