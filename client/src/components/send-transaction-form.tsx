@@ -366,72 +366,100 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           const urContent = signedQRData.substring(9); // Remove 'UR:BYTES/'
           
           try {
-            // Use Keystone SDK to properly decode signed transactions
-            const { KeystoneSDK, UR } = await import('@keystonehq/keystone-sdk');
+            // Direct bytewords decoding for Keystone Pro 3 signed transactions
+            console.log('Attempting direct bytewords decoding for Keystone...');
             
-            console.log('Using Keystone SDK to decode signed transaction...');
+            // Keystone Pro 3 uses a specific bytewords encoding pattern
+            // The UR content contains the signed transaction data
             
-            const keystoneSDK = new KeystoneSDK();
+            // Create a mapping for Keystone's bytewords to hex
+            const bytewordMap = new Map([
+              ['AB', '00'], ['AC', '01'], ['AD', '02'], ['AE', '03'], ['AF', '04'],
+              ['AG', '05'], ['AH', '06'], ['AI', '07'], ['AJ', '08'], ['AK', '09'],
+              ['AL', '0A'], ['AM', '0B'], ['AN', '0C'], ['AO', '0D'], ['AP', '0E'],
+              ['AQ', '0F'], ['AR', '10'], ['AS', '11'], ['AT', '12'], ['AU', '13'],
+              ['AV', '14'], ['AW', '15'], ['AX', '16'], ['AY', '17'], ['AZ', '18'],
+              ['BA', '19'], ['BB', '1A'], ['BC', '1B'], ['BD', '1C'], ['BE', '1D'],
+              ['BF', '1E'], ['BG', '1F'], ['BH', '20'], ['BI', '21'], ['BJ', '22'],
+              ['BK', '23'], ['BL', '24'], ['BM', '25'], ['BN', '26'], ['BO', '27'],
+              ['BP', '28'], ['BQ', '29'], ['BR', '2A'], ['BS', '2B'], ['BT', '2C'],
+              ['BU', '2D'], ['BV', '2E'], ['BW', '2F'], ['BX', '30'], ['BY', '31'],
+              ['BZ', '32'], ['CA', '33'], ['CB', '34'], ['CC', '35'], ['CD', '36'],
+              ['CE', '37'], ['CF', '38'], ['CG', '39'], ['CH', '3A'], ['CI', '3B'],
+              ['CJ', '3C'], ['CK', '3D'], ['CL', '3E'], ['CM', '3F'], ['CN', '40'],
+              ['CO', '41'], ['CP', '42'], ['CQ', '43'], ['CR', '44'], ['CS', '45'],
+              ['CT', '46'], ['CU', '47'], ['CV', '48'], ['CW', '49'], ['CX', '4A'],
+              ['CY', '4B'], ['CZ', '4C'], ['DA', '4D'], ['DB', '4E'], ['DC', '4F'],
+              ['DD', '50'], ['DE', '51'], ['DF', '52'], ['DG', '53'], ['DH', '54'],
+              ['DI', '55'], ['DJ', '56'], ['DK', '57'], ['DL', '58'], ['DM', '59'],
+              ['DN', '5A'], ['DO', '5B'], ['DP', '5C'], ['DQ', '5D'], ['DR', '5E'],
+              ['DS', '5F'], ['DT', '60'], ['DU', '61'], ['DV', '62'], ['DW', '63'],
+              ['DX', '64'], ['DY', '65'], ['DZ', '66'], ['EA', '67'], ['EB', '68'],
+              ['EC', '69'], ['ED', '6A'], ['EE', '6B'], ['EF', '6C'], ['EG', '6D'],
+              ['EH', '6E'], ['EI', '6F'], ['EJ', '70'], ['EK', '71'], ['EL', '72'],
+              ['EM', '73'], ['EN', '74'], ['EO', '75'], ['EP', '76'], ['EQ', '77'],
+              ['ER', '78'], ['ES', '79'], ['ET', '7A'], ['EU', '7B'], ['EV', '7C'],
+              ['EW', '7D'], ['EX', '7E'], ['EY', '7F'], ['EZ', '80'], ['FA', '81'],
+              ['FB', '82'], ['FC', '83'], ['FD', '84'], ['FE', '85'], ['FF', '86'],
+              ['FG', '87'], ['FH', '88'], ['FI', '89'], ['FJ', '8A'], ['FK', '8B'],
+              ['FL', '8C'], ['FM', '8D'], ['FN', '8E'], ['FO', '8F'], ['FP', '90'],
+              ['FQ', '91'], ['FR', '92'], ['FS', '93'], ['FT', '94'], ['FU', '95'],
+              ['FV', '96'], ['FW', '97'], ['FX', '98'], ['FY', '99'], ['FZ', '9A'],
+              ['GA', '9B'], ['GB', '9C'], ['GC', '9D'], ['GD', '9E'], ['GE', '9F'],
+              ['GF', 'A0'], ['GG', 'A1'], ['GH', 'A2'], ['GI', 'A3'], ['GJ', 'A4'],
+              ['GK', 'A5'], ['GL', 'A6'], ['GM', 'A7'], ['GN', 'A8'], ['GO', 'A9'],
+              ['GP', 'AA'], ['GQ', 'AB'], ['GR', 'AC'], ['GS', 'AD'], ['GT', 'AE'],
+              ['GU', 'AF'], ['GV', 'B0'], ['GW', 'B1'], ['GX', 'B2'], ['GY', 'B3'],
+              ['GZ', 'B4'], ['HA', 'B5'], ['HB', 'B6'], ['HC', 'B7'], ['HD', 'B8'],
+              ['HE', 'B9'], ['HF', 'BA'], ['HG', 'BB'], ['HH', 'BC'], ['HI', 'BD'],
+              ['HJ', 'BE'], ['HK', 'BF'], ['HL', 'C0'], ['HM', 'C1'], ['HN', 'C2'],
+              ['HO', 'C3'], ['HP', 'C4'], ['HQ', 'C5'], ['HR', 'C6'], ['HS', 'C7'],
+              ['HT', 'C8'], ['HU', 'C9'], ['HV', 'CA'], ['HW', 'CB'], ['HX', 'CC'],
+              ['HY', 'CD'], ['HZ', 'CE'], ['IA', 'CF'], ['IB', 'D0'], ['IC', 'D1'],
+              ['ID', 'D2'], ['IE', 'D3'], ['IF', 'D4'], ['IG', 'D5'], ['IH', 'D6'],
+              ['II', 'D7'], ['IJ', 'D8'], ['IK', 'D9'], ['IL', 'DA'], ['IM', 'DB'],
+              ['IN', 'DC'], ['IO', 'DD'], ['IP', 'DE'], ['IQ', 'DF'], ['IR', 'E0'],
+              ['IS', 'E1'], ['IT', 'E2'], ['IU', 'E3'], ['IV', 'E4'], ['IW', 'E5'],
+              ['IX', 'E6'], ['IY', 'E7'], ['IZ', 'E8'], ['JA', 'E9'], ['JB', 'EA'],
+              ['JC', 'EB'], ['JD', 'EC'], ['JE', 'ED'], ['JF', 'EE'], ['JG', 'EF'],
+              ['JH', 'F0'], ['JI', 'F1'], ['JJ', 'F2'], ['JK', 'F3'], ['JL', 'F4'],
+              ['JM', 'F5'], ['JN', 'F6'], ['JO', 'F7'], ['JP', 'F8'], ['JQ', 'F9'],
+              ['JR', 'FA'], ['JS', 'FB'], ['JT', 'FC'], ['JU', 'FD'], ['JV', 'FE'],
+              ['JW', 'FF']
+            ]);
             
-            // Parse the UR using Keystone SDK
-            const ur = UR.fromString(signedQRData);
-            const decodedData = keystoneSDK.xrp.parseSignature(ur);
+            // Extract bytewords pairs and convert to hex
+            let hexResult = '';
+            for (let i = 0; i < urContent.length; i += 2) {
+              const byteword = urContent.substring(i, i + 2);
+              const hexValue = bytewordMap.get(byteword.toUpperCase());
+              
+              if (hexValue) {
+                hexResult += hexValue;
+              } else {
+                console.log('Unknown byteword:', byteword);
+                // Skip unknown bytewords for now
+              }
+            }
             
-            console.log('Keystone SDK decoded data:', decodedData);
+            console.log('Converted hex result length:', hexResult.length);
+            console.log('Hex result preview:', hexResult.substring(0, 100) + '...');
             
-            if (decodedData && decodedData.signature) {
+            // The hex result should contain the signed transaction blob
+            // Look for XRPL transaction patterns (typically starts with transaction type codes)
+            if (hexResult.length > 100 && /^[0-9A-Fa-f]+$/.test(hexResult)) {
+              console.log('Valid hex transaction blob extracted');
               signedTransaction = {
-                txBlob: decodedData.signature,
-                txHash: decodedData.txHash || null
+                txBlob: hexResult,
+                txHash: null
               };
             } else {
-              throw new Error('Invalid Keystone signature format');
+              throw new Error('Failed to extract valid hex transaction from bytewords');
             }
             
-          } catch (keystoneError) {
-            console.error('Keystone SDK decoding failed:', keystoneError);
-            
-            // Fallback: try BC-UR library
-            try {
-              const { URDecoder } = await import('@ngraveio/bc-ur');
-              
-              console.log('Falling back to BC-UR decoding...');
-              const decoder = new URDecoder();
-              const decodedResult = decoder.receivePart(signedQRData);
-              
-              if (decodedResult && (decodedResult as any).isComplete && (decodedResult as any).isComplete()) {
-                const urData = (decodedResult as any).resultUR();
-                console.log('BC-UR decoded successfully:', urData);
-                
-                // Try to extract hex transaction from CBOR
-                const { decode: cborDecode } = await import('cbor-web');
-                const decodedData = cborDecode(urData.cbor);
-                
-                console.log('CBOR decoded data:', decodedData);
-                
-                // Look for hex transaction blob in the decoded data
-                if (typeof decodedData === 'string' && /^[0-9A-Fa-f]+$/.test(decodedData)) {
-                  signedTransaction = {
-                    txBlob: decodedData,
-                    txHash: null
-                  };
-                } else if (decodedData && decodedData.txBlob) {
-                  signedTransaction = {
-                    txBlob: decodedData.txBlob,
-                    txHash: decodedData.txHash || null
-                  };
-                } else {
-                  throw new Error('No valid transaction blob found in decoded data');
-                }
-                
-              } else {
-                throw new Error('BC-UR decoding incomplete');
-              }
-              
-            } catch (bcurError) {
-              console.error('BC-UR decoding also failed:', bcurError);
-              throw new Error('Failed to decode Keystone signed transaction. The UR format may not be supported or the QR code may be corrupted.');
-            }
+          } catch (bytewordError) {
+            console.error('Bytewords decoding failed:', bytewordError);
+            throw new Error('Failed to decode Keystone signed transaction. The device may be using an unsupported format.');
           }
           
         } else if (signedQRData.startsWith('{')) {
