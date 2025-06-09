@@ -80,43 +80,30 @@ function crc32(data: Uint8Array): number {
 }
 
 function encodeKeystoneUR(data: Uint8Array): string {
-  // Keystone Pro 3 uses a custom 2-character mapping based on the working QR analysis
-  // Create the exact character map that matches the working format
-  const KEYSTONE_MAP = [
-    'HK', 'AD', 'EN', 'KG', 'CP', 'GH', 'JP', 'HS', 'JT', 'JK', 'HS', 'IA', 'JY', 'IN', 'JL', 'JT', 
-    'GH', 'KK', 'JO', 'IH', 'CP', 'FT', 'CP', 'GD', 'HS', 'KK', 'JN', 'IH', 'JT', 'JY', 'CP', 'DW',
-    'CP', 'FP', 'JN', 'JL', 'KP', 'JT', 'JY', 'CP', 'FT', 'CP', 'EH', 'DY', 'DY', 'DY', 'DY', 'DY',
-    'CP', 'DW', 'CP', 'FY', 'IH', 'JK', 'JY', 'IN', 'JT', 'HS', 'JY', 'IN', 'JL', 'JT', 'CP', 'FT',
-    'CP', 'JP', 'FD', 'JE', 'KN', 'JN', 'KK', 'FL', 'IO', 'GD', 'ES', 'GD', 'KP', 'IE', 'FW', 'JK',
-    'EM', 'FL', 'JY', 'KS', 'JT', 'ET', 'GT', 'EE', 'KN', 'FY', 'ID', 'GD', 'HS', 'IS', 'JE', 'KS',
-    'HS', 'IO', 'CP', 'DW', 'CP', 'FG', 'JZ', 'HS', 'IO', 'JK', 'CP', 'FT', 'EY', 'EH', 'EE', 'EM',
-    'EE', 'ET', 'EO', 'EN', 'EE', 'ET', 'DW', 'CP', 'FP', 'IA', 'IA', 'JL', 'KP', 'JT', 'JY', 'CP',
-    'FT', 'CP', 'JP', 'FW', 'KN', 'EM', 'GM', 'KN', 'KK', 'EE', 'JY', 'GO', 'FY', 'IN', 'IA', 'ID',
-    'ID', 'IN', 'IO', 'IO', 'IM', 'ES', 'FY', 'ID', 'HD', 'IH', 'JO', 'ET', 'HF', 'GL', 'FX', 'JP',
-    'HT', 'FL', 'EN', 'EE', 'CP', 'DW', 'CP', 'FG', 'IH', 'IH', 'CP', 'FT', 'CP', 'EH', 'EY', 'CP',
-    'DW', 'CP', 'GU', 'IH', 'JS', 'KP', 'IH', 'JT', 'IA', 'IH', 'CP', 'FT', 'ES', 'EC', 'ES', 'EE',
-    'EO', 'EO', 'EE', 'EM', 'DW', 'CP', 'GS', 'HS', 'JK', 'JY', 'GS', 'IH', 'IE', 'IO', 'IH', 'JP',
-    'GU', 'IH', 'JS', 'KP', 'IH', 'JT', 'IA', 'IH', 'CP', 'FT', 'ES', 'EN', 'EM', 'DY', 'DY', 'EY',
-    'DY', 'EY', 'DW', 'CP', 'GU', 'IN', 'IO', 'JT', 'IN', 'JT', 'IO', 'GD', 'KP', 'ID', 'GR', 'IH',
-    'KK', 'CP', 'FT', 'CP', 'DY', 'EO', 'EE', 'DY', 'EY', 'FX', 'EH', 'FY', 'EM', 'EC', 'FY', 'EY',
-    'EE', 'EM', 'FX', 'FE', 'FW', 'EY', 'EY', 'ES', 'EM', 'EE', 'EE', 'ES', 'FG', 'EH', 'FP', 'FY',
-    'ES', 'FX', 'FE', 'DY', 'FY', 'EO', 'EH', 'EO', 'EH', 'EO', 'ES', 'EO', 'ET', 'EC', 'FE', 'FE',
-    'EO', 'FY', 'EN', 'EE', 'FP', 'FP', 'EH', 'FW', 'FX', 'FE', 'EC', 'FW', 'DY', 'EE', 'EN', 'EO',
-    'EY', 'ET', 'EO', 'EE', 'EY', 'EH', 'CP', 'KI', 'PS', 'IY', 'WS', 'SP'
-  ];
+  // Keystone Pro 3 expects XRPL transaction blob, not JSON
+  // Convert the JSON transaction to binary format first
+  const txString = new TextDecoder().decode(data);
+  console.log('Transaction JSON for encoding:', txString);
   
-  // Map each byte to the corresponding 2-character pattern
-  const words: string[] = [];
-  for (let i = 0; i < data.length; i++) {
-    const byte = data[i];
-    // Use modulo to map byte values to available patterns
-    const patternIndex = byte % KEYSTONE_MAP.length;
-    words.push(KEYSTONE_MAP[patternIndex]);
+  try {
+    const txObject = JSON.parse(txString);
+    
+    // Encode transaction using ripple binary codec - this is what Keystone expects
+    const txBlob = encode(txObject);
+    console.log('XRPL transaction blob:', txBlob);
+    
+    // Convert hex blob to UR format for Keystone Pro 3
+    const hexData = txBlob.toUpperCase();
+    const urString = `UR:BYTES/${hexData}`;
+    
+    console.log('Keystone UR format:', urString.substring(0, 80) + '...');
+    console.log('UR length:', urString.length);
+    
+    return urString;
+  } catch (error) {
+    console.error('Transaction encoding failed:', error);
+    throw new Error('Failed to encode transaction for Keystone Pro 3');
   }
-  
-  // Join all patterns and format as UR:BYTES/
-  const encoded = words.join('').toUpperCase();
-  return `UR:BYTES/${encoded}`;
 }
 
 export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
