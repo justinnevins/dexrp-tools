@@ -76,19 +76,38 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     // Get current sequence number
     const sequence = ('account_data' in accountInfo && accountInfo.account_data?.Sequence) || 1;
 
-    // Get current ledger for proper LastLedgerSequence
-    const currentLedger = ('account_data' in accountInfo && accountInfo.ledger_current_index) || 95943347;
+    // Verify we have real account data from XRPL network
+    if (!accountInfo || 'account_not_found' in accountInfo) {
+      throw new Error('Cannot create transaction: Account information not available from XRPL network');
+    }
     
-    // Create XRP transaction object exactly as Keystone expects
+    if (!('account_data' in accountInfo) || !accountInfo.account_data) {
+      throw new Error('Cannot create transaction: Invalid account data from XRPL network');
+    }
+    
+    const realSequence = accountInfo.account_data.Sequence;
+    const realLedger = accountInfo.ledger_current_index;
+    
+    if (!realSequence || !realLedger) {
+      throw new Error('Cannot create transaction: Missing sequence or ledger information from XRPL network');
+    }
+    
+    console.log('Using real XRPL network data:', {
+      sequence: realSequence,
+      currentLedger: realLedger,
+      accountBalance: accountInfo.account_data.Balance
+    });
+    
+    // Create XRP transaction with authentic network data
     const xrpTransaction = {
       TransactionType: "Payment",
       Account: currentWallet.address,
       Destination: txData.destination,
       Amount: amountInDrops,
       Fee: "12",
-      Sequence: sequence,
-      LastLedgerSequence: currentLedger + 20, // Reasonable buffer for transaction validity
-      Flags: 2147483648, // tfFullyCanonicalSig flag
+      Sequence: realSequence,
+      LastLedgerSequence: realLedger + 10,
+      Flags: 2147483648,
       SigningPubKey: currentWallet.publicKey || "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6"
     };
 
