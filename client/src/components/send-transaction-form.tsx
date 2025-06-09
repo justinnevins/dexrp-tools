@@ -109,50 +109,36 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      console.log('=== USING RIPPLE BINARY CODEC ===');
+      console.log('=== USING ACTUAL KEYSTONE SDK FORMAT ===');
       
-      // Keystone expects XRP transactions encoded with Ripple's binary codec, not CBOR
-      // Remove SigningPubKey as it will be added during signing
+      // Found the actual Keystone XRP SDK implementation:
+      // generateSignRequest(tx) {
+      //     const txStr = JSON.stringify(tx);
+      //     return bc_ur_1.UR.fromBuffer(Buffer.from(txStr));
+      // }
+      
+      // Remove SigningPubKey as Keystone adds it during signing
       const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
+      console.log('Transaction for Keystone (no SigningPubKey):', transactionForSigning);
       
-      console.log('Transaction for signing (no SigningPubKey):', transactionForSigning);
+      // Convert to JSON string exactly as Keystone SDK does
+      const txStr = JSON.stringify(transactionForSigning);
+      console.log('Transaction JSON string:', txStr);
+      console.log('JSON string length:', txStr.length);
       
-      // Encode using Ripple binary codec
-      const encodedTransaction = encode(transactionForSigning);
-      console.log('Ripple binary encoded transaction:', encodedTransaction);
-      console.log('Encoded transaction length:', encodedTransaction.length);
-      
-      // @ts-ignore
-      const { encode: cborEncode } = await import('cbor-web');
-      
-      // Implement exact Keystone UR registry schema for XRP sign requests
-      console.log('Using Keystone UR registry specification...');
-      
-      // According to UR registry, XRP sign requests use this exact CBOR structure:
-      const requestId = crypto.randomUUID().replace(/-/g, '');
-      const urRegistryRequest = {
-        1: requestId, // request ID as CBOR key 1
-        2: encodedTransaction, // sign data as CBOR key 2 
-        3: 1, // data type as CBOR key 3
-        4: "m/44'/144'/0'/0/0", // derivation path as CBOR key 4
-        5: currentWallet.address, // address as CBOR key 5
-        6: "XRPL Wallet" // origin as CBOR key 6
-      };
-      
-      console.log('UR registry request structure:', urRegistryRequest);
-      
-      // Encode with CBOR using numeric keys (UR registry standard)
-      const cborData = cborEncode(urRegistryRequest);
-      const cborHex = Array.from(new Uint8Array(cborData))
+      // Convert to buffer and then to hex (equivalent to UR.fromBuffer)
+      const txBuffer = new TextEncoder().encode(txStr);
+      const txHex = Array.from(txBuffer)
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      console.log('UR registry CBOR length:', cborData.length);
-      console.log('UR registry CBOR hex preview:', cborHex.substring(0, 40) + '...');
+      console.log('Transaction buffer hex:', txHex.substring(0, 60) + '...');
+      console.log('Buffer length:', txBuffer.length);
       
-      // Use the correct UR type for crypto sign requests
-      const urString = `ur:crypto-sign-request/${cborHex}`;
-      console.log('Final UR registry format:', urString.substring(0, 80) + '...');
+      // Create UR format exactly as Keystone SDK does
+      const urString = `ur:bytes/${txHex}`;
+      console.log('Keystone SDK format:', urString.substring(0, 80) + '...');
+      console.log('Total UR length:', urString.length);
       
       return urString;
       
