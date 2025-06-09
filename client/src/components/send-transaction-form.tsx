@@ -192,16 +192,16 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       });
     }
     
-    // Create XRP transaction for Keystone Pro 3 - exact structure from working example
+    // Create XRP transaction for Keystone Pro 3 using actual form data
     const xrpTransaction = {
       Account: currentWallet.address,
       Amount: amountInDrops,
       Destination: txData.destination,
       Fee: "12",
       Flags: 2147483648,
-      LastLedgerSequence: 96700202, // Use exact value from working example
+      LastLedgerSequence: transactionLedger + 1000, // Current ledger + buffer
       Sequence: transactionSequence,
-      SigningPubKey: "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421", // Exact from working
+      SigningPubKey: currentWallet.publicKey || "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421",
       TransactionType: "Payment"
     };
 
@@ -227,20 +227,25 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Keep SigningPubKey as shown in the working example
       console.log('Transaction for Keystone:', xrpTransaction);
       
-      // Create JSON string with exact formatting from Keystone device display
+      // Create JSON string with actual form data
+      const actualAmount = Math.floor(parseFloat(txData.amount) * 1000000).toString(); // Convert XRP to drops
+      const actualDestination = txData.destination;
+      const actualFee = "12";
+      
       const txStr = `{
   "Account":
-"rBz7Rzy4tUDicbbiggj9DbXep8VNCrZG64",
-  "Amount": "1000000",
+"${currentWallet.address}",
+  "Amount": "${actualAmount}",
   "Destination":
-"rHkzmyGgP9PudBs7Gtxn8M4zDbPahkxag",
-  "Fee": "12",
+"${actualDestination}",
+  "Fee": "${actualFee}",
   "Flags": 2147483648,
-  "LastLedgerSequence": 96700202,
-  "Sequence": 95943347,
+  "LastLedgerSequence": ${xrpTransaction.LastLedgerSequence},
+  "Sequence": ${transactionSequence},
   "SigningPubKey":
-"03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421",
-  "TransactionType": "Payment"
+"${currentWallet.publicKey || "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421"}",
+  "TransactionType": "Payment"${txData.destinationTag ? `,
+  "DestinationTag": ${txData.destinationTag}` : ''}
 }`;
       console.log('Transaction JSON:', txStr);
       
