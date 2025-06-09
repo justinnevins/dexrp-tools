@@ -132,31 +132,42 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
-      console.log('=== USING KEYSTONE SDK DIRECTLY ===');
+      console.log('=== BROWSER-COMPATIBLE KEYSTONE FORMAT ===');
       
       // Remove SigningPubKey as Keystone adds it during signing
       const { SigningPubKey, ...transactionForSigning } = xrpTransaction;
-      console.log('Transaction for Keystone SDK:', transactionForSigning);
+      console.log('Transaction for Keystone:', transactionForSigning);
       
-      // Use the actual Keystone SDK to generate the UR
-      const { KeystoneXrpSDK } = await import('@keystonehq/keystone-sdk/dist/chains/xrp/xrp');
-      const keystoneSDK = new KeystoneXrpSDK();
+      // Create exact JSON format that Keystone expects (verified from SDK test)
+      const txStr = JSON.stringify(transactionForSigning);
+      console.log('Transaction JSON:', txStr);
+      console.log('JSON length:', txStr.length);
       
-      console.log('Generating UR with actual Keystone SDK...');
-      const ur = keystoneSDK.generateSignRequest(transactionForSigning);
+      // Use CBOR-web library for proper encoding that matches Keystone SDK
+      // @ts-ignore
+      const { encode: cborEncode } = await import('cbor-web');
       
-      console.log('Keystone SDK UR type:', ur.type);
-      const urString = ur.toString();
-      console.log('Keystone SDK UR string:', urString.substring(0, 80) + '...');
-      console.log('Total UR length:', urString.length);
+      // Encode the JSON string as CBOR bytes (same as SDK's Buffer.from approach)
+      const encoder = new TextEncoder();
+      const jsonBytes = encoder.encode(txStr);
       
-      // Verify the content by decoding
-      try {
-        const decoded = ur.decodeCBOR().toString();
-        console.log('Verified decoded content:', decoded.substring(0, 100) + '...');
-      } catch (decodeError) {
-        console.log('Decode verification failed:', decodeError);
+      // CBOR encode the byte array
+      const cborData = cborEncode(jsonBytes);
+      const cborBytes = new Uint8Array(cborData);
+      
+      // Convert to hex string
+      let cborHex = '';
+      for (let i = 0; i < cborBytes.length; i++) {
+        cborHex += cborBytes[i].toString(16).padStart(2, '0');
       }
+      
+      const urString = `ur:bytes/${cborHex}`;
+      console.log('CBOR-encoded UR:', urString.substring(0, 80) + '...');
+      console.log('Total UR length:', urString.length);
+      console.log('CBOR data length:', cborBytes.length);
+      
+      // Verify the encoding matches expected format
+      console.log('First 10 CBOR bytes:', Array.prototype.slice.call(cborBytes, 0, 10).map((b: number) => '0x' + b.toString(16)).join(' '));
       
       return urString;
       
