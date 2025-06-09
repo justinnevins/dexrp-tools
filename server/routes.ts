@@ -231,5 +231,61 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // Keystone UR decoder endpoint
+  app.post('/api/decode-keystone-ur', async (req: Request, res: Response) => {
+    try {
+      const { urData } = req.body;
+      
+      if (!urData || typeof urData !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing or invalid urData parameter'
+        });
+      }
+
+      // Execute Python decoder script
+      const { spawn } = await import('child_process');
+      const pythonProcess = spawn('python3', ['decode_keystone_ur.py', urData]);
+      
+      let stdout = '';
+      let stderr = '';
+      
+      pythonProcess.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      pythonProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      pythonProcess.on('close', (code) => {
+        if (code === 0) {
+          try {
+            const result = JSON.parse(stdout.trim());
+            res.json(result);
+          } catch (parseError) {
+            res.status(500).json({
+              success: false,
+              error: 'Failed to parse Python decoder output'
+            });
+          }
+        } else {
+          console.error('Python decoder failed:', stderr);
+          res.status(500).json({
+            success: false,
+            error: 'Python decoder script failed'
+          });
+        }
+      });
+      
+    } catch (error) {
+      console.error('Keystone UR decoder error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error during UR decoding'
+      });
+    }
+  });
+
   return httpServer;
 }
