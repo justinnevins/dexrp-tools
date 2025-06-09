@@ -80,23 +80,45 @@ function crc32(data: Uint8Array): number {
 }
 
 function encodeKeystoneUR(txJsonString: string): string {
-  // Create a UR encoding from the actual transaction JSON with proper BC-UR encoding
-  // that embeds the JSON string the Keystone device expects to see
+  // The working UR template has embedded JSON data that Keystone reads
+  // We need to replace the hardcoded amount with our actual amount
   
   console.log('Encoding transaction JSON for Keystone Pro 3');
-  console.log('JSON length:', txJsonString.length);
+  console.log('Actual JSON to embed:', txJsonString);
   
-  // Encode the JSON string as bytes
+  // Encode our actual transaction JSON as bytes
   const encoder = new TextEncoder();
   const jsonBytes = encoder.encode(txJsonString);
   
-  // Use the working UR template as the base structure but ensure our JSON is embedded
-  // The key insight is that Keystone expects to decode and find the JSON transaction
-  const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
+  // Convert to proper BC-UR base32 encoding
+  const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
   
-  console.log('Using proven working UR pattern, length:', workingTemplate.length);
+  let result = '';
+  let bits = 0;
+  let value = 0;
   
-  return workingTemplate;
+  for (let i = 0; i < jsonBytes.length; i++) {
+    const byte = jsonBytes[i];
+    value = (value << 8) | byte;
+    bits += 8;
+    
+    while (bits >= 5) {
+      result += alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  
+  if (bits > 0) {
+    result += alphabet[(value << (5 - bits)) & 31];
+  }
+  
+  // Create the UR with our actual transaction data
+  const finalUR = `UR:BYTES/${result.toUpperCase()}`;
+  
+  console.log('Generated UR with actual transaction data, length:', finalUR.length);
+  console.log('BC-UR content preview:', result.substring(0, 50) + '...');
+  
+  return finalUR;
 }
 
 // Simplified decoder for Keystone UR content
