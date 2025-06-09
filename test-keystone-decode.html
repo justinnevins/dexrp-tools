@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Keystone UR Decoder Test</title>
+</head>
+<body>
+    <h1>Keystone Signed Transaction Decoder</h1>
+    <textarea id="urInput" placeholder="Paste your UR:BYTES/... string here" style="width: 100%; height: 100px;"></textarea>
+    <br><br>
+    <button onclick="decodeUR()">Decode</button>
+    <br><br>
+    <div id="output"></div>
+
+    <script type="module">
+        window.decodeUR = async function() {
+            const urString = document.getElementById('urInput').value.trim();
+            const output = document.getElementById('output');
+            
+            if (!urString.startsWith('UR:BYTES/')) {
+                output.innerHTML = '<div style="color: red;">Invalid format. Must start with UR:BYTES/</div>';
+                return;
+            }
+            
+            try {
+                output.innerHTML = '<div>Decoding...</div>';
+                
+                // Extract the UR content
+                const urContent = urString.substring(9); // Remove 'UR:BYTES/'
+                
+                // Try to import and use BC-UR decoder
+                const { URDecoder } = await import('@ngraveio/bc-ur');
+                
+                const decoder = new URDecoder();
+                const result = decoder.receivePart(urString);
+                
+                console.log('Decoder result:', result);
+                
+                if (result && typeof result === 'object' && result.isComplete()) {
+                    const urResult = result.resultUR();
+                    console.log('UR Result:', urResult);
+                    
+                    // Try to decode CBOR
+                    const { decode } = await import('cbor-web');
+                    const decodedData = decode(urResult.cbor);
+                    
+                    output.innerHTML = `
+                        <div style="color: green;">Successfully decoded!</div>
+                        <h3>Decoded Data:</h3>
+                        <pre>${JSON.stringify(decodedData, null, 2)}</pre>
+                        <h3>Raw CBOR bytes length:</h3>
+                        <div>${urResult.cbor.length}</div>
+                    `;
+                    
+                } else {
+                    output.innerHTML = '<div style="color: orange;">Decoding incomplete or failed</div>';
+                }
+                
+            } catch (error) {
+                console.error('Decoding error:', error);
+                output.innerHTML = `<div style="color: red;">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Pre-fill with the signed transaction
+        document.getElementById('urInput').value = 'UR:BYTES/HDRFBGAEAECPLAAEAEAEDKAHRLZSQDCXCWAHSRLTDRHSFZAEAEAEAEBSFWFZISFZAEAEAEAEAEAEBNJKCLAXFZDWCAKPTDFLTOPRDTJYGAWNPMNSVTTEBWBWMULPWYFSIEPKCWTOHPAAIADEEECLJYFGDYFYAOCXKIWSSTWNJTLNTSHLCPYNDLGALPTSBYLRWECYFWWNOXCFTKBGLRZCTSPELNPFBEGWAOCXJYTEZTENTSGWNENTIONYYALRMYPKIEEMFNSRFXSAEMHYZTASATDLDWEYDMYTWMETLYBBKSMYUTPMISPKYNPFMHUEMUBYGMLEZTGOMKZOKIKPLSBBAXDNHSPKHPBZCAMSDKFSMKDNQDRNREWYQDNLVORPFXFESFVY';
+    </script>
+</body>
+</html>

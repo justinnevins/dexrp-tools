@@ -96,31 +96,49 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
   };
 
   const manualEntry = () => {
-    // Handle different types of manual entry based on title
-    if (title.includes('Signed Transaction')) {
-      // For signed transactions, create a more user-friendly input method
-      const signedData = window.prompt(`Paste the signed transaction UR code from your Keystone device:
+    try {
+      console.log('Manual entry clicked, title:', title);
+      
+      // Handle different types of manual entry based on title
+      if (title.includes('Signed Transaction')) {
+        console.log('Opening signed transaction prompt...');
+        
+        // For signed transactions, create a more user-friendly input method
+        const signedData = window.prompt(`Paste the signed transaction UR code from your Keystone device:
 
 Format should be: UR:BYTES/[long string]
 
 Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
-      
-      if (signedData && signedData.trim()) {
-        const trimmedData = signedData.trim();
-        if (trimmedData.toUpperCase().startsWith('UR:')) {
-          onScan(trimmedData);
+        
+        console.log('User entered data:', signedData ? 'data provided' : 'no data');
+        
+        if (signedData && signedData.trim()) {
+          const trimmedData = signedData.trim();
+          console.log('Trimmed data starts with:', trimmedData.substring(0, 20));
+          
+          if (trimmedData.toUpperCase().startsWith('UR:')) {
+            console.log('Valid UR format, calling onScan...');
+            onScan(trimmedData);
+          } else {
+            console.log('Invalid format detected');
+            alert('Invalid format. Please enter the complete UR code starting with "UR:"');
+          }
         } else {
-          alert('Invalid format. Please enter the complete UR code starting with "UR:"');
+          console.log('No data entered or empty string');
+        }
+      } else {
+        // For wallet addresses
+        console.log('Opening address prompt...');
+        const address = prompt('Enter XRPL wallet address (starting with "r"):');
+        if (address && address.startsWith('r') && address.length >= 25) {
+          onScan(address);
+        } else if (address) {
+          alert('Invalid XRPL address format');
         }
       }
-    } else {
-      // For wallet addresses
-      const address = prompt('Enter XRPL wallet address (starting with "r"):');
-      if (address && address.startsWith('r') && address.length >= 25) {
-        onScan(address);
-      } else if (address) {
-        alert('Invalid XRPL address format');
-      }
+    } catch (error) {
+      console.error('Manual entry error:', error);
+      alert('Error opening input dialog. Please try again.');
     }
   };
 
