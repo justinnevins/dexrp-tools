@@ -365,39 +365,43 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             const decoder = new URDecoder();
             
             // Keystone Pro 3 uses single-part UR encoding for signed transactions
-            const decoded = decoder.receivePart(signedQRData);
+            const decodedResult = decoder.receivePart(signedQRData);
             
-            if (decoded.isComplete()) {
-              const urData = decoded.resultUR();
-              console.log('UR decoded successfully:', urData);
-              
-              // The UR data should contain the signed transaction
-              const signedBytes = urData.cbor;
-              
-              // Decode CBOR to get the actual signed transaction
-              const { decode: cborDecode } = await import('cbor-web');
-              const decodedData = cborDecode(signedBytes);
-              
-              console.log('Decoded signed transaction data:', decodedData);
-              
-              // Extract transaction blob from decoded CBOR
-              if (decodedData && decodedData.signedTransaction) {
-                signedTransaction = {
-                  txBlob: decodedData.signedTransaction,
-                  txHash: decodedData.txHash || null
-                };
-              } else if (typeof decodedData === 'string') {
-                // Direct transaction blob
-                signedTransaction = {
-                  txBlob: decodedData,
-                  txHash: null
-                };
+            if (decodedResult && typeof decodedResult === 'object' && 'isComplete' in decodedResult) {
+              if (decodedResult.isComplete()) {
+                const urData = (decodedResult as any).resultUR();
+                console.log('UR decoded successfully:', urData);
+                
+                // The UR data should contain the signed transaction
+                const signedBytes = urData.cbor;
+                
+                // Decode CBOR to get the actual signed transaction
+                const { decode: cborDecode } = await import('cbor-web');
+                const decodedData = cborDecode(signedBytes);
+                
+                console.log('Decoded signed transaction data:', decodedData);
+                
+                // Extract transaction blob from decoded CBOR
+                if (decodedData && decodedData.signedTransaction) {
+                  signedTransaction = {
+                    txBlob: decodedData.signedTransaction,
+                    txHash: decodedData.txHash || null
+                  };
+                } else if (typeof decodedData === 'string') {
+                  // Direct transaction blob
+                  signedTransaction = {
+                    txBlob: decodedData,
+                    txHash: null
+                  };
+                } else {
+                  throw new Error('Unexpected signed transaction structure');
+                }
+                
               } else {
-                throw new Error('Unexpected signed transaction structure');
+                throw new Error('BC-UR decoding incomplete');
               }
-              
             } else {
-              throw new Error('BC-UR decoding incomplete');
+              throw new Error('BC-UR decoder returned unexpected result');
             }
             
           } catch (error) {

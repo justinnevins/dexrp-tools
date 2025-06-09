@@ -98,9 +98,20 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
   const manualEntry = () => {
     // Handle different types of manual entry based on title
     if (title.includes('Signed Transaction')) {
-      const signedData = prompt('Enter the signed transaction data from your Keystone device:');
+      // For signed transactions, create a more user-friendly input method
+      const signedData = window.prompt(`Paste the signed transaction UR code from your Keystone device:
+
+Format should be: UR:BYTES/[long string]
+
+Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
+      
       if (signedData && signedData.trim()) {
-        onScan(signedData.trim());
+        const trimmedData = signedData.trim();
+        if (trimmedData.toUpperCase().startsWith('UR:')) {
+          onScan(trimmedData);
+        } else {
+          alert('Invalid format. Please enter the complete UR code starting with "UR:"');
+        }
       }
     } else {
       // For wallet addresses
