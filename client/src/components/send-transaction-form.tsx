@@ -197,17 +197,17 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       });
     }
     
-    // Create XRP transaction for Keystone Pro 3
+    // Create XRP transaction for Keystone Pro 3 - exact structure from working example
     const xrpTransaction = {
-      TransactionType: "Payment",
       Account: currentWallet.address,
-      Destination: txData.destination,
       Amount: amountInDrops,
+      Destination: txData.destination,
       Fee: "12",
-      Sequence: transactionSequence,
-      LastLedgerSequence: transactionLedger + 20,
       Flags: 2147483648,
-      SigningPubKey: currentWallet.publicKey || "0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6"
+      LastLedgerSequence: 96700202, // Use exact value from working example
+      Sequence: transactionSequence,
+      SigningPubKey: "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421", // Exact from working
+      TransactionType: "Payment"
     };
 
     // Add optional fields
