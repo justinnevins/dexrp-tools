@@ -109,24 +109,28 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     console.log('Creating Keystone transaction object:', xrpTransaction);
 
     try {
+      console.log('=== USING RIPPLE BINARY CODEC ===');
+      
+      // Keystone expects XRP transactions encoded with Ripple's binary codec, not CBOR
+      // Remove SigningPubKey as it will be added during signing
+      const transactionForSigning = { ...xrpTransaction };
+      delete transactionForSigning.SigningPubKey;
+      
+      console.log('Transaction for signing (no SigningPubKey):', transactionForSigning);
+      
+      // Encode using Ripple binary codec
+      const encodedTransaction = encode(transactionForSigning);
+      console.log('Ripple binary encoded transaction:', encodedTransaction);
+      console.log('Encoded transaction length:', encodedTransaction.length);
+      
       // @ts-ignore
       const { encode: cborEncode } = await import('cbor-web');
       
-      // Keystone XRP transactions require specific UR registry format
-      // The transaction must be wrapped in a CryptoSignRequest structure
+      // Create the proper structure for Keystone UR
       const requestId = crypto.randomUUID().replace(/-/g, '').substring(0, 32);
-      
-      // Test different CBOR structures to identify the correct format
-      console.log('=== DEBUGGING KEYSTONE FORMAT ===');
-      
-      // Option 1: Direct transaction CBOR (minimal)
-      const directTx = cborEncode(xrpTransaction);
-      console.log('Option 1 - Direct transaction CBOR length:', directTx.length);
-      
-      // Option 2: JSON string wrapped
-      const jsonWrapped = {
+      const keystoneRequest = {
         requestId: requestId,
-        signData: JSON.stringify(xrpTransaction),
+        signData: encodedTransaction, // Use binary encoded transaction
         dataType: 1,
         chainType: 144,
         path: "m/44'/144'/0'/0/0",
@@ -134,58 +138,18 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         address: currentWallet.address,
         origin: "XRPL Wallet"
       };
-      console.log('Option 2 - JSON wrapped structure:', jsonWrapped);
       
-      // Option 3: CBOR transaction wrapped
-      const cborWrapped = {
-        requestId: requestId,
-        signData: xrpTransaction, // Direct object, not JSON string
-        dataType: 1,
-        chainType: 144,
-        path: "m/44'/144'/0'/0/0",
-        xfp: "73c5da0a",
-        address: currentWallet.address,
-        origin: "XRPL Wallet"
-      };
-      console.log('Option 3 - CBOR object wrapped structure:', cborWrapped);
+      console.log('Keystone request with binary data:', keystoneRequest);
       
-      // Option 4: Try different UR types
-      console.log('Testing different approaches...');
-      console.log('- ur:xrp-sign-request (current)');
-      console.log('- ur:bytes (alternative)');
-      console.log('- Direct transaction encoding');
-      
-      // Let's try the direct transaction approach first
-      const signRequest = xrpTransaction; // Try direct transaction without wrapper
-      
-      // Encode using CBOR
-      const cborData = cborEncode(signRequest);
-      console.log('CBOR encoded data length:', cborData.length);
-      
-      // Convert to hex string
+      // Encode the request structure with CBOR
+      const cborData = cborEncode(keystoneRequest);
       const cborHex = Array.from(new Uint8Array(cborData))
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
       
-      console.log('CBOR hex preview:', cborHex.substring(0, 40) + '...');
-      
-      // Test multiple UR format variations
-      const variations = [
-        { type: 'ur:bytes', data: cborHex },
-        { type: 'ur:xrp-sign-request', data: cborHex },
-        { type: 'ur:crypto-sign-request', data: cborHex }
-      ];
-      
-      console.log('=== TESTING UR VARIATIONS ===');
-      variations.forEach((v, i) => {
-        console.log(`Variation ${i + 1}: ${v.type}/${v.data.substring(0, 20)}...`);
-      });
-      
-      // For this test, return the simplest format first
       const urString = `ur:bytes/${cborHex}`;
-      console.log('Using ur:bytes format for testing...');
-      console.log('Complete UR preview:', urString.substring(0, 80) + '...');
-      console.log('Total UR length:', urString.length);
+      console.log('Final UR with binary transaction:', urString.substring(0, 80) + '...');
+      console.log('Total length:', urString.length);
       
       return urString;
       
