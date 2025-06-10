@@ -113,74 +113,86 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
     const decodedBytes = new Uint8Array(bytes);
     console.log('Decoded binary template:', decodedBytes.length, 'bytes');
     
-    // Search for patterns that might represent the hardcoded amount (1000000 = 0x0F4240)
-    const originalAmount = 1000000;
-    const newAmount = parseInt(transactionTemplate.Amount);
-    
-    console.log('Looking for amount pattern:', originalAmount, '->', newAmount);
-    
-    // Convert amounts to different byte representations to search for
-    const originalBytes = [
-      // Little endian 32-bit
-      (originalAmount & 0xFF), ((originalAmount >> 8) & 0xFF), ((originalAmount >> 16) & 0xFF), ((originalAmount >> 24) & 0xFF),
-      // Big endian 32-bit  
-      ((originalAmount >> 24) & 0xFF), ((originalAmount >> 16) & 0xFF), ((originalAmount >> 8) & 0xFF), (originalAmount & 0xFF),
-      // 24-bit big endian (common in XRPL)
-      0x0F, 0x42, 0x40
+    // Define all the hardcoded values that need replacement
+    const replacements = [
+      {
+        name: 'Amount',
+        oldValue: 1000000,
+        newValue: parseInt(transactionTemplate.Amount),
+        found: false
+      },
+      {
+        name: 'LastLedgerSequence', 
+        oldValue: 95944000, // From the working template
+        newValue: transactionTemplate.LastLedgerSequence,
+        found: false
+      },
+      {
+        name: 'Sequence',
+        oldValue: 95943347, // From the working template
+        newValue: transactionTemplate.Sequence,
+        found: false
+      }
     ];
     
-    const newAmountBytes = [
-      // Little endian 32-bit
-      (newAmount & 0xFF), ((newAmount >> 8) & 0xFF), ((newAmount >> 16) & 0xFF), ((newAmount >> 24) & 0xFF),
-      // Big endian 32-bit
-      ((newAmount >> 24) & 0xFF), ((newAmount >> 16) & 0xFF), ((newAmount >> 8) & 0xFF), (newAmount & 0xFF),
-      // 24-bit big endian
-      ((newAmount >> 16) & 0xFF), ((newAmount >> 8) & 0xFF), (newAmount & 0xFF)
+    console.log('Values to replace:', replacements.map(r => `${r.name}: ${r.oldValue} -> ${r.newValue}`));
+    
+    // Helper function to get all possible byte encodings for a number
+    const getEncodings = (num: number) => [
+      // 32-bit big endian
+      { bytes: [((num >> 24) & 0xFF), ((num >> 16) & 0xFF), ((num >> 8) & 0xFF), (num & 0xFF)], name: '32BE' },
+      // 32-bit little endian
+      { bytes: [(num & 0xFF), ((num >> 8) & 0xFF), ((num >> 16) & 0xFF), ((num >> 24) & 0xFF)], name: '32LE' },
+      // 24-bit big endian (skip if number too large)
+      ...(num <= 0xFFFFFF ? [{ bytes: [((num >> 16) & 0xFF), ((num >> 8) & 0xFF), (num & 0xFF)], name: '24BE' }] : []),
+      // CBOR uint32 (tag + 32-bit BE)
+      { bytes: [0x1A, ((num >> 24) & 0xFF), ((num >> 16) & 0xFF), ((num >> 8) & 0xFF), (num & 0xFF)], name: 'CBOR32' }
     ];
     
     // Create modifiable copy
     const modifiedBytes = new Uint8Array(decodedBytes);
     let modificationsFound = 0;
     
-    // Log all bytes to find the pattern manually
-    console.log('Full byte dump for pattern analysis:');
-    for (let i = 0; i < Math.min(100, modifiedBytes.length); i += 10) {
-      const slice = Array.from(modifiedBytes.slice(i, i + 10));
-      console.log(`Bytes ${i}-${i + 9}:`, slice.map(b => b.toString(16).padStart(2, '0')).join(' '));
-    }
-    
-    // Search for various encodings of 1000000
-    const searches = [
-      // 24-bit big endian: 0x0F4240
-      { pattern: [0x0F, 0x42, 0x40], name: '24-bit BE' },
-      // 32-bit big endian: 0x000F4240
-      { pattern: [0x00, 0x0F, 0x42, 0x40], name: '32-bit BE' },
-      // 32-bit little endian: 0x40420F00
-      { pattern: [0x40, 0x42, 0x0F, 0x00], name: '32-bit LE' },
-      // ASCII "1000000"
-      { pattern: [0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30], name: 'ASCII' },
-      // CBOR encoded integer
-      { pattern: [0x1A, 0x00, 0x0F, 0x42, 0x40], name: 'CBOR uint32' },
-      // Check for just the distinctive 0x42, 0x40 sequence
-      { pattern: [0x42, 0x40], name: 'partial 0x4240' }
-    ];
-    
-    for (const search of searches) {
-      for (let i = 0; i < modifiedBytes.length - search.pattern.length + 1; i++) {
-        let match = true;
-        for (let j = 0; j < search.pattern.length; j++) {
-          if (modifiedBytes[i + j] !== search.pattern[j]) {
-            match = false;
-            break;
+    // Search and replace each value in the binary template
+    for (const replacement of replacements) {
+      const oldEncodings = getEncodings(replacement.oldValue);
+      const newEncodings = getEncodings(replacement.newValue);
+      
+      for (const oldEncoding of oldEncodings) {
+        for (let i = 0; i < modifiedBytes.length - oldEncoding.bytes.length + 1; i++) {
+          let match = true;
+          for (let j = 0; j < oldEncoding.bytes.length; j++) {
+            if (modifiedBytes[i + j] !== oldEncoding.bytes[j]) {
+              match = false;
+              break;
+            }
+          }
+          
+          if (match) {
+            console.log(`Found ${replacement.name} (${oldEncoding.name}) at byte ${i}:`, 
+              oldEncoding.bytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+            
+            // Find corresponding new encoding with same format
+            const newEncoding = newEncodings.find(enc => enc.name === oldEncoding.name);
+            if (newEncoding) {
+              // Replace the bytes
+              for (let j = 0; j < oldEncoding.bytes.length; j++) {
+                modifiedBytes[i + j] = newEncoding.bytes[j];
+              }
+              console.log(`Replaced with:`, 
+                newEncoding.bytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
+              replacement.found = true;
+              modificationsFound++;
+            }
           }
         }
-        if (match) {
-          console.log(`Found ${search.name} pattern at byte ${i}:`, search.pattern.map(b => '0x' + b.toString(16)));
-          
-          // For now, just log - will implement replacement based on findings
-          modificationsFound++;
-        }
       }
+    }
+    
+    // Log summary of what was found and replaced
+    console.log('Replacement summary:');
+    for (const replacement of replacements) {
+      console.log(`${replacement.name}: ${replacement.found ? 'REPLACED' : 'NOT FOUND'}`);
     }
     
     console.log('Binary modifications made:', modificationsFound);
@@ -210,7 +222,7 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
       }
       
       const modifiedUR = `UR:BYTES/${result.toUpperCase()}`;
-      console.log('Generated modified binary template with amount:', newAmount);
+      console.log('Generated modified binary template with dynamic values');
       return modifiedUR;
     } else {
       console.log('No amount patterns found, returning original template');
