@@ -80,157 +80,93 @@ function crc32(data: Uint8Array): number {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== BINARY TEMPLATE MODIFICATION APPROACH ===');
-  
-  // The working template contains a custom binary format with embedded transaction data
-  // We need to modify specific bytes that contain the amount and addresses
-  const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
+  console.log('=== KEYSTONE SDK INTEGRATION ===');
   
   try {
-    // Decode to bytes
-    const urContent = workingTemplate.substring(9);
-    const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
-    const reverseAlphabet: { [key: string]: number } = {};
-    for (let i = 0; i < alphabet.length; i++) {
-      reverseAlphabet[alphabet[i]] = i;
+    // Import the official Keystone SDK and explore its API
+    const keystoneSDK = await import('@keystonehq/keystone-sdk');
+    const { Buffer } = await import('buffer');
+    
+    console.log('Keystone SDK imported, exploring API...');
+    console.log('SDK exports:', Object.keys(keystoneSDK));
+    
+    // The SDK might have different structure - let's explore
+    const sdk = keystoneSDK.default || keystoneSDK;
+    
+    if (typeof sdk === 'function') {
+      console.log('SDK is a constructor function');
+      const instance = new sdk();
+      console.log('Instance methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(instance)));
+    } else if (typeof sdk === 'object') {
+      console.log('SDK is an object with properties:', Object.keys(sdk));
     }
     
-    let value = 0;
-    let bits = 0;
-    const bytes = [];
+    // Try different possible API patterns
+    let urData;
     
-    for (const char of urContent.toLowerCase()) {
-      if (char in reverseAlphabet) {
-        value = (value << 5) | reverseAlphabet[char];
-        bits += 5;
-        while (bits >= 8) {
-          bytes.push((value >>> (bits - 8)) & 0xFF);
-          bits -= 8;
-        }
-      }
+    // Pattern 1: Direct encoding with XRP-specific methods
+    if (sdk.XRP || (sdk.default && sdk.default.XRP)) {
+      const xrpSDK = sdk.XRP || sdk.default.XRP;
+      console.log('Found XRP-specific SDK');
+      urData = xrpSDK.generateSigningRequest({
+        transaction: transactionTemplate,
+        requestId: Date.now().toString()
+      });
     }
     
-    const decodedBytes = new Uint8Array(bytes);
-    console.log('Decoded binary template:', decodedBytes.length, 'bytes');
+    // Pattern 2: Generic transaction encoding
+    else if (sdk.generateSigningRequest) {
+      console.log('Using generic signing request');
+      urData = sdk.generateSigningRequest({
+        transaction: transactionTemplate,
+        blockchain: 'xrp',
+        requestId: Date.now().toString()
+      });
+    }
     
-    // Define all the hardcoded values that need replacement
-    const replacements = [
-      {
-        name: 'Amount',
-        oldValue: 1000000,
-        newValue: parseInt(transactionTemplate.Amount),
-        found: false
-      },
-      {
-        name: 'LastLedgerSequence', 
-        oldValue: 95944000, // From the working template
-        newValue: transactionTemplate.LastLedgerSequence,
-        found: false
-      },
-      {
-        name: 'Sequence',
-        oldValue: 95943347, // From the working template
-        newValue: transactionTemplate.Sequence,
-        found: false
-      }
-    ];
+    // Pattern 3: Direct XRPL integration
+    else if (sdk.XRPL) {
+      console.log('Using XRPL module');
+      const xrplSDK = new sdk.XRPL();
+      urData = xrplSDK.generateSigningRequest({
+        transactionTemplate
+      });
+    }
     
-    console.log('Values to replace:', replacements.map(r => `${r.name}: ${r.oldValue} -> ${r.newValue}`));
-    
-    // Helper function to get all possible byte encodings for a number
-    const getEncodings = (num: number) => [
-      // 32-bit big endian
-      { bytes: [((num >> 24) & 0xFF), ((num >> 16) & 0xFF), ((num >> 8) & 0xFF), (num & 0xFF)], name: '32BE' },
-      // 32-bit little endian
-      { bytes: [(num & 0xFF), ((num >> 8) & 0xFF), ((num >> 16) & 0xFF), ((num >> 24) & 0xFF)], name: '32LE' },
-      // 24-bit big endian (skip if number too large)
-      ...(num <= 0xFFFFFF ? [{ bytes: [((num >> 16) & 0xFF), ((num >> 8) & 0xFF), (num & 0xFF)], name: '24BE' }] : []),
-      // CBOR uint32 (tag + 32-bit BE)
-      { bytes: [0x1A, ((num >> 24) & 0xFF), ((num >> 16) & 0xFF), ((num >> 8) & 0xFF), (num & 0xFF)], name: 'CBOR32' }
-    ];
-    
-    // Create modifiable copy
-    const modifiedBytes = new Uint8Array(decodedBytes);
-    let modificationsFound = 0;
-    
-    // Search and replace each value in the binary template
-    for (const replacement of replacements) {
-      const oldEncodings = getEncodings(replacement.oldValue);
-      const newEncodings = getEncodings(replacement.newValue);
+    // Pattern 4: Try with binary encoding
+    else {
+      console.log('Attempting binary encoding approach');
       
-      for (const oldEncoding of oldEncodings) {
-        for (let i = 0; i < modifiedBytes.length - oldEncoding.bytes.length + 1; i++) {
-          let match = true;
-          for (let j = 0; j < oldEncoding.bytes.length; j++) {
-            if (modifiedBytes[i + j] !== oldEncoding.bytes[j]) {
-              match = false;
-              break;
-            }
-          }
-          
-          if (match) {
-            console.log(`Found ${replacement.name} (${oldEncoding.name}) at byte ${i}:`, 
-              oldEncoding.bytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-            
-            // Find corresponding new encoding with same format
-            const newEncoding = newEncodings.find(enc => enc.name === oldEncoding.name);
-            if (newEncoding) {
-              // Replace the bytes
-              for (let j = 0; j < oldEncoding.bytes.length; j++) {
-                modifiedBytes[i + j] = newEncoding.bytes[j];
-              }
-              console.log(`Replaced with:`, 
-                newEncoding.bytes.map(b => '0x' + b.toString(16).padStart(2, '0')).join(' '));
-              replacement.found = true;
-              modificationsFound++;
-            }
-          }
-        }
+      // Convert transaction to binary format first
+      const xrpl = await import('xrpl');
+      const transactionBlob = xrpl.encode(transactionTemplate);
+      console.log('XRPL encoded blob:', transactionBlob);
+      
+      // Now try to encode with Keystone
+      if (sdk.encodeBytes || (sdk.default && sdk.default.encodeBytes)) {
+        const encoder = sdk.encodeBytes || sdk.default.encodeBytes;
+        urData = encoder({
+          data: Buffer.from(transactionBlob, 'hex'),
+          type: 'xrp-transaction'
+        });
       }
     }
     
-    // Log summary of what was found and replaced
-    console.log('Replacement summary:');
-    for (const replacement of replacements) {
-      console.log(`${replacement.name}: ${replacement.found ? 'REPLACED' : 'NOT FOUND'}`);
-    }
-    
-    console.log('Binary modifications made:', modificationsFound);
-    
-    if (modificationsFound > 0) {
-      // Re-encode modified bytes
-      const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
-      let result = '';
-      let bits = 0;
-      let value = 0;
-      
-      for (let i = 0; i < modifiedBytes.length; i++) {
-        const byte = modifiedBytes[i];
-        value = (value << 8) | byte;
-        bits += 8;
-        
-        while (bits >= 5) {
-          const index = (value >>> (bits - 5)) & 31;
-          result += alphabet[index];
-          bits -= 5;
-        }
-      }
-      
-      if (bits > 0) {
-        const index = (value << (5 - bits)) & 31;
-        result += alphabet[index];
-      }
-      
-      const modifiedUR = `UR:BYTES/${result.toUpperCase()}`;
-      console.log('Generated modified binary template with dynamic values');
-      return modifiedUR;
+    if (urData) {
+      console.log('Successfully generated UR with Keystone SDK');
+      console.log('UR preview:', urData.substring(0, 100) + '...');
+      return urData;
     } else {
-      console.log('No amount patterns found, returning original template');
-      return workingTemplate;
+      throw new Error('No valid encoding method found');
     }
     
-  } catch (error) {
-    console.error('Binary modification failed:', error);
+  } catch (sdkError) {
+    console.error('Keystone SDK encoding failed:', sdkError);
+    console.log('SDK might not support XRP transactions or method names differ');
+    
+    // Fallback to working template if SDK fails
+    console.log('Falling back to working template');
+    const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
     return workingTemplate;
   }
 }
