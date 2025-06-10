@@ -80,29 +80,64 @@ function crc32(data: Uint8Array): number {
 }
 
 function encodeKeystoneUR(transactionTemplate: any): string {
-  console.log('=== KEYSTONE UR TEMPLATE SELECTOR ===');
+  console.log('=== DYNAMIC KEYSTONE UR ENCODING ===');
   
-  const requestedAmount = parseInt(transactionTemplate.Amount);
-  console.log('Requested amount:', requestedAmount, 'drops');
-  
-  // Map of amounts to pre-made working templates
-  // The working template contains 1000000 drops (1 XRP)
-  const amountTemplates: { [key: number]: string } = {
-    1000000: 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP'
+  // Create the transaction structure that Keystone expects
+  // Based on the working format from your device scans
+  const keystoneTransactionData = {
+    TransactionType: "Payment",
+    Flags: transactionTemplate.Flags,
+    Sequence: transactionTemplate.Sequence,
+    LastLedgerSequence: transactionTemplate.LastLedgerSequence,
+    Amount: transactionTemplate.Amount, // Use actual amount from form
+    Fee: transactionTemplate.Fee,
+    Account: transactionTemplate.Account, // Use actual source address
+    Destination: transactionTemplate.Destination, // Use actual destination from form
+    SigningPubKey: transactionTemplate.SigningPubKey
   };
   
-  // Check if we have a pre-made template for this amount
-  if (amountTemplates[requestedAmount]) {
-    console.log('Found exact template for amount:', requestedAmount);
-    return amountTemplates[requestedAmount];
+  console.log('Dynamic transaction data:', keystoneTransactionData);
+  console.log('Using Amount:', keystoneTransactionData.Amount, 'drops');
+  console.log('Using Destination:', keystoneTransactionData.Destination);
+  
+  // Convert to JSON string (this is what gets encoded in the UR)
+  const transactionJson = JSON.stringify(keystoneTransactionData);
+  console.log('Transaction JSON for encoding:', transactionJson);
+  
+  // Encode as UTF-8 bytes
+  const encoder = new TextEncoder();
+  const jsonBytes = encoder.encode(transactionJson);
+  
+  // Encode using BC-UR base32 alphabet  
+  const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
+  let result = '';
+  let bits = 0;
+  let value = 0;
+  
+  for (let i = 0; i < jsonBytes.length; i++) {
+    const byte = jsonBytes[i];
+    value = (value << 8) | byte;
+    bits += 8;
+    
+    while (bits >= 5) {
+      const index = (value >>> (bits - 5)) & 31;
+      result += alphabet[index];
+      bits -= 5;
+    }
   }
   
-  // For now, use the working template and show a warning
-  console.log('No exact template found, using 1 XRP template');
-  console.log('Device will show 1 XRP, but your amount is logged correctly');
-  console.log('=== END TEMPLATE SELECTION ===');
+  if (bits > 0) {
+    const index = (value << (5 - bits)) & 31;
+    result += alphabet[index];
+  }
   
-  return amountTemplates[1000000];
+  const finalUR = `UR:BYTES/${result.toUpperCase()}`;
+  
+  console.log('Generated UR with dynamic data:');
+  console.log('Final UR length:', finalUR.length);
+  console.log('=== END DYNAMIC ENCODING ===');
+  
+  return finalUR;
 }
 
 // Simplified decoder for Keystone UR content
