@@ -80,76 +80,76 @@ function crc32(data: Uint8Array): number {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== KEYSTONE CBOR UR ENCODING ===');
+  console.log('=== DIAGNOSTIC: ANALYZING WORKING TEMPLATE ===');
+  
+  // First, let's analyze what the working template actually contains
+  const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
   
   try {
-    // Import CBOR encoder for proper Keystone format
-    const { encode: cborEncode } = await import('cbor-web');
-    
-    // Create the exact transaction structure that worked before, but with dynamic values
-    const keystoneTransaction = {
-      TransactionType: "Payment",
-      Flags: transactionTemplate.Flags,
-      Sequence: transactionTemplate.Sequence,
-      LastLedgerSequence: transactionTemplate.LastLedgerSequence,
-      Amount: transactionTemplate.Amount, // Dynamic amount from form
-      Fee: transactionTemplate.Fee,
-      Account: transactionTemplate.Account, // Dynamic source address
-      Destination: transactionTemplate.Destination, // Dynamic destination from form
-      SigningPubKey: transactionTemplate.SigningPubKey
-    };
-    
-    console.log('Keystone transaction with dynamic data:', keystoneTransaction);
-    console.log('Amount:', keystoneTransaction.Amount, 'drops');
-    console.log('Destination:', keystoneTransaction.Destination);
-    
-    // Encode transaction as CBOR (this is the key difference from JSON)
-    const cborData = cborEncode(keystoneTransaction);
-    console.log('CBOR encoded transaction length:', cborData.length);
-    
-    // Convert CBOR to Uint8Array
-    const cborBytes = new Uint8Array(cborData);
-    
-    // Encode CBOR bytes using BC-UR base32 alphabet
+    // Decode the working template to see its structure
+    const urContent = workingTemplate.substring(9); // Remove 'UR:BYTES/'
     const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
-    let result = '';
-    let bits = 0;
-    let value = 0;
+    const reverseAlphabet: { [key: string]: number } = {};
+    for (let i = 0; i < alphabet.length; i++) {
+      reverseAlphabet[alphabet[i]] = i;
+    }
     
-    for (let i = 0; i < cborBytes.length; i++) {
-      const byte = cborBytes[i];
-      value = (value << 8) | byte;
-      bits += 8;
-      
-      while (bits >= 5) {
-        const index = (value >>> (bits - 5)) & 31;
-        result += alphabet[index];
-        bits -= 5;
+    // Decode base32
+    let value = 0;
+    let bits = 0;
+    const bytes = [];
+    
+    for (const char of urContent.toLowerCase()) {
+      if (char in reverseAlphabet) {
+        value = (value << 5) | reverseAlphabet[char];
+        bits += 5;
+        
+        while (bits >= 8) {
+          bytes.push((value >>> (bits - 8)) & 0xFF);
+          bits -= 8;
+        }
       }
     }
     
-    if (bits > 0) {
-      const index = (value << (5 - bits)) & 31;
-      result += alphabet[index];
+    const decodedBytes = new Uint8Array(bytes);
+    console.log('=== WORKING TEMPLATE ANALYSIS ===');
+    console.log('Decoded bytes length:', decodedBytes.length);
+    console.log('First 50 bytes (hex):', Array.from(decodedBytes.slice(0, 50)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+    console.log('First 20 bytes (decimal):', Array.from(decodedBytes.slice(0, 20)));
+    
+    // Try to decode as CBOR
+    const { decode: cborDecode } = await import('cbor-web');
+    try {
+      const cborDecoded = cborDecode(decodedBytes);
+      console.log('CBOR decoded structure:', cborDecoded);
+      console.log('CBOR structure type:', typeof cborDecoded);
+      if (typeof cborDecoded === 'object') {
+        console.log('CBOR object keys:', Object.keys(cborDecoded));
+      }
+    } catch (cborError) {
+      console.log('Working template is NOT valid CBOR:', cborError.message);
+      
+      // Check if it looks like a transaction blob (hex)
+      const hexString = Array.from(decodedBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log('As hex string (first 100 chars):', hexString.substring(0, 100));
+      
+      // Check if it starts with common XRPL transaction prefixes
+      if (hexString.startsWith('12') || hexString.startsWith('00') || hexString.startsWith('01')) {
+        console.log('LOOKS LIKE XRPL TRANSACTION BLOB - this is the key insight!');
+      }
     }
     
-    const finalUR = `UR:BYTES/${result.toUpperCase()}`;
+    console.log('=== HYPOTHESIS VALIDATION ===');
+    console.log('1. Working template contains:', decodedBytes.length, 'bytes');
+    console.log('2. Our CBOR approach produces different byte count');
+    console.log('3. Keystone likely expects transaction blob, not JSON/CBOR fields');
     
-    console.log('CBOR-encoded UR generated:');
-    console.log('UR length:', finalUR.length);
-    console.log('Uses actual form data - Amount:', keystoneTransaction.Amount);
-    console.log('=== END CBOR ENCODING ===');
-    
-    return finalUR;
-    
-  } catch (error) {
-    console.error('CBOR encoding failed:', error);
-    
-    // Fallback: Use the working template structure but warn user
-    console.log('Falling back to working template structure');
-    const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
-    return workingTemplate;
+  } catch (analysisError) {
+    console.error('Analysis failed:', analysisError);
   }
+  
+  console.log('=== RETURNING WORKING TEMPLATE FOR NOW ===');
+  return workingTemplate;
 }
 
 // Simplified decoder for Keystone UR content
