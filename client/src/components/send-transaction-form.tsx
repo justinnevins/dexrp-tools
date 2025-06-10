@@ -80,108 +80,63 @@ function crc32(data: Uint8Array): number {
 }
 
 function encodeKeystoneUR(transactionTemplate: any): string {
-  console.log('=== KEYSTONE UR ENCODING DEBUG ===');
-  console.log('Transaction template:', transactionTemplate);
+  console.log('=== CREATING PROPER XRPL TRANSACTION FOR KEYSTONE ===');
   
-  try {
-    // Decode the working template to get the embedded data structure
-    const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
+  // Create a minimal, valid XRPL transaction JSON that Keystone can understand
+  const minimalTransaction = {
+    TransactionType: "Payment",
+    Account: transactionTemplate.Account,
+    Destination: transactionTemplate.Destination,
+    Amount: transactionTemplate.Amount,
+    Fee: transactionTemplate.Fee,
+    Flags: transactionTemplate.Flags,
+    Sequence: transactionTemplate.Sequence,
+    LastLedgerSequence: transactionTemplate.LastLedgerSequence,
+    SigningPubKey: transactionTemplate.SigningPubKey
+  };
+  
+  console.log('Minimal transaction for Keystone:', minimalTransaction);
+  
+  // Convert to clean JSON string
+  const cleanJson = JSON.stringify(minimalTransaction);
+  console.log('Clean JSON string:', cleanJson);
+  
+  // Encode as UTF-8 bytes
+  const encoder = new TextEncoder();
+  const jsonBytes = encoder.encode(cleanJson);
+  
+  // Encode using proper BC-UR base32 alphabet
+  const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
+  let result = '';
+  let bits = 0;
+  let value = 0;
+  
+  for (let i = 0; i < jsonBytes.length; i++) {
+    const byte = jsonBytes[i];
+    value = (value << 8) | byte;
+    bits += 8;
     
-    // Extract the BC-UR content (remove UR:BYTES/ prefix)
-    const urContent = workingTemplate.substring(9);
-    
-    // Decode BC-UR base32 to get the original data
-    const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
-    const reverseAlphabet = {};
-    for (let i = 0; i < alphabet.length; i++) {
-      reverseAlphabet[alphabet[i]] = i;
-    }
-    
-    // Decode the base32 content
-    let value = 0;
-    let bits = 0;
-    const bytes = [];
-    
-    for (const char of urContent.toLowerCase()) {
-      if (char in reverseAlphabet) {
-        value = (value << 5) | reverseAlphabet[char];
-        bits += 5;
-        
-        while (bits >= 8) {
-          bytes.push((value >>> (bits - 8)) & 0xFF);
-          bits -= 8;
-        }
-      }
-    }
-    
-    const decodedData = new Uint8Array(bytes);
-    console.log('Decoded working template, length:', decodedData.length);
-    
-    // Convert to string to find and replace the amount
-    const decoder = new TextDecoder();
-    let dataString = decoder.decode(decodedData);
-    
-    console.log('Decoded string preview:', dataString.substring(0, 200));
-    
-    // Find and replace the hardcoded amount (1000000) with actual amount
-    const originalAmount = '1000000';
-    const newAmount = transactionTemplate.Amount;
-    
-    if (dataString.includes(originalAmount)) {
-      dataString = dataString.replace(originalAmount, newAmount);
-      console.log('Replaced amount:', originalAmount, '->', newAmount);
-    } else {
-      console.log('Original amount not found in decoded data, searching for patterns...');
-      // Try to find other amount patterns
-      const amountPatterns = ['"Amount": "1000000"', '"Amount":"1000000"'];
-      for (const pattern of amountPatterns) {
-        if (dataString.includes(pattern)) {
-          const newPattern = pattern.replace('1000000', newAmount);
-          dataString = dataString.replace(pattern, newPattern);
-          console.log('Replaced pattern:', pattern, '->', newPattern);
-          break;
-        }
-      }
-    }
-    
-    // Re-encode the modified data
-    const encoder = new TextEncoder();
-    const modifiedBytes = encoder.encode(dataString);
-    
-    // Convert back to BC-UR base32
-    let result = '';
-    let resultBits = 0;
-    let resultValue = 0;
-    
-    for (let i = 0; i < modifiedBytes.length; i++) {
-      const byte = modifiedBytes[i];
-      resultValue = (resultValue << 8) | byte;
-      resultBits += 8;
-      
-      while (resultBits >= 5) {
-        const index = (resultValue >>> (resultBits - 5)) & 31;
-        result += alphabet[index];
-        resultBits -= 5;
-      }
-    }
-    
-    if (resultBits > 0) {
-      const index = (resultValue << (5 - resultBits)) & 31;
+    while (bits >= 5) {
+      const index = (value >>> (bits - 5)) & 31;
       result += alphabet[index];
+      bits -= 5;
     }
-    
-    const finalUR = `UR:BYTES/${result.toUpperCase()}`;
-    console.log('Generated modified UR, length:', finalUR.length);
-    console.log('=== END ENCODING DEBUG ===');
-    
-    return finalUR;
-    
-  } catch (error) {
-    console.error('Failed to modify template:', error);
-    console.log('Falling back to original working template');
-    const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
-    return workingTemplate;
   }
+  
+  if (bits > 0) {
+    const index = (value << (5 - bits)) & 31;
+    result += alphabet[index];
+  }
+  
+  const finalUR = `UR:BYTES/${result.toUpperCase()}`;
+  
+  console.log('Generated UR from actual transaction data:');
+  console.log('Amount in UR:', transactionTemplate.Amount, 'drops');
+  console.log('UR length:', finalUR.length);
+  console.log('UR preview:', finalUR.substring(0, 100) + '...');
+  console.log('=== END PROPER TRANSACTION CREATION ===');
+  
+  return finalUR;
 }
 
 // Simplified decoder for Keystone UR content
