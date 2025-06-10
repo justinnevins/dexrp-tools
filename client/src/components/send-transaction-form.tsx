@@ -142,14 +142,44 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
     const modifiedBytes = new Uint8Array(decodedBytes);
     let modificationsFound = 0;
     
-    // Search for 24-bit pattern (0x0F4240 for 1000000)
-    for (let i = 0; i < modifiedBytes.length - 2; i++) {
-      if (modifiedBytes[i] === 0x0F && modifiedBytes[i + 1] === 0x42 && modifiedBytes[i + 2] === 0x40) {
-        console.log('Found 24-bit amount pattern at byte', i);
-        modifiedBytes[i] = (newAmount >> 16) & 0xFF;
-        modifiedBytes[i + 1] = (newAmount >> 8) & 0xFF;
-        modifiedBytes[i + 2] = newAmount & 0xFF;
-        modificationsFound++;
+    // Log all bytes to find the pattern manually
+    console.log('Full byte dump for pattern analysis:');
+    for (let i = 0; i < Math.min(100, modifiedBytes.length); i += 10) {
+      const slice = Array.from(modifiedBytes.slice(i, i + 10));
+      console.log(`Bytes ${i}-${i + 9}:`, slice.map(b => b.toString(16).padStart(2, '0')).join(' '));
+    }
+    
+    // Search for various encodings of 1000000
+    const searches = [
+      // 24-bit big endian: 0x0F4240
+      { pattern: [0x0F, 0x42, 0x40], name: '24-bit BE' },
+      // 32-bit big endian: 0x000F4240
+      { pattern: [0x00, 0x0F, 0x42, 0x40], name: '32-bit BE' },
+      // 32-bit little endian: 0x40420F00
+      { pattern: [0x40, 0x42, 0x0F, 0x00], name: '32-bit LE' },
+      // ASCII "1000000"
+      { pattern: [0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30], name: 'ASCII' },
+      // CBOR encoded integer
+      { pattern: [0x1A, 0x00, 0x0F, 0x42, 0x40], name: 'CBOR uint32' },
+      // Check for just the distinctive 0x42, 0x40 sequence
+      { pattern: [0x42, 0x40], name: 'partial 0x4240' }
+    ];
+    
+    for (const search of searches) {
+      for (let i = 0; i < modifiedBytes.length - search.pattern.length + 1; i++) {
+        let match = true;
+        for (let j = 0; j < search.pattern.length; j++) {
+          if (modifiedBytes[i + j] !== search.pattern[j]) {
+            match = false;
+            break;
+          }
+        }
+        if (match) {
+          console.log(`Found ${search.name} pattern at byte ${i}:`, search.pattern.map(b => '0x' + b.toString(16)));
+          
+          // For now, just log - will implement replacement based on findings
+          modificationsFound++;
+        }
       }
     }
     
