@@ -10,20 +10,13 @@ export function useWallet() {
 
   const walletsQuery = useQuery<Wallet[]>({
     queryKey: ['browser-wallets'],
-    queryFn: () => {
-      const wallets = browserStorage.getAllWallets();
-      console.log('Loaded wallets from storage:', wallets.map(w => ({ id: w.id, address: w.address })));
-      return Promise.resolve(wallets);
-    },
+    queryFn: () => Promise.resolve(browserStorage.getAllWallets()),
     staleTime: 0,
   });
 
   useEffect(() => {
     if (walletsQuery.data && walletsQuery.data.length > 0 && !currentWallet) {
-      console.log('Setting current wallet to:', walletsQuery.data[0].address);
       setCurrentWallet(walletsQuery.data[0]);
-    } else if (currentWallet) {
-      console.log('Current wallet is:', currentWallet.address);
     }
   }, [walletsQuery.data, currentWallet]);
 

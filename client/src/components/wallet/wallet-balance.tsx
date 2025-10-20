@@ -16,12 +16,17 @@ interface WalletBalanceProps {
 }
 
 export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
-  const { currentWallet, createWallet } = useWallet();
+  const { currentWallet, createWallet, wallets } = useWallet();
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
   const [, setLocation] = useLocation();
   const [showScanner, setShowScanner] = useState(false);
   const { connect } = useHardwareWallet();
+
+  // Debug: Log wallet state
+  console.log('WalletBalance - Current wallet:', currentWallet?.address);
+  console.log('WalletBalance - All wallets:', wallets.data?.map(w => w.address));
+  console.log('WalletBalance - Account info for:', currentWallet?.address, accountInfo);
 
   const handleAddAccount = () => {
     setShowScanner(true);
