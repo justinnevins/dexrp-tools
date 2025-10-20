@@ -4,8 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <script>
-      // Polyfill for libraries that expect process global (e.g., @keystonehq/animated-qr)
+      // Polyfill for libraries that expect Node.js globals (e.g., @keystonehq/animated-qr)
       window.process = { env: { NODE_ENV: 'development' } };
+    </script>
+    <script type="module">
+      // Import Buffer polyfill from the buffer package
+      import { Buffer } from 'buffer';
+      window.Buffer = Buffer;
     </script>
   </head>
   <body>
