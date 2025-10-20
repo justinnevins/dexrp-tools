@@ -80,95 +80,59 @@ function crc32(data: Uint8Array): number {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== KEYSTONE SDK INTEGRATION ===');
+  console.log('=== KEYSTONE UR ENCODING ===');
+  console.log('Transaction to encode:', transactionTemplate);
   
   try {
-    // Import the official Keystone SDK and explore its API
-    const keystoneSDK = await import('@keystonehq/keystone-sdk');
+    // Encode transaction as JSON for Keystone 3 Pro
+    // Keystone uses UR:BYTES format with CBOR encoding
     const { Buffer } = await import('buffer');
+    const { encode: cborEncode } = await import('cbor-web');
     
-    console.log('Keystone SDK imported, exploring API...');
-    console.log('SDK exports:', Object.keys(keystoneSDK));
+    // Create a properly structured transaction object for Keystone
+    const keystonePayload = {
+      type: 'xrp-transaction',
+      data: transactionTemplate
+    };
     
-    // The SDK might have different structure - let's explore
-    const sdk = keystoneSDK.default || keystoneSDK;
+    // CBOR encode the payload
+    const cborData = cborEncode(keystonePayload);
+    console.log('CBOR encoded data length:', cborData.byteLength);
     
-    if (typeof sdk === 'function') {
-      console.log('SDK is a constructor function');
-      const instance = new sdk();
-      console.log('Instance methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(instance)));
-    } else if (typeof sdk === 'object') {
-      console.log('SDK is an object with properties:', Object.keys(sdk));
-    }
+    // Convert to UR format using BC-UR bytewords encoding
+    const urContent = encodeBytewords(new Uint8Array(cborData));
+    const urString = `UR:BYTES/${urContent}`;
     
-    // Try different possible API patterns
-    let urData;
+    console.log('Generated UR string length:', urString.length);
+    console.log('UR preview:', urString.substring(0, 100) + '...');
     
-    // Pattern 1: Direct encoding with XRP-specific methods
-    if (sdk.XRP || (sdk.default && sdk.default.XRP)) {
-      const xrpSDK = sdk.XRP || sdk.default.XRP;
-      console.log('Found XRP-specific SDK');
-      urData = xrpSDK.generateSigningRequest({
-        transaction: transactionTemplate,
-        requestId: Date.now().toString()
-      });
-    }
+    return urString;
     
-    // Pattern 2: Generic transaction encoding
-    else if (sdk.generateSigningRequest) {
-      console.log('Using generic signing request');
-      urData = sdk.generateSigningRequest({
-        transaction: transactionTemplate,
-        blockchain: 'xrp',
-        requestId: Date.now().toString()
-      });
-    }
-    
-    // Pattern 3: Direct XRPL integration
-    else if (sdk.XRPL) {
-      console.log('Using XRPL module');
-      const xrplSDK = new sdk.XRPL();
-      urData = xrplSDK.generateSigningRequest({
-        transactionTemplate
-      });
-    }
-    
-    // Pattern 4: Try with binary encoding
-    else {
-      console.log('Attempting binary encoding approach');
-      
-      // Convert transaction to binary format first
-      const xrpl = await import('xrpl');
-      const transactionBlob = xrpl.encode(transactionTemplate);
-      console.log('XRPL encoded blob:', transactionBlob);
-      
-      // Now try to encode with Keystone
-      if (sdk.encodeBytes || (sdk.default && sdk.default.encodeBytes)) {
-        const encoder = sdk.encodeBytes || sdk.default.encodeBytes;
-        urData = encoder({
-          data: Buffer.from(transactionBlob, 'hex'),
-          type: 'xrp-transaction'
-        });
-      }
-    }
-    
-    if (urData) {
-      console.log('Successfully generated UR with Keystone SDK');
-      console.log('UR preview:', urData.substring(0, 100) + '...');
-      return urData;
-    } else {
-      throw new Error('No valid encoding method found');
-    }
-    
-  } catch (sdkError) {
-    console.error('Keystone SDK encoding failed:', sdkError);
-    console.log('SDK might not support XRP transactions or method names differ');
-    
-    // Fallback to working template if SDK fails
-    console.log('Falling back to working template');
-    const workingTemplate = 'UR:BYTES/HKADENKGCPGHJPHSJTJKHSIAJYINJLJTGHKKJOIHCPFTCPGDHSKKJNIHJTJYCPDWCPFPJNJLKPJTJYCPFTCPEHDYDYDYDYDYDYCPDWCPFYIHJKJYINJTHSJYINJLJTCPFTCPJPFDJEKNJNKKFLIOGDESGDKPIEFWJKEMFLJYKSJTETGTEEKNFYIDGDHSISJEKSHSIOCPDWCPFGJZHSIOJKCPFTEYEHEEEMEEETEOENEEETDWCPFPIAIAJLKPJTJYCPFTCPJPFWKNEMGMKNKKEEJYGOFYINIAIDIDINIOIOIMESFYIDHDIHJOETHFGLFXJPHTFLENEECPDWCPFGIHIHCPFTCPEHEYCPDWCPGUIHJSKPIHJTIAIHCPFTESECESEEEOEOEEEMDWCPGSHSJKJYGSIHIEIOIHJPGUIHJSKPIHJTIAIHCPFTESENEMDYDYEYDYEYDWCPGUINIOJTINJTIOGDKPIDGRIHKKCPFTCPDYEOEEDYEYFXEHFYEMECFYEYEEEMFXFEFWEYEYESEMEEEEESFGEHFPFYESFXFEDYFYEOEHEOEHEOESEOETECFEFEEOFYENEEFPFPEHFWFXFEECFWDYEEENEOEYETEOEEEYEHCPKIPSIYWSSP';
-    return workingTemplate;
+  } catch (error) {
+    console.error('Keystone UR encoding failed:', error);
+    throw new Error('Failed to encode transaction for Keystone 3 Pro. Please try again.');
   }
+}
+
+// Encode bytes to bytewords format for BC-UR
+function encodeBytewords(data: Uint8Array): string {
+  const words: string[] = [];
+  
+  for (let i = 0; i < data.length; i++) {
+    const byte = data[i];
+    words.push(BYTEWORDS[byte].toLowerCase());
+  }
+  
+  // Add CRC32 checksum
+  const checksum = crc32(data);
+  const checksumBytes = new Uint8Array(4);
+  new DataView(checksumBytes.buffer).setUint32(0, checksum, false);
+  
+  for (let i = 0; i < 4; i++) {
+    words.push(BYTEWORDS[checksumBytes[i]].toLowerCase());
+  }
+  
+  return words.join('');
 }
 
 // Simplified decoder for Keystone UR content
