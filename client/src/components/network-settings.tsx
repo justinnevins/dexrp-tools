@@ -103,10 +103,10 @@ export function NetworkSettings({ currentNetwork, onNetworkChange, isConnected }
           );
         })}
         
-        <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <p className="text-sm text-yellow-800 dark:text-yellow-200">
-            <strong>Note:</strong> Switching networks will disconnect your current session. 
-            You'll need to reconnect your hardware wallet after switching.
+        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p className="text-sm text-red-800 dark:text-red-200">
+            <strong>Warning:</strong> Do not use the same account address on both Mainnet and Testnet. 
+            Using the same address on both networks can lead to confusion and potential errors.
           </p>
         </div>
       </CardContent>
