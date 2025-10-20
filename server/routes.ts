@@ -265,9 +265,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a proper BC-UR with Bytewords encoding
       const ur = UR.fromBuffer(keystoneUR.cbor);
       
-      // Get the UR string with Bytewords encoding (uppercase BYTES, letters only)
-      // The toString() method uses Bytewords encoding by default
-      const urString = ur.toString().toUpperCase();
+      // Get the UR string with Bytewords encoding
+      // The UR object has specific methods for encoding
+      let urString;
+      try {
+        // Try to get the Bytewords encoded format
+        if (typeof ur.encode === 'function') {
+          urString = ur.encode();
+        } else if (typeof ur.toURString === 'function') {
+          urString = ur.toURString();
+        } else {
+          // Manually construct the UR string with Bytewords
+          // The BC-UR library encodes to Bytewords by default
+          const encoded = ur.ur || ur.toString();
+          if (encoded && encoded !== '[object Object]') {
+            urString = encoded;
+          } else {
+            // Fall back to constructing from the CBOR
+            // Import Bytewords encoder
+            const Bytewords = (await import('@ngraveio/bc-ur')).Bytewords;
+            const bytewordsEncoded = Bytewords.encode(keystoneUR.cbor);
+            urString = `UR:BYTES/${bytewordsEncoded}`;
+          }
+        }
+        
+        // Ensure uppercase format like working app
+        urString = urString.toUpperCase();
+      } catch (e) {
+        console.error('Backend: Error encoding to Bytewords:', e);
+        // Fallback: manual Bytewords encoding
+        const { Bytewords } = await import('@ngraveio/bc-ur');
+        const bytewordsEncoded = Bytewords.encode(keystoneUR.cbor, 'standard');
+        urString = `UR:BYTES/${bytewordsEncoded.toUpperCase()}`;
+      }
       
       console.log('Backend: Generated UR with Bytewords encoding');
       console.log('Backend: UR string preview:', urString.substring(0, 100) + '...');
