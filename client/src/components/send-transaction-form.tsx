@@ -339,18 +339,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       try {
         console.log('Raw signed QR data:', signedQRData.substring(0, 100) + '...');
         
-        // Handle different Keystone signed transaction formats
+        // Handle Keystone signed transaction UR format
         if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/') || 
             signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
           console.log('Keystone UR format detected');
           
-          // Extract UR type and content
-          const parts = signedQRData.split('/');
-          const urType = parts[0].toLowerCase();
-          const urContent = parts.slice(1).join('/');
-          
           try {
-            // Call backend to decode using Keystone SDK
+            // Call backend to decode using Keystone SDK and BC-UR library
             console.log('Calling backend to decode signature...');
             const response = await fetch('/api/keystone/xrp/decode-signature', {
               method: 'POST',
@@ -358,9 +353,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                ur: signedQRData,
-                type: urType.replace('ur:', ''),
-                cbor: urContent // The backend will handle proper decoding
+                ur: signedQRData
               })
             });
             
@@ -379,15 +372,11 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             };
             
           } catch (error) {
-            console.error('XRP signature decoding failed:', error);
-            // Fallback: treat as hex-encoded transaction blob
-            signedTransaction = {
-              txBlob: urContent,
-              txHash: null
-            };
+            console.error('Keystone signature decoding failed:', error);
+            throw error;
           }
           
-        } else if (signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
+        } else if (false) {  // Disabled - all Keystone QRs should be handled above
           console.log('Keystone BC-UR bytes format detected');
           
           const urContent = signedQRData.substring(9); // Remove 'UR:BYTES/'

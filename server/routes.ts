@@ -276,23 +276,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
-      // Dynamically import Keystone SDK (ES module)
-      const { default: KeystoneSDK, UR } = await import('@keystonehq/keystone-sdk');
+      const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
+      const bcur = await import('@ngraveio/bc-ur');
+      const { URDecoder } = bcur;
       
-      const { ur: urString, type, cbor } = req.body;
+      const { ur: urString } = req.body;
       
-      console.log('Backend: Decoding Keystone signature');
+      console.log('Backend: Decoding Keystone signature from UR:', urString.substring(0, 50) + '...');
       
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Reconstruct UR object from the scanned data
-      const ur = new UR(Buffer.from(cbor, 'hex'), type);
+      // Decode the UR string using BC-UR library
+      const decoder = new URDecoder();
       
-      // Parse the XRP signature
-      const signature = keystoneSDK.xrp.parseSignature(ur);
+      // The UR string is already complete (single part), so we can decode it directly
+      // Remove 'ur:' prefix if present and decode
+      const urPart = urString.toLowerCase();
+      decoder.receivePart(urPart);
       
-      console.log('Backend: Decoded signature:', signature);
+      if (!decoder.isComplete()) {
+        throw new Error('UR decoding incomplete');
+      }
+      
+      const decodedUR = decoder.resultUR();
+      console.log('Backend: Decoded UR type:', decodedUR.type);
+      console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
+      
+      // Parse the XRP signature using the decoded UR
+      const signature = keystoneSDK.xrp.parseSignature(decodedUR);
+      
+      console.log('Backend: Parsed signature successfully');
       
       // Return the signature data
       res.json({
