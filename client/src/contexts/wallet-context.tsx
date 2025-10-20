@@ -52,7 +52,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const setCurrentWallet = (wallet: Wallet) => {
     setCurrentWalletState(wallet);
     localStorage.setItem('xrpl_current_wallet_id', wallet.id.toString());
-    console.log('Context - Switched to wallet:', wallet.address);
+    
+    // Immediately invalidate and refetch account data for the new wallet
+    queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
+    queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
+    queryClient.invalidateQueries({ queryKey: ['accountLines'] });
   };
 
   const createWallet = useMutation({

@@ -19,7 +19,6 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
   const { currentWallet, wallets, setCurrentWallet } = useWallet();
 
   const handleSelectWallet = (wallet: Wallet) => {
-    console.log('Switching to wallet:', { id: wallet.id, address: wallet.address });
     setCurrentWallet(wallet);
   };
 
