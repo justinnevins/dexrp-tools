@@ -102,59 +102,107 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         // Extract the UR content
         const urContent = urData.substring(urData.indexOf('/') + 1);
         console.log('UR content to decode:', urContent.substring(0, 50) + '...');
-        console.log('Decoding UR using manual base32 decoder...');
+        console.log('Decoding UR using Bytewords minimal format...');
         
         // @ts-ignore - cbor-web doesn't have TypeScript types
         const { decode: cborDecode } = await import('cbor-web');
         
-        // BC-UR uses a custom base32 alphabet - decode it manually
-        const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
+        // BC-UR Bytewords - complete 256-word table (BCR-2020-012 specification)
+        const bytewords = [
+          "able", "acid", "also", "apex", "aqua", "arch", "atom", "aunt",
+          "away", "axis", "back", "bald", "barn", "belt", "beta", "bias",
+          "blue", "body", "brag", "brew", "bulb", "buzz", "calm", "cash",
+          "cats", "chef", "city", "claw", "code", "cola", "cook", "cost",
+          "crux", "curl", "cusp", "cyan", "dark", "data", "days", "deli",
+          "dice", "diet", "door", "down", "draw", "drop", "drum", "dull",
+          "duty", "each", "easy", "echo", "edge", "epic", "even", "exam",
+          "exit", "eyes", "fact", "fair", "fern", "figs", "film", "fish",
+          "flap", "flew", "flux", "foxy", "free", "frog", "fuel", "fund",
+          "gala", "game", "gear", "gems", "gift", "girl", "glow", "good",
+          "gray", "grim", "gush", "guru", "half", "hang", "hard", "hawk",
+          "heat", "help", "high", "hill", "holy", "hope", "horn", "huts",
+          "icey", "idea", "idle", "inch", "inky", "into", "iris", "iron",
+          "item", "jade", "jazz", "join", "jolt", "jowl", "judo", "jugs",
+          "jump", "junk", "jury", "keep", "keno", "kept", "keys", "kick",
+          "kiln", "king", "kite", "kiwi", "knob", "lamb", "lazy", "leaf",
+          "omit", "onyx", "open", "oval", "owls", "paid", "part", "peck",
+          "play", "plus", "poem", "pool", "pose", "puff", "puma", "purr",
+          "quad", "quiz", "race", "ramp", "real", "redo", "rich", "road",
+          "rock", "roof", "ruby", "ruin", "runs", "rust", "safe", "saga",
+          "scar", "sets", "silk", "skew", "slam", "slot", "slug", "solo",
+          "song", "stub", "surf", "swan", "task", "tent", "tied", "time",
+          "tiny", "toil", "tomb", "toys", "trip", "tuna", "twin", "ugly",
+          "undo", "unit", "urge", "user", "vast", "very", "veto", "vial",
+          "vibe", "view", "void", "vows", "wall", "wand", "warm", "wasp",
+          "wave", "waxy", "webs", "what", "when", "whiz", "wolf", "work",
+          "yank", "yawn", "yell", "yoga", "yurt", "zaps", "zero", "zest",
+          "zinc", "zoom", "zone", "zulu"
+        ];
+        
+        // Build minimal bytewords lookup (first + last letter → byte value)
+        const minimalLookup: Record<string, number> = {};
+        for (let i = 0; i < bytewords.length; i++) {
+          const word = bytewords[i];
+          const minimal = word[0] + word[word.length - 1];
+          minimalLookup[minimal] = i;
+        }
+        
+        // Decode bytewords minimal format (2 chars per byte)
         const urContentLower = urContent.toLowerCase();
-        
-        console.log('Decoding base32 with BC-UR alphabet...');
-        
-        // Convert BC-UR base32 to bytes
         const bytes: number[] = [];
-        let bits = 0;
-        let value = 0;
         
-        for (let i = 0; i < urContentLower.length; i++) {
-          const char = urContentLower[i];
-          const charValue = alphabet.indexOf(char);
+        for (let i = 0; i < urContentLower.length; i += 2) {
+          const pair = urContentLower.substring(i, i + 2);
+          const byteValue = minimalLookup[pair];
           
-          if (charValue === -1) {
-            console.log('Invalid character in UR:', char);
+          if (byteValue === undefined) {
+            console.log('Unknown byteword pair:', pair, 'at position', i);
             continue;
           }
           
-          value = (value << 5) | charValue;
-          bits += 5;
-          
-          if (bits >= 8) {
-            bytes.push((value >> (bits - 8)) & 0xFF);
-            bits -= 8;
-          }
+          bytes.push(byteValue);
         }
         
         const decodedBytes = new Uint8Array(bytes);
         console.log('Decoded bytes length:', decodedBytes.length);
         console.log('First 20 bytes:', Array.from(decodedBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
         
+        // Strip CRC32 checksum (last 4 bytes) if present
+        const dataWithoutCRC = decodedBytes.length >= 4 
+          ? decodedBytes.slice(0, -4) 
+          : decodedBytes;
+        
+        console.log('Data without CRC length:', dataWithoutCRC.length);
+        
         // Try CBOR decoding
         try {
-          const cborData = cborDecode(decodedBytes);
+          const cborData = cborDecode(dataWithoutCRC);
           console.log('CBOR decoded successfully:', cborData);
+          console.log('CBOR data type:', typeof cborData, Array.isArray(cborData) ? 'array' : '');
+          console.log('CBOR data keys:', cborData && typeof cborData === 'object' ? Object.keys(cborData) : 'N/A');
           
           // Try to extract address and public key from CBOR data
           const extractFromData = (data: any): { address: string; publicKey: string } | null => {
             if (!data) return null;
             
-            // Direct properties
-            const address = data.address || data.Address || data.addr;
-            const publicKey = data.publicKey || data.PublicKey || data.pubKey || data.key;
+            // Direct properties (check various naming conventions)
+            const address = data.address || data.Address || data.addr || data.classic_address;
+            const publicKey = data.publicKey || data.PublicKey || data.pubKey || data.key || data.public_key;
             
-            if (address && publicKey) {
-              return { address, publicKey };
+            // Try to extract from Uint8Array if present
+            let addressStr = address;
+            let publicKeyStr = publicKey;
+            
+            if (address instanceof Uint8Array) {
+              addressStr = new TextDecoder().decode(address);
+            }
+            
+            if (publicKey instanceof Uint8Array) {
+              publicKeyStr = Array.from(publicKey).map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            
+            if (addressStr && publicKeyStr) {
+              return { address: addressStr, publicKey: publicKeyStr };
             }
             
             // Check arrays
@@ -182,25 +230,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
             return extracted;
           }
         } catch (cborError) {
-          console.log('CBOR decode failed, trying as raw data:', cborError);
-        }
-        
-        // Try to decode as UTF-8 JSON
-        try {
-          const textDecoder = new TextDecoder();
-          const jsonString = textDecoder.decode(decodedBytes);
-          console.log('Decoded as UTF-8:', jsonString.substring(0, 200));
-          
-          const parsed = JSON.parse(jsonString);
-          const address = parsed.address || parsed.Address;
-          const publicKey = parsed.publicKey || parsed.PublicKey || parsed.pubKey;
-          
-          if (address && publicKey) {
-            console.log('Extracted from JSON:', { address, publicKey });
-            return { address, publicKey };
-          }
-        } catch (jsonError) {
-          console.log('Not valid UTF-8 JSON');
+          console.log('CBOR decode failed:', cborError);
         }
       }
 
