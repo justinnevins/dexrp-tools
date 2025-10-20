@@ -260,24 +260,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate the XRP sign request using Keystone SDK
       const keystoneUR = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
       
-      console.log('Backend: Keystone UR type:', keystoneUR.type);
+      console.log('Backend: === KEYSTONE UR ANALYSIS ===');
+      console.log('Backend: keystoneUR type:', typeof keystoneUR);
+      console.log('Backend: keystoneUR keys:', Object.keys(keystoneUR));
+      console.log('Backend: keystoneUR.type:', keystoneUR.type);
+      console.log('Backend: keystoneUR.registryType:', (keystoneUR as any).registryType || 'not available');
+      console.log('Backend: CBOR exists?', !!keystoneUR.cbor);
       console.log('Backend: CBOR buffer length:', keystoneUR.cbor ? keystoneUR.cbor.length : 0);
+      console.log('Backend: CBOR hex preview:', keystoneUR.cbor ? keystoneUR.cbor.toString('hex').substring(0, 100) : 'none');
+      
+      // === BC-UR ENCODING ANALYSIS ===
+      console.log('Backend: === BC-UR LIBRARY ANALYSIS ===');
+      console.log('Backend: Available bcur exports:', Object.keys(bcur));
+      console.log('Backend: UR constructor type:', typeof UR);
+      console.log('Backend: UREncoder type:', typeof UREncoder);
       
       // Create a proper BC-UR with Bytewords encoding
-      // The UR.fromBuffer creates a UR that automatically uses Bytewords when converted to string
       const ur = UR.fromBuffer(keystoneUR.cbor);
+      
+      console.log('Backend: UR object type:', typeof ur);
+      console.log('Backend: UR object keys:', Object.keys(ur));
+      console.log('Backend: UR toString type:', typeof ur.toString);
+      console.log('Backend: UR.type:', ur.type);
+      console.log('Backend: UR.cbor:', ur.cbor ? ur.cbor.toString('hex').substring(0, 50) : 'none');
       
       // Get the UR string - the library automatically uses Bytewords encoding
       let urString;
       try {
         // The toString() method on UR objects returns the proper UR format with Bytewords
         urString = ur.toString();
+        console.log('Backend: ur.toString() result:', urString);
+        console.log('Backend: toString result type:', typeof urString);
+        console.log('Backend: toString result length:', urString ? urString.length : 0);
         
         // Check if we have a valid UR string
         if (!urString || urString === '[object Object]') {
-          // If toString doesn't work, try to manually create the Bytewords encoding
           console.log('Backend: toString failed, trying manual Bytewords encoding');
-          console.log('Backend: Available bcur exports:', Object.keys(bcur));
+          console.log('Backend: Available bcur methods:', Object.getOwnPropertyNames(Object.getPrototypeOf(ur)));
           
           // The @ngraveio/bc-ur library uses Bytewords internally
           // Let's manually encode the CBOR buffer
@@ -306,10 +325,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log('Backend: Fallback to hex encoding (not Bytewords)');
       }
       
-      console.log('Backend: Generated UR with Bytewords encoding');
-      console.log('Backend: UR string preview:', urString.substring(0, 100) + '...');
-      console.log('Backend: UR string starts with:', urString.substring(0, 30));
-      console.log('Backend: Full UR length:', urString.length);
+      console.log('Backend: === FINAL UR ANALYSIS ===');
+      console.log('Backend: Final UR string starts with:', urString.substring(0, 50));
+      console.log('Backend: Final UR length:', urString.length);
+      console.log('Backend: Contains "ur:"?', urString.includes('ur:'));
+      console.log('Backend: Contains "BYTES"?', urString.includes('BYTES'));
+      console.log('Backend: Contains numbers?', /[0-9]/.test(urString));
+      console.log('Backend: Contains only letters after prefix?', /^ur:[A-Z]+\/[A-Z]+$/.test(urString));
+      
+      // Log what a working format should look like
+      console.log('Backend: === EXPECTED FORMAT ===');
+      console.log('Backend: Should start with: ur:BYTES/');
+      console.log('Backend: Should contain only uppercase letters after slash');
+      console.log('Backend: Example working format: ur:BYTES/HKADETKGCPGH...');
       
       // Return the properly formatted UR
       res.json({
