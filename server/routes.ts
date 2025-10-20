@@ -286,18 +286,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           urString = part;
         }
         
-        // Ensure uppercase format like the working app
-        urString = urString.toUpperCase();
-        
-        // If it's still not in the right format, construct it manually
-        if (!urString.startsWith('UR:')) {
-          urString = `UR:BYTES/${urString}`;
+        // The working format uses lowercase "ur:" but uppercase Bytewords content
+        // Format: ur:BYTES/UPPERCASE_BYTEWORDS_CONTENT
+        if (urString.startsWith('UR:')) {
+          // Replace UR: with ur: but keep the rest uppercase
+          urString = 'ur:' + urString.substring(3).toUpperCase();
+        } else if (urString.startsWith('ur:')) {
+          // Keep ur: lowercase but make content uppercase
+          urString = 'ur:' + urString.substring(3).toUpperCase();
+        } else {
+          // Add the prefix if missing
+          urString = `ur:BYTES/${urString.toUpperCase()}`;
         }
       } catch (e) {
         console.error('Backend: Error encoding to Bytewords:', e);
-        // Last resort: use hex encoding with UR format
+        // Last resort: use hex encoding with UR format (lowercase ur:)
         const hexString = keystoneUR.cbor.toString('hex').toUpperCase();
-        urString = `UR:BYTES/${hexString}`;
+        urString = `ur:BYTES/${hexString}`;
         console.log('Backend: Fallback to hex encoding (not Bytewords)');
       }
       
