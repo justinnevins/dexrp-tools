@@ -241,21 +241,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Log the transaction for debugging
       console.log('Backend: Creating Keystone sign request for:', transaction);
+      console.log('Backend: Transaction type:', typeof transaction);
       
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Generate the XRP sign request in proper UR format
-      const ur = keystoneSDK.xrp.generateSignRequest(transaction);
+      // The Keystone SDK might be expecting specific formatting
+      // Let's ensure the transaction has the right structure
+      const xrpTransaction = {
+        ...transaction,
+        // Ensure numbers are strings as per XRPL spec
+        Amount: String(transaction.Amount),
+        Fee: String(transaction.Fee),
+        Sequence: Number(transaction.Sequence),
+        LastLedgerSequence: Number(transaction.LastLedgerSequence),
+        Flags: Number(transaction.Flags)
+      };
       
-      // Convert UR to format suitable for QR display
-      // The UR object has a toURString() method that generates the proper format
-      const urString = `ur:${ur.type}/${ur.cbor.toString('hex')}`;
-      const cborHex = ur.cbor.toString('hex');
+      console.log('Backend: Formatted XRP transaction:', xrpTransaction);
+      
+      // Generate the XRP sign request in proper UR format
+      const ur = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
+      
+      console.log('Backend: UR object structure:', {
+        type: ur.type,
+        cborLength: ur.cbor ? ur.cbor.length : 'undefined',
+        hasToURString: typeof ur.toURString === 'function',
+        urKeys: Object.keys(ur)
+      });
+      
+      // Try different methods to get the UR string
+      let urString;
+      if (typeof ur.toURString === 'function') {
+        urString = ur.toURString();
+        console.log('Backend: Using toURString() method');
+      } else if (ur.type && ur.cbor) {
+        urString = `ur:${ur.type}/${ur.cbor.toString('hex')}`;
+        console.log('Backend: Manually constructing UR string');
+      } else {
+        console.log('Backend: UR object unexpected structure:', ur);
+        throw new Error('Unable to generate UR string from Keystone SDK');
+      }
+      
+      const cborHex = ur.cbor ? ur.cbor.toString('hex') : '';
       
       console.log('Backend: Generated UR type:', ur.type);
       console.log('Backend: UR string format:', urString.substring(0, 100) + '...');
       console.log('Backend: CBOR hex length:', cborHex.length);
+      console.log('Backend: First 100 chars of CBOR hex:', cborHex.substring(0, 100));
       
       // Return the UR data for frontend to display
       res.json({
