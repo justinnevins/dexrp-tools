@@ -22,6 +22,10 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
     setCurrentWallet(wallet);
   };
 
+  const getWalletName = (wallet: Wallet, index: number) => {
+    return wallet.name || `Account ${index + 1}`;
+  };
+
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
@@ -35,10 +39,11 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
           data-testid="wallet-selector-trigger"
         >
           <div className="flex flex-col items-start">
+            <span className="text-xs opacity-75">Current Account</span>
             <span className="text-sm font-medium">
-              {currentWallet?.name || 'No Wallet'}
+              {currentWallet?.name || (wallets.data && wallets.data.length > 0 ? getWalletName(wallets.data[0], 0) : 'No Wallet')}
             </span>
-            <span className="text-xs opacity-75">
+            <span className="text-xs opacity-60">
               {currentWallet ? formatAddress(currentWallet.address) : ''}
             </span>
           </div>
@@ -49,7 +54,7 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
         <DropdownMenuLabel>Your Accounts</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {wallets.data && wallets.data.length > 0 ? (
-          wallets.data.map((wallet) => (
+          wallets.data.map((wallet, index) => (
             <DropdownMenuItem
               key={wallet.id}
               onClick={() => handleSelectWallet(wallet)}
@@ -57,7 +62,7 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
               data-testid={`wallet-option-${wallet.id}`}
             >
               <div className="flex flex-col">
-                <span className="font-medium">{wallet.name}</span>
+                <span className="font-medium">{getWalletName(wallet, index)}</span>
                 <span className="text-xs text-muted-foreground">
                   {formatAddress(wallet.address)}
                 </span>
