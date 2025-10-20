@@ -109,12 +109,19 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
           
           // Decode the UR
           const decoder = new URDecoder();
+          console.log('URDecoder created, receiving part...');
           decoder.receivePart(urData);
           
+          console.log('Decoder complete?', decoder.isComplete());
+          console.log('Decoder progress:', decoder.estimatedPercentComplete());
+          
           if (decoder.isComplete()) {
+            console.log('Decoder is complete, getting result...');
             const ur = decoder.resultUR();
+            console.log('UR result obtained, type:', ur.type);
             const decodedBytes = ur.decodeCBOR();
             
+            console.log('Decoded UR data type:', typeof decodedBytes);
             console.log('Decoded UR data:', decodedBytes);
             
             // Try to extract account information from the decoded data
@@ -172,6 +179,10 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
           }
         } catch (decodeError) {
           console.error('UR decoding failed:', decodeError);
+          console.error('Error details:', {
+            message: (decodeError as Error).message,
+            stack: (decodeError as Error).stack
+          });
           console.log('Attempting fallback base32 decoding...');
           
           // Fallback: Try manual base32 decoding
