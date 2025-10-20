@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { WalletProvider } from "@/contexts/wallet-context";
 import { MobileAppLayout } from "@/components/layout/mobile-app-layout";
 import Home from "@/pages/home";
 import Send from "@/pages/send";
@@ -29,12 +30,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="xrpl-wallet-theme">
-        <TooltipProvider>
-          <Toaster />
-          <MobileAppLayout>
-            <Router />
-          </MobileAppLayout>
-        </TooltipProvider>
+        <WalletProvider>
+          <TooltipProvider>
+            <Toaster />
+            <MobileAppLayout>
+              <Router />
+            </MobileAppLayout>
+          </TooltipProvider>
+        </WalletProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
