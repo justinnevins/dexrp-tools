@@ -60,12 +60,16 @@ class BrowserStorage {
     const counters = this.getCounters();
     const wallets = this.getAllWallets();
     
+    // Generate a default name if not provided
+    const defaultName = `Account ${wallets.length + 1}`;
+    
     const wallet: Wallet = {
       id: counters.walletId++,
+      name: insertWallet.name || defaultName,
       address: insertWallet.address,
       publicKey: insertWallet.publicKey || null,
       balance: insertWallet.balance || '0',
-      reservedBalance: insertWallet.reservedBalance || '20',
+      reservedBalance: insertWallet.reservedBalance || '1',
       hardwareWalletType: insertWallet.hardwareWalletType || null,
       isConnected: insertWallet.isConnected || false,
       createdAt: new Date()
