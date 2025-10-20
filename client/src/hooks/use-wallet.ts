@@ -32,7 +32,9 @@ export function useWallet() {
       });
       return wallet;
     },
-    onSuccess: () => {
+    onSuccess: (newWallet) => {
+      // Automatically switch to the newly added wallet
+      setCurrentWallet(newWallet);
       queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     },
   });
