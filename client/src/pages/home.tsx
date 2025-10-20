@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { WalletBalance } from '@/components/wallet/wallet-balance';
-import { HardwareWalletStatus } from '@/components/wallet/hardware-wallet-status';
 import { QuickActions } from '@/components/wallet/quick-actions';
 import { RecentTransactions } from '@/components/wallet/recent-transactions';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
@@ -42,8 +41,6 @@ export default function Home() {
         onSendClick={() => setSendModalOpen(true)}
         onReceiveClick={() => setReceiveModalOpen(true)}
       />
-      
-      <HardwareWalletStatus />
       
       <QuickActions
         onTrustlineClick={() => setTrustlineModalOpen(true)}
