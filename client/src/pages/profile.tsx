@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet } from 'lucide-react';
+import { Shield, LogOut, Wallet, Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
 import { useXRPL, useAccountInfo } from '@/hooks/use-xrpl';
@@ -7,9 +7,10 @@ import { NetworkSettings } from '@/components/network-settings';
 import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { browserStorage } from '@/lib/browser-storage';
 
 export default function Profile() {
-  const { currentWallet } = useWallet();
+  const { currentWallet, wallets, setCurrentWallet } = useWallet();
   const { isConnected, currentNetwork, switchNetwork } = useXRPL();
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
@@ -42,6 +43,39 @@ export default function Profile() {
     }
     
     return "0";
+  };
+
+  const handleRemoveWallet = (walletId: number) => {
+    if (!currentWallet) return;
+    
+    const allWallets = wallets.data || [];
+    if (allWallets.length === 1) {
+      toast({
+        title: "Cannot Remove",
+        description: "You must have at least one wallet. Use 'Disconnect All' to remove everything.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Remove the wallet
+    browserStorage.deleteWallet(walletId);
+    
+    // If removing the current wallet, switch to another one
+    if (currentWallet.id === walletId) {
+      const remainingWallets = allWallets.filter(w => w.id !== walletId);
+      if (remainingWallets.length > 0) {
+        setCurrentWallet(remainingWallets[0]);
+      }
+    }
+    
+    // Invalidate queries to refresh the UI
+    queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+    
+    toast({
+      title: "Wallet Removed",
+      description: "The wallet has been removed from your account list.",
+    });
   };
 
   const handleDisconnectWallet = async () => {
@@ -90,46 +124,89 @@ export default function Profile() {
     <div className="px-4 py-6">
       <h1 className="text-2xl font-bold mb-6">Profile & Settings</h1>
 
-      {/* Wallet Info */}
+      {/* Connected Wallets */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-            <Wallet className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-lg">Primary Wallet</h3>
-            <p className="text-sm text-muted-foreground">
-              {currentWallet ? formatAddress(currentWallet.address) : 'No wallet connected'}
-            </p>
-          </div>
+        <h2 className="text-lg font-semibold mb-4">Connected Wallets</h2>
+        <div className="space-y-3">
+          {wallets.data && wallets.data.length > 0 ? (
+            wallets.data.map((wallet, index) => (
+              <div
+                key={wallet.id}
+                className={`flex items-center justify-between p-4 rounded-lg border ${
+                  currentWallet?.id === wallet.id
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-muted/30'
+                }`}
+                data-testid={`wallet-item-${wallet.id}`}
+              >
+                <div className="flex items-center space-x-3 flex-1">
+                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                    <Wallet className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium">{wallet.name || `Account ${index + 1}`}</h3>
+                      {currentWallet?.id === wallet.id && (
+                        <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">
+                          Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {formatAddress(wallet.address)}
+                    </p>
+                    {wallet.hardwareWalletType && (
+                      <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
+                        <Shield className="w-3 h-3" />
+                        {wallet.hardwareWalletType}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {currentWallet?.id !== wallet.id && (
+                    <Button
+                      onClick={() => setCurrentWallet(wallet)}
+                      variant="outline"
+                      size="sm"
+                      data-testid={`switch-wallet-${wallet.id}`}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Switch
+                    </Button>
+                  )}
+                  <Button
+                    onClick={() => handleRemoveWallet(wallet.id)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    data-testid={`remove-wallet-${wallet.id}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-center text-muted-foreground py-4">No wallets connected</p>
+          )}
         </div>
-        
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div className="bg-muted rounded-lg p-3 text-center">
-            <p className="text-sm text-muted-foreground mb-1">Balance</p>
-            <p className="font-semibold">{getDisplayBalance()} XRP</p>
-          </div>
-          <div className="bg-muted rounded-lg p-3 text-center">
-            <p className="text-sm text-muted-foreground mb-1">Network</p>
-            <p className="font-semibold">
-              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+      </div>
+
+      {/* Network Status */}
+      <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4">Network Status</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground mb-1">Current Network</p>
+            <p className="font-semibold flex items-center gap-2">
+              <span className={`inline-block w-2 h-2 rounded-full ${
                 isConnected ? 'bg-green-500' : 'bg-red-500'
               }`} />
               {isConnected ? currentNetwork.charAt(0).toUpperCase() + currentNetwork.slice(1) : 'Disconnected'}
             </p>
           </div>
         </div>
-
-        {currentWallet?.hardwareWalletType && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-4 h-4 text-green-600 dark:text-green-400" />
-              <span className="text-sm font-medium text-green-800 dark:text-green-200">
-                {currentWallet.hardwareWalletType} Connected
-              </span>
-            </div>
-          </div>
-        )}
       </div>
 
 

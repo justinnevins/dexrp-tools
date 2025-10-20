@@ -60,6 +60,13 @@ class BrowserStorage {
     const counters = this.getCounters();
     const wallets = this.getAllWallets();
     
+    // Check if wallet with this address already exists
+    const existingWallet = wallets.find(w => w.address === insertWallet.address);
+    if (existingWallet) {
+      console.log('Wallet with this address already exists:', existingWallet);
+      throw new Error(`Wallet with address ${insertWallet.address} already exists`);
+    }
+    
     // Generate a default name if not provided
     const defaultName = `Account ${wallets.length + 1}`;
     
@@ -79,6 +86,7 @@ class BrowserStorage {
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
     this.saveCounters(counters);
     
+    console.log('Wallet created successfully:', wallet);
     return wallet;
   }
 
@@ -92,6 +100,28 @@ class BrowserStorage {
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
     
     return wallets[index];
+  }
+
+  deleteWallet(id: number): boolean {
+    const wallets = this.getAllWallets();
+    const index = wallets.findIndex(w => w.id === id);
+    
+    if (index === -1) return false;
+    
+    wallets.splice(index, 1);
+    this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
+    
+    // Also clean up associated data
+    const transactions = this.getAllTransactions().filter(t => t.walletId !== id);
+    this.saveData(this.STORAGE_KEYS.TRANSACTIONS, transactions);
+    
+    const trustlines = this.getAllTrustlines().filter(t => t.walletId !== id);
+    this.saveData(this.STORAGE_KEYS.TRUSTLINES, trustlines);
+    
+    const escrows = this.getAllEscrows().filter(e => e.walletId !== id);
+    this.saveData(this.STORAGE_KEYS.ESCROWS, escrows);
+    
+    return true;
   }
 
   // Transaction operations

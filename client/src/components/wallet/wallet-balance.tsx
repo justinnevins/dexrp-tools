@@ -47,22 +47,27 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   // Handle account not found on XRPL network (new/unactivated addresses)
   if (accountInfo && 'account_not_found' in accountInfo) {
     return (
-      <section className="px-4 py-6 xrpl-gradient text-white">
-        <div className="text-center mb-6">
-          <h1 className="text-sm font-medium text-white/80 mb-1">
-            Hardware Wallet Connected
-          </h1>
-          <div className="mb-2">
-            <span className="text-3xl font-bold">0.000000</span>
-            <span className="text-lg ml-1">XRP</span>
+      <>
+        <section className="px-4 py-6 xrpl-gradient text-white">
+          <div className="mb-4">
+            <WalletSelector onAddAccount={handleAddAccount} />
           </div>
-          <p className="text-xs text-white/70">
-            Account not activated on XRPL network
-          </p>
-          <p className="text-xs text-white/60 mt-1">
-            Receive at least 1 XRP to activate this address
-          </p>
-        </div>
+          
+          <div className="text-center mb-6">
+            <h1 className="text-sm font-medium text-white/80 mb-1">
+              Hardware Wallet Connected
+            </h1>
+            <div className="mb-2">
+              <span className="text-3xl font-bold">0.000000</span>
+              <span className="text-lg ml-1">XRP</span>
+            </div>
+            <p className="text-xs text-white/70">
+              Account not activated on XRPL network
+            </p>
+            <p className="text-xs text-white/60 mt-1">
+              Receive at least 1 XRP to activate this address
+            </p>
+          </div>
         
         <div className="flex space-x-3">
           <Button 
@@ -84,6 +89,26 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
             Receive
           </Button>
         </div>
+        </section>
+        
+        {showScanner && (
+          <KeystoneAccountScanner
+            onScan={handleAccountScan}
+            onClose={() => setShowScanner(false)}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <section className="px-4 py-6 xrpl-gradient text-white">
+        <div className="text-center mb-6 animate-pulse">
+          <div className="h-4 bg-white/20 rounded w-24 mx-auto mb-2"></div>
+          <div className="h-8 bg-white/20 rounded w-32 mx-auto mb-1"></div>
+          <div className="h-4 bg-white/20 rounded w-20 mx-auto"></div>
+        </div>
       </section>
     );
   }
@@ -99,18 +124,6 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
 
   const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
   const usdValue = xrpPrice ? (parseFloat(balance) * xrpPrice).toFixed(2) : '0.00';
-
-  if (isLoading) {
-    return (
-      <section className="px-4 py-6 xrpl-gradient text-white">
-        <div className="text-center mb-6 animate-pulse">
-          <div className="h-4 bg-white/20 rounded w-24 mx-auto mb-2"></div>
-          <div className="h-8 bg-white/20 rounded w-32 mx-auto mb-1"></div>
-          <div className="h-4 bg-white/20 rounded w-20 mx-auto"></div>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <>
