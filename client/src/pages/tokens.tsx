@@ -1,18 +1,24 @@
 import { Plus, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet, useTrustlines } from '@/hooks/use-wallet';
-import { useAccountLines } from '@/hooks/use-xrpl';
+import { useAccountLines, useAccountInfo } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 
 export default function Tokens() {
   const { currentWallet } = useWallet();
   const { data: dbTrustlines, isLoading: dbLoading } = useTrustlines(currentWallet?.id || null);
   const { data: xrplLines, isLoading: xrplLoading } = useAccountLines(currentWallet?.address || null);
+  const { data: accountInfo, isLoading: accountLoading } = useAccountInfo(currentWallet?.address || null);
 
-  const isLoading = dbLoading || xrplLoading;
+  const isLoading = dbLoading || xrplLoading || accountLoading;
 
   // Combine trustlines from database and XRPL
   const trustlines = [];
+  
+  // Get XRP balance from XRPL account info
+  const xrpBalance = (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.Balance)
+    ? xrplClient.formatXRPAmount(accountInfo.account_data.Balance)
+    : '0.000000';
   
   // Add XRP as the native token first
   trustlines.push({
@@ -20,7 +26,7 @@ export default function Tokens() {
     currency: 'XRP',
     issuer: 'Native',
     issuerName: 'XRP Ledger',
-    balance: currentWallet?.balance || '0',
+    balance: xrpBalance,
     limit: 'Native',
     isActive: true,
     isNative: true,
