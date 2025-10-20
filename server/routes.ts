@@ -306,12 +306,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse the XRP signature using the decoded UR
       const signature = keystoneSDK.xrp.parseSignature(decodedUR);
       
-      console.log('Backend: Parsed signature successfully');
+      console.log('Backend: Parsed signature object:', JSON.stringify(signature, null, 2));
+      console.log('Backend: Signature keys:', Object.keys(signature));
       
       // Return the signature data
       res.json({
-        signature: signature.signature,
-        requestId: signature.requestId
+        signature: signature.signature || signature,
+        requestId: signature.requestId || crypto.randomUUID()
       });
     } catch (error: any) {
       console.error('Backend: Keystone decode signature error:', error);
