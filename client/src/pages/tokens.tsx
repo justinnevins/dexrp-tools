@@ -2,6 +2,7 @@ import { Plus, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet, useTrustlines } from '@/hooks/use-wallet';
 import { useAccountLines } from '@/hooks/use-xrpl';
+import { xrplClient } from '@/lib/xrpl-client';
 
 export default function Tokens() {
   const { currentWallet } = useWallet();
@@ -28,9 +29,11 @@ export default function Tokens() {
   // Add XRPL trustlines
   if (xrplLines?.lines) {
     xrplLines.lines.forEach((line: any) => {
+      const decodedCurrency = xrplClient.decodeCurrency(line.currency);
       trustlines.push({
         id: `xrpl-${line.account}-${line.currency}`,
-        currency: line.currency,
+        currency: decodedCurrency,
+        rawCurrency: line.currency,
         issuer: line.account,
         issuerName: 'XRPL Network',
         balance: line.balance,

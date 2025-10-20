@@ -198,6 +198,63 @@ class XRPLClient {
     return (parseFloat(xrp) * 1000000).toString();
   }
 
+  decodeCurrency(currencyCode: string): string {
+    if (!currencyCode) return '';
+    
+    // If it's already a standard 3-character code, return as-is
+    if (currencyCode.length === 3 && /^[A-Z]{3}$/.test(currencyCode)) {
+      return currencyCode;
+    }
+    
+    // If it's XRP, return as-is
+    if (currencyCode === 'XRP') {
+      return currencyCode;
+    }
+    
+    // If it's a 40-character hex string (160 bits), decode it
+    if (currencyCode.length === 40 && /^[0-9A-F]+$/i.test(currencyCode)) {
+      try {
+        // Check if it's a standard currency code (starts with 00s and ends with 00s)
+        const hex = currencyCode.toUpperCase();
+        
+        // Standard format: 000000000000000000000000 + ASCII (up to 20 chars) = 40 hex chars total
+        // But typically it's just the 3 ASCII chars padded with zeros
+        // Example: 524C55534440... = RLUSD
+        
+        // Try to extract ASCII characters from the hex
+        let decoded = '';
+        for (let i = 0; i < hex.length; i += 2) {
+          const byte = parseInt(hex.substr(i, 2), 16);
+          if (byte === 0) continue; // Skip null bytes (padding)
+          if (byte >= 32 && byte <= 126) { // Printable ASCII
+            decoded += String.fromCharCode(byte);
+          }
+        }
+        
+        // Clean up the decoded string (remove any trailing nulls or special chars)
+        decoded = decoded.trim().replace(/\0/g, '');
+        
+        // If we got a reasonable currency code (1-20 alphanumeric chars), return it
+        if (decoded.length > 0 && decoded.length <= 20 && /^[A-Za-z0-9]+$/.test(decoded)) {
+          return decoded;
+        }
+        
+        // If decoding failed, return truncated hex as fallback
+        return currencyCode.slice(0, 8) + '...';
+      } catch (error) {
+        console.error('Error decoding currency:', error);
+        return currencyCode.slice(0, 8) + '...';
+      }
+    }
+    
+    // For any other format, return truncated
+    if (currencyCode.length > 10) {
+      return currencyCode.slice(0, 8) + '...';
+    }
+    
+    return currencyCode;
+  }
+
   generateTestWallet(): { address: string; seed: string } {
     const wallet = XRPLWallet.generate();
     return {

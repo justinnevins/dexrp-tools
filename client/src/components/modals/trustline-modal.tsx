@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useWallet, useTrustlines, useCreateTrustline } from '@/hooks/use-wallet';
 import { useAccountLines } from '@/hooks/use-xrpl';
 import { useToast } from '@/hooks/use-toast';
+import { xrplClient } from '@/lib/xrpl-client';
 
 interface TrustlineModalProps {
   isOpen: boolean;
@@ -32,9 +33,11 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   // Add XRPL trustlines
   if (xrplLines?.lines) {
     xrplLines.lines.forEach((line: any) => {
+      const decodedCurrency = xrplClient.decodeCurrency(line.currency);
       trustlines.push({
         id: `xrpl-${line.account}-${line.currency}`,
-        currency: line.currency,
+        currency: decodedCurrency,
+        rawCurrency: line.currency,
         issuer: line.account,
         issuerName: 'XRPL Network',
         balance: line.balance,
