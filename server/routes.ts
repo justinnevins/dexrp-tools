@@ -233,8 +233,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Keystone Hardware Wallet API endpoints
   app.post("/api/keystone/xrp/sign-request", async (req, res) => {
     try {
-      const KeystoneSDK = require('@keystonehq/keystone-sdk').default;
-      const { AnimatedQRCode } = require('@keystonehq/animated-qr');
+      // Dynamically import Keystone SDK (ES module)
+      const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
+      const { AnimatedQRCode } = await import('@keystonehq/animated-qr');
       
       const { transaction, walletInfo } = req.body;
       
@@ -272,8 +273,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
-      const KeystoneSDK = require('@keystonehq/keystone-sdk').default;
-      const { UR } = require('@keystonehq/keystone-sdk');
+      // Dynamically import Keystone SDK (ES module)
+      const { default: KeystoneSDK, UR } = await import('@keystonehq/keystone-sdk');
       
       const { ur: urString, type, cbor } = req.body;
       
