@@ -181,15 +181,23 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         // First try to decode as UTF-8 JSON (most common for Keystone account QRs)
         try {
           const textDecoder = new TextDecoder();
-          const jsonString = textDecoder.decode(dataWithoutCRC);
+          let jsonString = textDecoder.decode(dataWithoutCRC);
           console.log('Decoded as UTF-8 text:', jsonString);
+          
+          // Skip any leading bytes that aren't JSON (like length prefixes)
+          // Find the first '{' character which starts JSON
+          const jsonStart = jsonString.indexOf('{');
+          if (jsonStart > 0) {
+            jsonString = jsonString.substring(jsonStart);
+            console.log('Trimmed to JSON:', jsonString);
+          }
           
           const parsed = JSON.parse(jsonString);
           console.log('Parsed as JSON:', parsed);
           
-          // Extract address and public key
+          // Extract address and public key (try both "pubkey" and "publicKey")
           const address = parsed.address || parsed.Address || parsed.classic_address;
-          const publicKey = parsed.publicKey || parsed.PublicKey || parsed.pubKey || parsed.public_key || parsed.key;
+          const publicKey = parsed.pubkey || parsed.publicKey || parsed.PublicKey || parsed.pubKey || parsed.public_key || parsed.key;
           
           if (address && publicKey) {
             console.log('Successfully extracted from JSON:', { address, publicKey });
