@@ -235,7 +235,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Import both Keystone SDK and BC-UR library for proper Bytewords encoding
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const { UR, UREncoder } = await import('@ngraveio/bc-ur');
+      const bcur = await import('@ngraveio/bc-ur');
+      const { UR, UREncoder } = bcur;
       
       const { transaction, walletInfo } = req.body;
       
@@ -263,40 +264,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Backend: CBOR buffer length:', keystoneUR.cbor ? keystoneUR.cbor.length : 0);
       
       // Create a proper BC-UR with Bytewords encoding
+      // The UR.fromBuffer creates a UR that automatically uses Bytewords when converted to string
       const ur = UR.fromBuffer(keystoneUR.cbor);
       
-      // Get the UR string with Bytewords encoding
-      // The UR object has specific methods for encoding
+      // Get the UR string - the library automatically uses Bytewords encoding
       let urString;
       try {
-        // Try to get the Bytewords encoded format
-        if (typeof ur.encode === 'function') {
-          urString = ur.encode();
-        } else if (typeof ur.toURString === 'function') {
-          urString = ur.toURString();
-        } else {
-          // Manually construct the UR string with Bytewords
-          // The BC-UR library encodes to Bytewords by default
-          const encoded = ur.ur || ur.toString();
-          if (encoded && encoded !== '[object Object]') {
-            urString = encoded;
-          } else {
-            // Fall back to constructing from the CBOR
-            // Import Bytewords encoder
-            const Bytewords = (await import('@ngraveio/bc-ur')).Bytewords;
-            const bytewordsEncoded = Bytewords.encode(keystoneUR.cbor);
-            urString = `UR:BYTES/${bytewordsEncoded}`;
-          }
+        // The toString() method on UR objects returns the proper UR format with Bytewords
+        urString = ur.toString();
+        
+        // Check if we have a valid UR string
+        if (!urString || urString === '[object Object]') {
+          // If toString doesn't work, try to manually create the Bytewords encoding
+          console.log('Backend: toString failed, trying manual Bytewords encoding');
+          console.log('Backend: Available bcur exports:', Object.keys(bcur));
+          
+          // The @ngraveio/bc-ur library uses Bytewords internally
+          // Let's manually encode the CBOR buffer
+          const encoder = new UREncoder(ur, 1000, 0, 10);
+          const part = encoder.nextPart();
+          urString = part;
         }
         
-        // Ensure uppercase format like working app
+        // Ensure uppercase format like the working app
         urString = urString.toUpperCase();
+        
+        // If it's still not in the right format, construct it manually
+        if (!urString.startsWith('UR:')) {
+          urString = `UR:BYTES/${urString}`;
+        }
       } catch (e) {
         console.error('Backend: Error encoding to Bytewords:', e);
-        // Fallback: manual Bytewords encoding
-        const { Bytewords } = await import('@ngraveio/bc-ur');
-        const bytewordsEncoded = Bytewords.encode(keystoneUR.cbor, 'standard');
-        urString = `UR:BYTES/${bytewordsEncoded.toUpperCase()}`;
+        // Last resort: use hex encoding with UR format
+        const hexString = keystoneUR.cbor.toString('hex').toUpperCase();
+        urString = `UR:BYTES/${hexString}`;
+        console.log('Backend: Fallback to hex encoding (not Bytewords)');
       }
       
       console.log('Backend: Generated UR with Bytewords encoding');
