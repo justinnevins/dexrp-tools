@@ -242,10 +242,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Backend: Creating Keystone sign request for:', transaction);
       
-      // Initialize Keystone SDK
-      const keystoneSDK = new KeystoneSDK();
+      // Import XRPL library for proper encoding
+      const xrpl = await import('xrpl');
       
-      // Format transaction for XRPL/Keystone
+      // Initialize Keystone SDK  
+      const keystone = new KeystoneSDK();
+      
+      // Format transaction for XRPL binary encoding
       const xrpTransaction = {
         ...transaction,
         Amount: String(transaction.Amount),
@@ -257,8 +260,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Backend: Formatted XRP transaction:', xrpTransaction);
       
-      // Generate the XRP sign request using Keystone SDK
-      const keystoneUR = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
+      // Encode the transaction to binary format using XRPL library
+      const encodedTx = xrpl.encode(xrpTransaction);
+      console.log('Backend: Encoded transaction hex:', encodedTx);
+      console.log('Backend: Encoded transaction length:', encodedTx.length);
+      
+      // Create XRP sign request with binary transaction data
+      const xrpSignRequest = keystone.xrp.generateSignRequest({
+        signData: encodedTx,
+        dataType: KeystoneSDK.KeystoneXrpSDK.XrpDataType.single,
+        xfp: '00000000',
+        address: walletInfo.address,
+        origin: 'XRP Wallet'
+      });
+      
+      // Get the UR from the sign request
+      const keystoneUR = xrpSignRequest.toUR();
       
       console.log('Backend: === KEYSTONE UR ANALYSIS ===');
       console.log('Backend: keystoneUR type:', typeof keystoneUR);
