@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <script>
+      // Polyfill for libraries that expect process global (e.g., @keystonehq/animated-qr)
+      window.process = { env: { NODE_ENV: 'development' } };
+    </script>
   </head>
   <body>
     <div id="root"></div>

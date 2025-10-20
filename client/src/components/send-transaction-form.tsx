@@ -15,7 +15,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { encode } from 'ripple-binary-codec';
-import QRCode from 'qrcode';
+import { AnimatedQRCode } from '@keystonehq/animated-qr';
 
 const transactionSchema = z.object({
   destination: z.string().min(1, 'Destination address is required').regex(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/, 'Invalid XRP address format'),
@@ -33,20 +33,19 @@ interface SendTransactionFormProps {
   onSuccess?: () => void;
 }
 
-async function encodeKeystoneUR(transactionTemplate: any): Promise<{ ur: string; type: string; cbor: string }> {
-  console.log('=== USING BACKEND KEYSTONE SDK ===');
+async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
+  console.log('=== USING KEYSTONE SDK ===');
   console.log('Transaction object:', transactionTemplate);
   
   try {
-    // Call backend API to generate proper Keystone UR using the official SDK
+    // Call backend API to generate Keystone UR using the SDK
     const response = await fetch('/api/keystone/xrp/sign-request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        transaction: transactionTemplate,
-        walletInfo: {} // Add wallet metadata if needed
+        transaction: transactionTemplate
       })
     });
     
@@ -57,14 +56,13 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<{ ur: string;
     }
     
     const result = await response.json();
-    console.log('✓ Backend generated UR type:', result.type);
-    console.log('✓ UR string preview:', result.ur.substring(0, 50) + '...');
+    console.log('✓ SDK generated type:', result.type);
     console.log('✓ CBOR hex length:', result.cbor.length);
     
-    return result;
+    return { type: result.type, cbor: result.cbor };
     
   } catch (error) {
-    console.error('❌ Backend encoding failed:', error);
+    console.error('❌ Keystone encoding failed:', error);
     throw new Error('Failed to encode transaction. Please try again.');
   }
 }
@@ -104,8 +102,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
-  const [qrCodeData, setQrCodeData] = useState<string>('');
-  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [keystoneUR, setKeystoneUR] = useState<{ type: string; cbor: string } | null>(null);
   const [currentStep, setCurrentStep] = useState<'form' | 'qr-display' | 'signing' | 'submitting' | 'complete'>('form');
   const [pendingTransactionData, setPendingTransactionData] = useState<TransactionFormData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -232,13 +229,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       console.log('Amount in drops:', transactionTemplate.Amount);
       console.log('Original XRP amount:', txData.amount);
       
-      // Use the proven working UR template with transaction data for logging
+      // Generate Keystone UR using SDK
       const urResult = await encodeKeystoneUR(transactionTemplate);
       
-      console.log('UR string (working template):', urResult.ur.substring(0, 80) + '...');
-      console.log('UR length:', urResult.ur.length);
+      console.log('Keystone UR type:', urResult.type);
+      console.log('CBOR length:', urResult.cbor.length);
       
-      return urResult.ur;
+      return urResult;
       
     } catch (error) {
       console.error('Keystone encoding failed:', error);
@@ -273,19 +270,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
 
     try {
       // Create QR code data for Keystone 3 Pro
-      const qrData = await createTransactionQR(data);
-      setQrCodeData(qrData);
-
-      // Generate QR code image
-      const qrUrl = await QRCode.toDataURL(qrData, {
-        width: 300,
-        margin: 2,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF',
-        },
-      });
-      setQrCodeUrl(qrUrl);
+      const urData = await createTransactionQR(data);
+      setKeystoneUR(urData);
       setShowQRDialog(true);
 
       toast({
@@ -637,8 +623,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const handleQRDialogClose = () => {
     setShowQRDialog(false);
     setCurrentStep('form');
-    setQrCodeData('');
-    setQrCodeUrl('');
+    setKeystoneUR(null);
     setPendingTransactionData(null);
   };
 
@@ -784,12 +769,11 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           </DialogHeader>
           
           <div className="flex flex-col items-center space-y-4">
-            {qrCodeUrl && (
+            {keystoneUR && (
               <div className="border-2 border-border rounded-lg p-4 bg-white">
-                <img 
-                  src={qrCodeUrl} 
-                  alt="Transaction QR Code" 
-                  className="w-64 h-64"
+                <AnimatedQRCode 
+                  type={keystoneUR.type} 
+                  cbor={keystoneUR.cbor}
                 />
               </div>
             )}
