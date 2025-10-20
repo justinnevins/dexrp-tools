@@ -265,31 +265,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Backend: Encoded transaction hex:', encodedTx);
       console.log('Backend: Encoded transaction length:', encodedTx.length);
       
-      // Create the correct CBOR structure for XRP sign request
-      // Keystone expects numeric keys and raw bytes for signData
-      const cbor = await import('cbor-web');
-      
-      // Convert hex transaction to raw bytes
+      // Simply encode the raw transaction bytes - that's what Keystone expects
+      // The device wants just the transaction wrapped as ur:BYTES/
       const signDataBytes = Buffer.from(encodedTx, 'hex');
       
-      // Create CBOR map with numeric keys as per UR Registry spec
-      // Key 2: signData (raw bytes, not hex string)
-      // Key 3: dataType (1 for single transaction)
-      // Key 6: address (text)
-      // Key 7: origin (text)
-      const cborMap = new Map();
-      cborMap.set(2, signDataBytes);  // signData as raw bytes
-      cborMap.set(3, 1);              // dataType = 1 (single transaction)
-      cborMap.set(6, walletInfo.address);  // address
-      cborMap.set(7, 'XRP Wallet');        // origin
-      
-      // Encode the map to CBOR
-      const cborPayload = await cbor.encode(cborMap);
-      
-      // Create a UR object with type 'xrp-sign-request' (not 'bytes')
+      // Create a simple UR object with type 'bytes' (as user confirmed works)
       const keystoneUR = {
-        type: 'xrp-sign-request',
-        cbor: Buffer.from(cborPayload)
+        type: 'bytes',
+        cbor: signDataBytes  // Just the raw transaction bytes
       };
       
       console.log('Backend: === KEYSTONE UR ANALYSIS ===');
@@ -301,46 +284,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Backend: CBOR buffer length:', keystoneUR.cbor ? keystoneUR.cbor.length : 0);
       console.log('Backend: CBOR hex preview:', keystoneUR.cbor ? keystoneUR.cbor.toString('hex').substring(0, 100) : 'none');
       
-      // === BC-UR ENCODING ANALYSIS ===
-      console.log('Backend: === BC-UR LIBRARY ANALYSIS ===');
-      console.log('Backend: CBOR hex:', keystoneUR.cbor.toString('hex'));
+      // === BC-UR ENCODING ===
+      console.log('Backend: Raw transaction bytes hex:', keystoneUR.cbor.toString('hex'));
       console.log('Backend: UR type:', keystoneUR.type);
       
-      // Create a proper BC-UR with the correct type
-      const ur = new UR(keystoneUR.cbor, keystoneUR.type);
-      
-      console.log('Backend: UR object type:', typeof ur);
-      console.log('Backend: UR.type:', ur.type);
+      // Create a proper BC-UR with type 'bytes'
+      const ur = new UR(keystoneUR.cbor, 'bytes');
       
       // Use UREncoder to properly encode with Bytewords
       let urString;
       try {
-        // The UREncoder handles fragmentation and Bytewords encoding
+        // The UREncoder should handle Bytewords encoding
         const encoder = new UREncoder(ur, 1000, 0, 10);
         urString = encoder.nextPart();
-        console.log('Backend: UREncoder result:', urString);
+        console.log('Backend: UREncoder result:', urString ? urString.substring(0, 50) : 'null');
         
-        // Check if we got a valid result
-        if (!urString || urString === '[object Object]') {
-          console.log('Backend: UREncoder failed, trying alternative');
-          // Manually construct the UR string
-          // The format should be ur:xrp-sign-request/...bytewords...
-          const bytewordsModule = await import('@ngraveio/bc-ur');
-          if (bytewordsModule.Bytewords) {
-            const bytewords = bytewordsModule.Bytewords.encode(keystoneUR.cbor, 'standard');
-            urString = `ur:${keystoneUR.type}/${bytewords}`;
-          } else {
-            // Fallback: use hex (not proper Bytewords but might help debug)
-            const hexString = keystoneUR.cbor.toString('hex');
-            urString = `ur:${keystoneUR.type}/${hexString}`;
+        // Ensure lowercase ur: and uppercase BYTES/
+        if (urString && urString !== '[object Object]') {
+          // Fix the case sensitivity
+          if (urString.startsWith('UR:BYTES/')) {
+            urString = 'ur:BYTES/' + urString.substring(9);
+          } else if (urString.startsWith('ur:bytes/')) {
+            urString = 'ur:BYTES/' + urString.substring(9).toUpperCase();
           }
+        } else {
+          // UREncoder failed, use manual Bytewords encoding
+          console.log('Backend: UREncoder failed, trying manual Bytewords');
+          // We need to encode the raw bytes to Bytewords
+          // The BC-UR library should provide this
+          const hexString = keystoneUR.cbor.toString('hex');
+          // For now, fallback to hex (not proper Bytewords)
+          urString = `ur:BYTES/${hexString.toUpperCase()}`;
         }
       } catch (e) {
         console.error('Backend: Error encoding UR:', e);
         // Fallback to hex encoding
         const hexString = keystoneUR.cbor.toString('hex');
-        urString = `ur:${keystoneUR.type}/${hexString}`;
-        console.log('Backend: Fallback to hex encoding');
+        urString = `ur:BYTES/${hexString.toUpperCase()}`;
       }
       
       console.log('Backend: === FINAL UR ANALYSIS ===');
