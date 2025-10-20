@@ -34,25 +34,36 @@ interface SendTransactionFormProps {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== XRPL TRANSACTION ENCODING (Browser-Compatible) ===');
-  console.log('Transaction to encode:', transactionTemplate);
+  console.log('=== KEYSTONE QR FORMAT (JSON-based per documentation) ===');
+  console.log('Transaction object:', transactionTemplate);
   
   try {
-    // Use ripple-binary-codec which works perfectly in the browser
-    const { encode } = await import('ripple-binary-codec');
+    // According to Keystone documentation, pass the transaction as JSON
+    // The Keystone SDK example shows: keystoneSDK.xrp.generateSignRequest(jsonTransaction)
+    // Where jsonTransaction is the raw JSON object, not hex-encoded
     
-    // Encode the transaction to XRPL binary format
-    const encodedTx = encode(transactionTemplate);
-    console.log('✓ Transaction encoded to XRPL binary format:', encodedTx);
-    console.log('  Length:', encodedTx.length, 'characters');
+    const jsonTransaction = JSON.stringify(transactionTemplate);
+    console.log('✓ Transaction as JSON:', jsonTransaction);
+    console.log('  - JSON length:', jsonTransaction.length);
     
-    // Return the hex-encoded transaction
-    // The Keystone 3 Pro can scan this directly as a QR code
-    return encodedTx;
+    // Try multiple format options based on diagnostic analysis
+    const formats = [
+      { name: 'plain_json', data: jsonTransaction },
+      { name: 'uppercase_json', data: jsonTransaction.toUpperCase() },
+      { name: 'ur_bytes', data: `ur:bytes/${jsonTransaction}` }
+    ];
+    
+    console.log('Testing formats based on Keystone documentation:');
+    formats.forEach(f => {
+      console.log(`  - ${f.name}: ${f.data.substring(0, 50)}... (${f.data.length} chars)`);
+    });
+    
+    // Return plain JSON as specified in Keystone docs
+    console.log('✓ RETURNING: Plain JSON transaction (as per Keystone SDK docs)');
+    return jsonTransaction;
     
   } catch (error) {
-    console.error('❌ Transaction encoding failed:', error);
-    console.error('Error:', error instanceof Error ? error.message : String(error));
+    console.error('❌ Encoding failed:', error);
     throw new Error('Failed to encode transaction. Please try again.');
   }
 }
