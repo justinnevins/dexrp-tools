@@ -266,9 +266,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Backend: Encoded transaction length:', encodedTx.length);
       
       // Create XRP sign request with binary transaction data
+      // The SDK expects the dataType as a number (1 for single transaction)
       const xrpSignRequest = keystone.xrp.generateSignRequest({
         signData: encodedTx,
-        dataType: KeystoneSDK.KeystoneXrpSDK.XrpDataType.single,
+        dataType: 1, // 1 = single transaction
         xfp: '00000000',
         address: walletInfo.address,
         origin: 'XRP Wallet'
