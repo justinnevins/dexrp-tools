@@ -233,24 +233,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Keystone Hardware Wallet API endpoints
   app.post("/api/keystone/xrp/sign-request", async (req, res) => {
     try {
-      // Dynamically import Keystone SDK (ES module)
+      // Import both Keystone SDK and BC-UR library for proper Bytewords encoding
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const { AnimatedQRCode } = await import('@keystonehq/animated-qr');
+      const { UR, UREncoder } = await import('@ngraveio/bc-ur');
       
       const { transaction, walletInfo } = req.body;
       
-      // Log the transaction for debugging
       console.log('Backend: Creating Keystone sign request for:', transaction);
-      console.log('Backend: Transaction type:', typeof transaction);
       
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // The Keystone SDK might be expecting specific formatting
-      // Let's ensure the transaction has the right structure
+      // Format transaction for XRPL/Keystone
       const xrpTransaction = {
         ...transaction,
-        // Ensure numbers are strings as per XRPL spec
         Amount: String(transaction.Amount),
         Fee: String(transaction.Fee),
         Sequence: Number(transaction.Sequence),
@@ -260,41 +256,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Backend: Formatted XRP transaction:', xrpTransaction);
       
-      // Generate the XRP sign request in proper UR format
-      const ur = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
+      // Generate the XRP sign request using Keystone SDK
+      const keystoneUR = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
       
-      console.log('Backend: UR object structure:', {
-        type: ur.type,
-        cborLength: ur.cbor ? ur.cbor.length : 'undefined',
-        hasToURString: typeof ur.toURString === 'function',
-        urKeys: Object.keys(ur)
-      });
+      console.log('Backend: Keystone UR type:', keystoneUR.type);
+      console.log('Backend: CBOR buffer length:', keystoneUR.cbor ? keystoneUR.cbor.length : 0);
       
-      // Try different methods to get the UR string
-      let urString;
-      if (typeof ur.toURString === 'function') {
-        urString = ur.toURString();
-        console.log('Backend: Using toURString() method');
-      } else if (ur.type && ur.cbor) {
-        urString = `ur:${ur.type}/${ur.cbor.toString('hex')}`;
-        console.log('Backend: Manually constructing UR string');
-      } else {
-        console.log('Backend: UR object unexpected structure:', ur);
-        throw new Error('Unable to generate UR string from Keystone SDK');
-      }
+      // Create a proper BC-UR with Bytewords encoding
+      const ur = UR.fromBuffer(keystoneUR.cbor);
       
-      const cborHex = ur.cbor ? ur.cbor.toString('hex') : '';
+      // Get the UR string with Bytewords encoding (uppercase BYTES, letters only)
+      // The toString() method uses Bytewords encoding by default
+      const urString = ur.toString().toUpperCase();
       
-      console.log('Backend: Generated UR type:', ur.type);
-      console.log('Backend: UR string format:', urString.substring(0, 100) + '...');
-      console.log('Backend: CBOR hex length:', cborHex.length);
-      console.log('Backend: First 100 chars of CBOR hex:', cborHex.substring(0, 100));
+      console.log('Backend: Generated UR with Bytewords encoding');
+      console.log('Backend: UR string preview:', urString.substring(0, 100) + '...');
+      console.log('Backend: UR string starts with:', urString.substring(0, 30));
+      console.log('Backend: Full UR length:', urString.length);
       
-      // Return the UR data for frontend to display
+      // Return the properly formatted UR
       res.json({
         ur: urString,
-        type: ur.type,
-        cbor: cborHex,
+        type: 'BYTES',
+        cbor: keystoneUR.cbor.toString('hex'),
         requestId: crypto.randomUUID()
       });
     } catch (error: any) {
