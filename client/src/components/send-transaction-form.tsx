@@ -34,33 +34,42 @@ interface SendTransactionFormProps {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== KEYSTONE QR FORMAT (JSON-based per documentation) ===');
+  console.log('=== KEYSTONE BC-UR FORMAT (CBOR + UR wrapper) ===');
   console.log('Transaction object:', transactionTemplate);
   
   try {
-    // According to Keystone documentation, pass the transaction as JSON
-    // The Keystone SDK example shows: keystoneSDK.xrp.generateSignRequest(jsonTransaction)
-    // Where jsonTransaction is the raw JSON object, not hex-encoded
+    const cbor = await import('cbor-web');
     
-    const jsonTransaction = JSON.stringify(transactionTemplate);
-    console.log('✓ Transaction as JSON:', jsonTransaction);
-    console.log('  - JSON length:', jsonTransaction.length);
+    // Step 1: CBOR encode the transaction (Keystone requires CBOR encoding)
+    const cborEncoded = cbor.encode(transactionTemplate);
+    console.log('✓ STEP 1 - CBOR encoded transaction');
+    console.log('  - CBOR byte length:', cborEncoded.byteLength);
     
-    // Try multiple format options based on diagnostic analysis
-    const formats = [
-      { name: 'plain_json', data: jsonTransaction },
-      { name: 'uppercase_json', data: jsonTransaction.toUpperCase() },
-      { name: 'ur_bytes', data: `ur:bytes/${jsonTransaction}` }
+    // Step 2: Convert CBOR bytes to hex string
+    const hexString = Array.from(new Uint8Array(cborEncoded))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    console.log('✓ STEP 2 - Converted to hex:', hexString.substring(0, 60) + '...');
+    console.log('  - Hex length:', hexString.length);
+    
+    // Step 3: Create BC-UR format with ur:bytes type (as per Keystone docs)
+    const urFormats = [
+      `ur:bytes/${hexString}`,
+      `ur:bytes/${hexString.toUpperCase()}`,
+      `UR:BYTES/${hexString.toUpperCase()}`
     ];
     
-    console.log('Testing formats based on Keystone documentation:');
-    formats.forEach(f => {
-      console.log(`  - ${f.name}: ${f.data.substring(0, 50)}... (${f.data.length} chars)`);
+    console.log('✓ STEP 3 - Testing BC-UR formats:');
+    urFormats.forEach((format, i) => {
+      console.log(`  Format ${i + 1}: ${format.substring(0, 50)}... (${format.length} chars)`);
     });
     
-    // Return plain JSON as specified in Keystone docs
-    console.log('✓ RETURNING: Plain JSON transaction (as per Keystone SDK docs)');
-    return jsonTransaction;
+    // Use the standard ur:bytes format (lowercase ur, uppercase hex is common)
+    const finalFormat = `ur:bytes/${hexString.toUpperCase()}`;
+    console.log('✓ RETURNING: BC-UR format with CBOR-encoded transaction');
+    console.log('  Full format:', finalFormat.substring(0, 100) + '...');
+    
+    return finalFormat;
     
   } catch (error) {
     console.error('❌ Encoding failed:', error);
