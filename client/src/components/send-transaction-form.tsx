@@ -105,6 +105,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [keystoneUR, setKeystoneUR] = useState<{ type: string; cbor: string } | null>(null);
   const [currentStep, setCurrentStep] = useState<'form' | 'qr-display' | 'signing' | 'submitting' | 'complete'>('form');
   const [pendingTransactionData, setPendingTransactionData] = useState<TransactionFormData | null>(null);
+  const [pendingUnsignedTx, setPendingUnsignedTx] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { toast } = useToast();
@@ -234,6 +235,9 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       
       console.log('Keystone UR type:', urResult.type);
       console.log('CBOR length:', urResult.cbor.length);
+      
+      // Store the unsigned transaction so we can combine it with the signature later
+      setPendingUnsignedTx(transactionTemplate);
       
       return urResult;
       
@@ -366,8 +370,25 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             const result = await response.json();
             console.log('Backend decoded signature:', result);
             
+            // Combine the unsigned transaction with the signature
+            if (!pendingUnsignedTx) {
+              throw new Error('Original transaction not found');
+            }
+            
+            // Create the signed transaction by adding the signature
+            const signedTx = {
+              ...pendingUnsignedTx,
+              TxnSignature: result.signature
+            };
+            
+            console.log('Combining transaction with signature:', signedTx);
+            
+            // Encode the signed transaction to get the final blob
+            const txBlob = encode(signedTx);
+            console.log('Final signed transaction blob:', txBlob);
+            
             signedTransaction = {
-              txBlob: result.signature,
+              txBlob: txBlob,
               txHash: result.requestId || ''
             };
             
@@ -614,6 +635,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     setCurrentStep('form');
     setKeystoneUR(null);
     setPendingTransactionData(null);
+    setPendingUnsignedTx(null);
   };
 
   const availableBalance = getAvailableBalance();
