@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
@@ -5,6 +6,9 @@ import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { xrplClient } from '@/lib/xrpl-client';
 import { useLocation } from 'wouter';
+import { WalletSelector } from '@/components/wallet-selector';
+import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
+import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 
 interface WalletBalanceProps {
   onSendClick: () => void;
@@ -12,10 +16,33 @@ interface WalletBalanceProps {
 }
 
 export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
-  const { currentWallet } = useWallet();
+  const { currentWallet, createWallet } = useWallet();
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
   const [, setLocation] = useLocation();
+  const [showScanner, setShowScanner] = useState(false);
+  const { connect } = useHardwareWallet();
+
+  const handleAddAccount = () => {
+    setShowScanner(true);
+  };
+
+  const handleAccountScan = async (address: string, publicKey: string) => {
+    try {
+      await connect('Keystone 3 Pro');
+      
+      await createWallet.mutateAsync({
+        address,
+        publicKey,
+        hardwareWalletType: 'Keystone 3 Pro',
+      });
+      
+      setShowScanner(false);
+    } catch (error: any) {
+      console.error('Connection failed:', error);
+      alert(`Connection failed: ${error.message}`);
+    }
+  };
 
   // Handle account not found on XRPL network (new/unactivated addresses)
   if (accountInfo && 'account_not_found' in accountInfo) {
@@ -86,12 +113,17 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   }
 
   return (
-    <section className="px-4 py-6 xrpl-gradient text-white">
-      <div className="text-center mb-6">
-        <p className="text-sm opacity-90 mb-2">Total Balance</p>
-        <h2 className="text-3xl font-bold mb-1">{balance} XRP</h2>
-        <p className="text-sm opacity-75">≈ ${usdValue} USD</p>
-      </div>
+    <>
+      <section className="px-4 py-6 xrpl-gradient text-white">
+        <div className="mb-4">
+          <WalletSelector onAddAccount={handleAddAccount} />
+        </div>
+        
+        <div className="text-center mb-6">
+          <p className="text-sm opacity-90 mb-2">Total Balance</p>
+          <h2 className="text-3xl font-bold mb-1">{balance} XRP</h2>
+          <p className="text-sm opacity-75">≈ ${usdValue} USD</p>
+        </div>
       
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
@@ -123,6 +155,14 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
           Receive
         </Button>
       </div>
-    </section>
+      </section>
+      
+      {showScanner && (
+        <KeystoneAccountScanner
+          onScan={handleAccountScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
+    </>
   );
 }

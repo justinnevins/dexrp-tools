@@ -2,10 +2,31 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Wallet, Shield, Plus } from 'lucide-react';
-import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
+import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
+import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
+import { useWallet } from '@/hooks/use-wallet';
 
 export function EmptyWalletState() {
-  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
+  const { connect } = useHardwareWallet();
+  const { createWallet } = useWallet();
+
+  const handleAccountScan = async (address: string, publicKey: string) => {
+    try {
+      await connect('Keystone 3 Pro');
+      
+      await createWallet.mutateAsync({
+        address,
+        publicKey,
+        hardwareWalletType: 'Keystone 3 Pro',
+      });
+      
+      setShowScanner(false);
+    } catch (error: any) {
+      console.error('Connection failed:', error);
+      alert(`Connection failed: ${error.message}`);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
@@ -39,19 +60,22 @@ export function EmptyWalletState() {
           </div>
           
           <Button 
-            onClick={() => setShowConnectModal(true)}
+            onClick={() => setShowScanner(true)}
             className="w-full"
+            data-testid="connect-wallet-button"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Connect Hardware Wallet
+            Connect Keystone 3 Pro
           </Button>
         </CardContent>
       </Card>
       
-      <HardwareWalletConnectModal
-        isOpen={showConnectModal}
-        onClose={() => setShowConnectModal(false)}
-      />
+      {showScanner && (
+        <KeystoneAccountScanner
+          onScan={handleAccountScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }
