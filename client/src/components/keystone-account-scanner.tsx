@@ -174,7 +174,28 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         
         console.log('Data without CRC length:', dataWithoutCRC.length);
         
-        // Try CBOR decoding
+        // First try to decode as UTF-8 JSON (most common for Keystone account QRs)
+        try {
+          const textDecoder = new TextDecoder();
+          const jsonString = textDecoder.decode(dataWithoutCRC);
+          console.log('Decoded as UTF-8 text:', jsonString);
+          
+          const parsed = JSON.parse(jsonString);
+          console.log('Parsed as JSON:', parsed);
+          
+          // Extract address and public key
+          const address = parsed.address || parsed.Address || parsed.classic_address;
+          const publicKey = parsed.publicKey || parsed.PublicKey || parsed.pubKey || parsed.public_key || parsed.key;
+          
+          if (address && publicKey) {
+            console.log('Successfully extracted from JSON:', { address, publicKey });
+            return { address, publicKey };
+          }
+        } catch (jsonError) {
+          console.log('Not valid UTF-8 JSON, trying CBOR:', jsonError);
+        }
+        
+        // Try CBOR decoding as fallback
         try {
           const cborData = cborDecode(dataWithoutCRC);
           console.log('CBOR decoded successfully:', cborData);
@@ -230,7 +251,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
             return extracted;
           }
         } catch (cborError) {
-          console.log('CBOR decode failed:', cborError);
+          console.log('CBOR decode also failed:', cborError);
         }
       }
 
