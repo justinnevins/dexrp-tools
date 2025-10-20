@@ -86,7 +86,6 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
   try {
     // Encode transaction as JSON for Keystone 3 Pro
     // Keystone uses UR:BYTES format with CBOR encoding
-    const { Buffer } = await import('buffer');
     const { encode: cborEncode } = await import('cbor-web');
     
     // Create a properly structured transaction object for Keystone
@@ -96,11 +95,19 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
     };
     
     // CBOR encode the payload
-    const cborData = cborEncode(keystonePayload);
-    console.log('CBOR encoded data length:', cborData.byteLength);
+    const cborDataRaw = cborEncode(keystonePayload);
+    console.log('CBOR encoded data length:', cborDataRaw.byteLength);
+    
+    // Ensure we have a proper Uint8Array
+    const cborData = cborDataRaw instanceof Uint8Array 
+      ? cborDataRaw 
+      : new Uint8Array(cborDataRaw);
+    
+    console.log('CBOR Uint8Array length:', cborData.length);
+    console.log('CBOR preview:', Array.from(cborData.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
     
     // Convert to UR format using BC-UR bytewords encoding
-    const urContent = encodeBytewords(new Uint8Array(cborData));
+    const urContent = encodeBytewords(cborData);
     const urString = `UR:BYTES/${urContent}`;
     
     console.log('Generated UR string length:', urString.length);
@@ -110,29 +117,58 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
     
   } catch (error) {
     console.error('Keystone UR encoding failed:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw new Error('Failed to encode transaction for Keystone 3 Pro. Please try again.');
   }
 }
 
 // Encode bytes to bytewords format for BC-UR
 function encodeBytewords(data: Uint8Array): string {
-  const words: string[] = [];
-  
-  for (let i = 0; i < data.length; i++) {
-    const byte = data[i];
-    words.push(BYTEWORDS[byte].toLowerCase());
+  try {
+    console.log('Encoding bytewords, data length:', data.length);
+    console.log('BYTEWORDS array available:', BYTEWORDS.length);
+    
+    const words: string[] = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const byte = data[i];
+      if (byte > 255 || byte < 0) {
+        throw new Error(`Invalid byte value at index ${i}: ${byte}`);
+      }
+      const word = BYTEWORDS[byte];
+      if (!word) {
+        throw new Error(`No byteword found for byte ${byte} at index ${i}`);
+      }
+      words.push(word.toLowerCase());
+    }
+    
+    console.log('Encoded', words.length, 'bytewords from data');
+    
+    // Add CRC32 checksum
+    const checksum = crc32(data);
+    const checksumBytes = new Uint8Array(4);
+    new DataView(checksumBytes.buffer).setUint32(0, checksum, false);
+    
+    console.log('Adding CRC32 checksum:', checksum);
+    
+    for (let i = 0; i < 4; i++) {
+      const checksumByte = checksumBytes[i];
+      const checksumWord = BYTEWORDS[checksumByte];
+      if (!checksumWord) {
+        throw new Error(`No byteword found for checksum byte ${checksumByte} at index ${i}`);
+      }
+      words.push(checksumWord.toLowerCase());
+    }
+    
+    const result = words.join('');
+    console.log('Bytewords encoding complete, total length:', result.length);
+    
+    return result;
+  } catch (error) {
+    console.error('encodeBytewords failed:', error);
+    throw error;
   }
-  
-  // Add CRC32 checksum
-  const checksum = crc32(data);
-  const checksumBytes = new Uint8Array(4);
-  new DataView(checksumBytes.buffer).setUint32(0, checksum, false);
-  
-  for (let i = 0; i < 4; i++) {
-    words.push(BYTEWORDS[checksumBytes[i]].toLowerCase());
-  }
-  
-  return words.join('');
 }
 
 // Simplified decoder for Keystone UR content
