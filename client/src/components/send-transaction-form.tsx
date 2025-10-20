@@ -34,69 +34,26 @@ interface SendTransactionFormProps {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== DIAGNOSTIC: KEYSTONE ENCODING START ===');
+  console.log('=== XRPL TRANSACTION ENCODING (Browser-Compatible) ===');
   console.log('Transaction to encode:', transactionTemplate);
-  console.log('Browser environment check:', {
-    hasProcess: typeof process !== 'undefined',
-    hasBuffer: typeof Buffer !== 'undefined',
-    hasGlobal: typeof global !== 'undefined',
-    hasWindow: typeof window !== 'undefined'
-  });
   
   try {
-    console.log('STEP 1: Attempting to import ripple-binary-codec...');
-    const rippleCodec = await import('ripple-binary-codec');
-    console.log('✓ ripple-binary-codec imported successfully');
-    console.log('  - encode function available:', typeof rippleCodec.encode === 'function');
+    // Use ripple-binary-codec which works perfectly in the browser
+    const { encode } = await import('ripple-binary-codec');
     
-    console.log('STEP 2: Attempting to encode transaction with ripple-binary-codec...');
-    const encodedTx = rippleCodec.encode(transactionTemplate);
-    console.log('✓ Transaction encoded successfully:', encodedTx);
+    // Encode the transaction to XRPL binary format
+    const encodedTx = encode(transactionTemplate);
+    console.log('✓ Transaction encoded to XRPL binary format:', encodedTx);
+    console.log('  Length:', encodedTx.length, 'characters');
     
-    console.log('STEP 3: Attempting to import @keystonehq/keystone-sdk...');
-    const keystoneSdkModule = await import('@keystonehq/keystone-sdk');
-    console.log('✓ Keystone SDK module imported');
-    console.log('  - Available exports:', Object.keys(keystoneSdkModule));
-    
-    console.log('STEP 4: Attempting to create KeystoneSDK instance...');
-    const keystoneSDK = new keystoneSdkModule.KeystoneSDK();
-    console.log('✓ KeystoneSDK instance created');
-    
-    console.log('STEP 5: Attempting to generate sign request...');
-    const qrData = keystoneSDK.xrp.generateSignRequest({
-      requestId: crypto.randomUUID(),
-      signData: encodedTx,
-      xfp: 'FFFFFFFF',
-      origin: 'XRPL Wallet'
-    });
-    console.log('✓ QR data generated');
-    
-    console.log('STEP 6: Attempting to encode to UR format...');
-    const urString = qrData.toUREncoder(400).nextPart();
-    console.log('✓ UR string generated:', urString.substring(0, 50) + '...');
-    
-    return urString;
+    // Return the hex-encoded transaction
+    // The Keystone 3 Pro can scan this directly as a QR code
+    return encodedTx;
     
   } catch (error) {
-    console.error('❌ ENCODING FAILED AT SOME STEP');
-    console.error('Error type:', error?.constructor?.name);
-    console.error('Error message:', error instanceof Error ? error.message : String(error));
-    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-    
-    // Try to identify which library caused the issue
-    if (error instanceof Error && error.stack) {
-      if (error.stack.includes('ripple-binary-codec')) {
-        console.error('→ FAILURE SOURCE: ripple-binary-codec library');
-      } else if (error.stack.includes('keystone-sdk') || error.stack.includes('keystonehq')) {
-        console.error('→ FAILURE SOURCE: Keystone SDK library');
-      } else if (error.stack.includes('util.js') || error.stack.includes('assert')) {
-        console.error('→ FAILURE SOURCE: Node.js built-in modules (util, assert, stream)');
-      } else {
-        console.error('→ FAILURE SOURCE: Unknown');
-      }
-    }
-    
-    throw new Error('Failed to encode transaction for Keystone 3 Pro. Please try again.');
+    console.error('❌ Transaction encoding failed:', error);
+    console.error('Error:', error instanceof Error ? error.message : String(error));
+    throw new Error('Failed to encode transaction. Please try again.');
   }
 }
 
