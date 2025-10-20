@@ -33,46 +33,38 @@ interface SendTransactionFormProps {
   onSuccess?: () => void;
 }
 
-async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== KEYSTONE BC-UR FORMAT (CBOR + UR wrapper) ===');
+async function encodeKeystoneUR(transactionTemplate: any): Promise<{ ur: string; type: string; cbor: string }> {
+  console.log('=== USING BACKEND KEYSTONE SDK ===');
   console.log('Transaction object:', transactionTemplate);
   
   try {
-    const cbor = await import('cbor-web');
-    
-    // Step 1: CBOR encode the transaction (Keystone requires CBOR encoding)
-    const cborEncoded = cbor.encode(transactionTemplate);
-    console.log('✓ STEP 1 - CBOR encoded transaction');
-    console.log('  - CBOR byte length:', cborEncoded.byteLength);
-    
-    // Step 2: Convert CBOR bytes to hex string
-    const hexString = Array.from(new Uint8Array(cborEncoded))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    console.log('✓ STEP 2 - Converted to hex:', hexString.substring(0, 60) + '...');
-    console.log('  - Hex length:', hexString.length);
-    
-    // Step 3: Create BC-UR format with ur:bytes type (as per Keystone docs)
-    const urFormats = [
-      `ur:bytes/${hexString}`,
-      `ur:bytes/${hexString.toUpperCase()}`,
-      `UR:BYTES/${hexString.toUpperCase()}`
-    ];
-    
-    console.log('✓ STEP 3 - Testing BC-UR formats:');
-    urFormats.forEach((format, i) => {
-      console.log(`  Format ${i + 1}: ${format.substring(0, 50)}... (${format.length} chars)`);
+    // Call backend API to generate proper Keystone UR using the official SDK
+    const response = await fetch('/api/keystone/xrp/sign-request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transaction: transactionTemplate,
+        walletInfo: {} // Add wallet metadata if needed
+      })
     });
     
-    // Use the standard ur:bytes format (lowercase ur, uppercase hex is common)
-    const finalFormat = `ur:bytes/${hexString.toUpperCase()}`;
-    console.log('✓ RETURNING: BC-UR format with CBOR-encoded transaction');
-    console.log('  Full format:', finalFormat.substring(0, 100) + '...');
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Backend error:', error);
+      throw new Error(error.details || 'Failed to generate Keystone sign request');
+    }
     
-    return finalFormat;
+    const result = await response.json();
+    console.log('✓ Backend generated UR type:', result.type);
+    console.log('✓ UR string preview:', result.ur.substring(0, 50) + '...');
+    console.log('✓ CBOR hex length:', result.cbor.length);
+    
+    return result;
     
   } catch (error) {
-    console.error('❌ Encoding failed:', error);
+    console.error('❌ Backend encoding failed:', error);
     throw new Error('Failed to encode transaction. Please try again.');
   }
 }
@@ -241,12 +233,12 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       console.log('Original XRP amount:', txData.amount);
       
       // Use the proven working UR template with transaction data for logging
-      const urString = await encodeKeystoneUR(transactionTemplate);
+      const urResult = await encodeKeystoneUR(transactionTemplate);
       
-      console.log('UR string (working template):', urString.substring(0, 80) + '...');
-      console.log('UR length:', urString.length);
+      console.log('UR string (working template):', urResult.ur.substring(0, 80) + '...');
+      console.log('UR length:', urResult.ur.length);
       
-      return urString;
+      return urResult.ur;
       
     } catch (error) {
       console.error('Keystone encoding failed:', error);
@@ -362,24 +354,42 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         console.log('Raw signed QR data:', signedQRData.substring(0, 100) + '...');
         
         // Handle different Keystone signed transaction formats
-        if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/')) {
-          console.log('Keystone XRP signature format detected');
+        if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/') || 
+            signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
+          console.log('Keystone UR format detected');
           
-          const urContent = signedQRData.substring(17); // Remove 'UR:XRP-SIGNATURE/'
+          // Extract UR type and content
+          const parts = signedQRData.split('/');
+          const urType = parts[0].toLowerCase();
+          const urContent = parts.slice(1).join('/');
           
           try {
-            // Keystone XRP signatures are typically CBOR encoded
-            const { decode: cborDecode } = await import('cbor-web');
+            // Call backend to decode using Keystone SDK
+            console.log('Calling backend to decode signature...');
+            const response = await fetch('/api/keystone/xrp/decode-signature', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                ur: signedQRData,
+                type: urType.replace('ur:', ''),
+                cbor: urContent // The backend will handle proper decoding
+              })
+            });
             
-            // Convert UR content to bytes - handle Keystone's custom encoding
-            const urBytes = new TextEncoder().encode(urContent);
-            const decodedData = cborDecode(urBytes);
+            if (!response.ok) {
+              const error = await response.json();
+              console.error('Backend decode error:', error);
+              throw new Error(error.details || 'Failed to decode signature');
+            }
             
-            console.log('Decoded XRP signature:', decodedData);
+            const result = await response.json();
+            console.log('Backend decoded signature:', result);
             
             signedTransaction = {
-              txBlob: decodedData.signedTransaction || decodedData.txBlob || decodedData,
-              txHash: decodedData.txHash || decodedData.hash
+              txBlob: result.signature,
+              txHash: result.requestId || ''
             };
             
           } catch (error) {

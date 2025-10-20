@@ -230,6 +230,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Keystone Hardware Wallet API endpoints
+  app.post("/api/keystone/xrp/sign-request", async (req, res) => {
+    try {
+      const KeystoneSDK = require('@keystonehq/keystone-sdk').default;
+      const { AnimatedQRCode } = require('@keystonehq/animated-qr');
+      
+      const { transaction, walletInfo } = req.body;
+      
+      // Log the transaction for debugging
+      console.log('Backend: Creating Keystone sign request for:', transaction);
+      
+      // Initialize Keystone SDK
+      const keystoneSDK = new KeystoneSDK();
+      
+      // Generate the XRP sign request in proper UR format
+      const ur = keystoneSDK.xrp.generateSignRequest(transaction);
+      
+      // Convert UR to format suitable for QR display
+      const urString = ur.toString();
+      const cborHex = ur.cbor.toString('hex');
+      
+      console.log('Backend: Generated UR type:', ur.type);
+      console.log('Backend: UR string preview:', urString.substring(0, 50) + '...');
+      
+      // Return the UR data for frontend to display
+      res.json({
+        ur: urString,
+        type: ur.type,
+        cbor: cborHex,
+        requestId: crypto.randomUUID()
+      });
+    } catch (error: any) {
+      console.error('Backend: Keystone sign request error:', error);
+      res.status(500).json({ 
+        error: 'Failed to generate Keystone sign request',
+        details: error.message 
+      });
+    }
+  });
+
+  app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
+    try {
+      const KeystoneSDK = require('@keystonehq/keystone-sdk').default;
+      const { UR } = require('@keystonehq/keystone-sdk');
+      
+      const { ur: urString, type, cbor } = req.body;
+      
+      console.log('Backend: Decoding Keystone signature');
+      
+      // Initialize Keystone SDK
+      const keystoneSDK = new KeystoneSDK();
+      
+      // Reconstruct UR object from the scanned data
+      const ur = new UR(Buffer.from(cbor, 'hex'), type);
+      
+      // Parse the XRP signature
+      const signature = keystoneSDK.xrp.parseSignature(ur);
+      
+      console.log('Backend: Decoded signature:', signature);
+      
+      // Return the signature data
+      res.json({
+        signature: signature.signature,
+        requestId: signature.requestId
+      });
+    } catch (error: any) {
+      console.error('Backend: Keystone decode signature error:', error);
+      res.status(500).json({ 
+        error: 'Failed to decode Keystone signature',
+        details: error.message 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
