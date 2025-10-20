@@ -33,93 +33,31 @@ interface SendTransactionFormProps {
   onSuccess?: () => void;
 }
 
-// BC-UR alphabet for proper Keystone 3 Pro encoding (complete 256-word table)
-const BYTEWORDS = [
-  "ABLE", "ACID", "ALSO", "APEX", "AQUA", "ARCH", "ATOM", "AUNT", "AWAY", "AXIS",
-  "BACK", "BALD", "BARN", "BELT", "BETA", "BIAS", "BLUE", "BODY", "BRAG", "BREW",
-  "BULB", "BUZZ", "CALM", "CASH", "CATS", "CHEF", "CITY", "CLAW", "CODE", "COLA",
-  "COOK", "COST", "CRUX", "CURL", "CUSP", "DATA", "DAYS", "DELI", "DICE", "DIET",
-  "DOOR", "DOWN", "DRAW", "DROP", "DRUM", "DULL", "DUTY", "EACH", "EASY", "ECHO",
-  "EDGE", "EPIC", "EVEN", "EXAM", "EXIT", "EYES", "FACT", "FAIR", "FERN", "FIGS",
-  "FILM", "FISH", "FIZZ", "FLAP", "FLEW", "FLUX", "FOXY", "FREE", "FROG", "FUEL",
-  "FUND", "GALA", "GAME", "GEAR", "GEMS", "GIFT", "GIRL", "GLOW", "GOOD", "GRAY",
-  "GRIM", "GURU", "GUSH", "GYRO", "HALF", "HANG", "HARD", "HAWK", "HEAT", "HELP",
-  "HIGH", "HILL", "HOLY", "HOPE", "HORN", "HUTS", "ICED", "IDEA", "IDLE", "INCH",
-  "IRIS", "IRON", "ITEM", "JADE", "JAZZ", "JOIN", "JOLT", "JOWL", "JUMP", "JUNK",
-  "JURY", "KEEP", "KENO", "KEPT", "KEYS", "KICK", "KIND", "KITE", "KIWI", "KNOB",
-  "LAMB", "LAVA", "LAZY", "LEAF", "LEGS", "LIAR", "LIMP", "LION", "LIST", "LOGO",
-  "LOUD", "LOVE", "LUAU", "LUCK", "LUNG", "LYNX", "MAIN", "MANY", "MATH", "MAZE",
-  "MEMO", "MENU", "MILD", "MINT", "MISS", "MONK", "NAIL", "NAVY", "NEED", "NEWS",
-  "NEXT", "NOON", "NOTE", "NUMB", "OBEY", "OBOE", "OMIT", "ONYX", "OPEN", "OVAL",
-  "OWLS", "PAID", "PART", "PECK", "PLAY", "PLUS", "POEM", "POOL", "POSE", "PUFF",
-  "PUMA", "PURR", "QUAD", "QUIZ", "RACE", "RAMP", "REAL", "REDO", "RICH", "ROAD",
-  "ROCK", "ROOF", "RUBY", "RUIN", "RUNS", "RUST", "SAFE", "SAGA", "SCAR", "SETS",
-  "SILK", "SKEW", "SLOT", "SOAP", "SOLO", "SONG", "STUB", "SURF", "SWAN", "TACO",
-  "TASK", "TAXI", "TENT", "TIED", "TIME", "TINY", "TOIL", "TOMB", "TOYS", "TRIP",
-  "TUNA", "TWIN", "UGLY", "UNDO", "UNIT", "URGE", "USER", "VAST", "VIEW", "VISA",
-  "VOID", "VOWS", "WALL", "WAND", "WARM", "WASP", "WAVE", "WAXY", "WEBS", "WHAT",
-  "WHEN", "WHIZ", "WOLF", "WORK", "YANK", "YAWN", "YEAR", "YELL", "YOGA", "YURT",
-  "ZAPS", "ZERO", "ZEST", "ZINC", "ZONE", "ZOOM", "ABLE", "ACID", "ALSO", "APEX"
-];
-
-function crc32(data: Uint8Array): number {
-  const table = new Uint32Array(256);
-  for (let i = 0; i < 256; i++) {
-    let c = i;
-    for (let j = 0; j < 8; j++) {
-      c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    }
-    table[i] = c;
-  }
-  
-  let crc = 0xFFFFFFFF;
-  for (let i = 0; i < data.length; i++) {
-    crc = table[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);
-  }
-  return (crc ^ 0xFFFFFFFF) >>> 0;
-}
-
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== KEYSTONE UR ENCODING ===');
+  console.log('=== KEYSTONE SDK UR ENCODING ===');
   console.log('Transaction to encode:', transactionTemplate);
   
   try {
-    // Encode transaction as JSON for Keystone 3 Pro
-    // Keystone uses UR:BYTES format with CBOR encoding
+    // Use the actual BC-UR library
+    const { UR, UREncoder } = await import('@ngraveio/bc-ur');
     const { encode: cborEncode } = await import('cbor-web');
     
-    // Create a properly structured transaction object for Keystone
-    const keystonePayload = {
-      type: 'xrp-transaction',
-      data: transactionTemplate
-    };
+    // CBOR encode the transaction
+    const cborDataRaw = cborEncode(transactionTemplate);
     
-    // CBOR encode the payload
-    const cborDataRaw = cborEncode(keystonePayload);
-    console.log('CBOR encoded data type:', typeof cborDataRaw);
-    console.log('CBOR encoded data:', cborDataRaw);
+    // Convert to Buffer
+    const cborData = Buffer.from(cborDataRaw);
+    console.log('CBOR data length:', cborData.length);
+    console.log('CBOR hex preview:', cborData.slice(0, 20).toString('hex'));
     
-    // Ensure we have a proper Uint8Array
-    let cborData: Uint8Array;
-    if (cborDataRaw instanceof Uint8Array) {
-      cborData = cborDataRaw;
-    } else if (cborDataRaw instanceof ArrayBuffer) {
-      cborData = new Uint8Array(cborDataRaw);
-    } else if (typeof cborDataRaw === 'object' && cborDataRaw.buffer) {
-      cborData = new Uint8Array(cborDataRaw.buffer);
-    } else {
-      throw new Error('Unexpected CBOR encoding result type: ' + typeof cborDataRaw);
-    }
+    // Create UR with type 'bytes'
+    const ur = new UR(cborData, 'bytes');
     
-    console.log('CBOR Uint8Array length:', cborData.length);
-    console.log('CBOR preview:', Array.from(cborData.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+    // Encode to UR string
+    const urEncoder = new UREncoder(ur, 400);
+    const urString = urEncoder.nextPart().toUpperCase();
     
-    // Convert to UR format using BC-UR bytewords encoding
-    const urContent = encodeBytewords(cborData);
-    const urString = `UR:BYTES/${urContent}`;
-    
-    console.log('Generated UR string length:', urString.length);
-    console.log('UR preview:', urString.substring(0, 100) + '...');
+    console.log('Generated UR string:', urString);
     
     return urString;
     
@@ -128,54 +66,6 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
     console.error('Error details:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     throw new Error('Failed to encode transaction for Keystone 3 Pro. Please try again.');
-  }
-}
-
-// Encode bytes to bytewords format for BC-UR
-function encodeBytewords(data: Uint8Array): string {
-  try {
-    console.log('Encoding bytewords, data length:', data.length);
-    console.log('BYTEWORDS array available:', BYTEWORDS.length);
-    
-    const words: string[] = [];
-    
-    for (let i = 0; i < data.length; i++) {
-      const byte = data[i];
-      if (byte > 255 || byte < 0) {
-        throw new Error(`Invalid byte value at index ${i}: ${byte}`);
-      }
-      const word = BYTEWORDS[byte];
-      if (!word) {
-        throw new Error(`No byteword found for byte ${byte} at index ${i}`);
-      }
-      words.push(word.toLowerCase());
-    }
-    
-    console.log('Encoded', words.length, 'bytewords from data');
-    
-    // Add CRC32 checksum
-    const checksum = crc32(data);
-    const checksumBytes = new Uint8Array(4);
-    new DataView(checksumBytes.buffer).setUint32(0, checksum, false);
-    
-    console.log('Adding CRC32 checksum:', checksum);
-    
-    for (let i = 0; i < 4; i++) {
-      const checksumByte = checksumBytes[i];
-      const checksumWord = BYTEWORDS[checksumByte];
-      if (!checksumWord) {
-        throw new Error(`No byteword found for checksum byte ${checksumByte} at index ${i}`);
-      }
-      words.push(checksumWord.toLowerCase());
-    }
-    
-    const result = words.join('');
-    console.log('Bytewords encoding complete, total length:', result.length);
-    
-    return result;
-  } catch (error) {
-    console.error('encodeBytewords failed:', error);
-    throw error;
   }
 }
 
