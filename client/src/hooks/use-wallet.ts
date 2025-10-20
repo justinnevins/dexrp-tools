@@ -5,7 +5,15 @@ import { browserStorage } from '@/lib/browser-storage';
 import type { Wallet, Transaction, Trustline, Escrow } from '@shared/schema';
 
 export function useWallet() {
-  const [currentWallet, setCurrentWallet] = useState<Wallet | null>(null);
+  const [currentWallet, setCurrentWallet] = useState<Wallet | null>(() => {
+    // Initialize from localStorage if available
+    const stored = localStorage.getItem('xrpl_current_wallet_id');
+    if (stored) {
+      const walletId = parseInt(stored, 10);
+      return browserStorage.getWallet(walletId) || null;
+    }
+    return null;
+  });
   const queryClient = useQueryClient();
 
   const walletsQuery = useQuery<Wallet[]>({
@@ -16,9 +24,18 @@ export function useWallet() {
 
   useEffect(() => {
     if (walletsQuery.data && walletsQuery.data.length > 0 && !currentWallet) {
-      setCurrentWallet(walletsQuery.data[0]);
+      const wallet = walletsQuery.data[0];
+      setCurrentWallet(wallet);
+      localStorage.setItem('xrpl_current_wallet_id', wallet.id.toString());
     }
   }, [walletsQuery.data, currentWallet]);
+
+  // Custom setter that also persists to localStorage
+  const updateCurrentWallet = (wallet: Wallet) => {
+    setCurrentWallet(wallet);
+    localStorage.setItem('xrpl_current_wallet_id', wallet.id.toString());
+    console.log('Switched to wallet:', wallet.address);
+  };
 
   const createWallet = useMutation({
     mutationFn: async (walletData: { address: string; hardwareWalletType?: string; publicKey?: string }) => {
@@ -34,7 +51,7 @@ export function useWallet() {
     },
     onSuccess: (newWallet) => {
       // Automatically switch to the newly added wallet
-      setCurrentWallet(newWallet);
+      updateCurrentWallet(newWallet);
       queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     },
   });
@@ -51,7 +68,7 @@ export function useWallet() {
 
   return {
     currentWallet,
-    setCurrentWallet,
+    setCurrentWallet: updateCurrentWallet,
     wallets: walletsQuery,
     createWallet,
     updateWalletBalance,
