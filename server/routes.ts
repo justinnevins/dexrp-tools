@@ -113,33 +113,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { walletId, txBlob, txHash, transactionData } = req.body;
       
-      // In a real implementation, this would:
-      // 1. Submit the signed transaction to XRPL network using txBlob
-      // 2. Wait for confirmation from the network
-      // 3. Store the result in the database
+      console.log('Submitting transaction to XRPL network...');
+      console.log('Transaction blob:', txBlob);
       
-      // For demo purposes, we'll create a transaction record
-      const transaction = await storage.createTransaction({
-        walletId,
-        type: transactionData.type,
-        amount: transactionData.amount,
-        currency: 'XRP',
-        fromAddress: transactionData.fromAddress,
-        toAddress: transactionData.toAddress,
-        destinationTag: transactionData.destinationTag,
-        status: 'completed',
-        txHash: txHash
-      });
+      // Connect to XRPL and submit the transaction
+      const xrpl = await import('xrpl');
+      const client = new xrpl.Client('wss://s.altnet.rippletest.net:51233'); // Testnet
       
-      res.status(201).json({
-        success: true,
-        transaction,
-        networkResult: {
-          hash: txHash,
-          status: 'tesSUCCESS',
-          validated: true
-        }
-      });
+      await client.connect();
+      console.log('Connected to XRPL testnet');
+      
+      try {
+        // Submit the signed transaction blob
+        const submitResult = await client.submitAndWait(txBlob);
+        console.log('Transaction submitted:', submitResult);
+        
+        // Store the transaction in the database
+        const transaction = await storage.createTransaction({
+          walletId,
+          type: transactionData.type,
+          amount: transactionData.amount,
+          currency: 'XRP',
+          fromAddress: transactionData.fromAddress,
+          toAddress: transactionData.toAddress,
+          destinationTag: transactionData.destinationTag,
+          status: submitResult.result.meta.TransactionResult === 'tesSUCCESS' ? 'completed' : 'failed',
+          txHash: submitResult.result.hash
+        });
+        
+        await client.disconnect();
+        
+        res.status(201).json({
+          success: true,
+          transaction,
+          networkResult: {
+            hash: submitResult.result.hash,
+            status: submitResult.result.meta.TransactionResult,
+            validated: submitResult.result.validated,
+            ledgerIndex: submitResult.result.ledger_index
+          }
+        });
+      } finally {
+        await client.disconnect();
+      }
     } catch (error) {
       console.error('Transaction submission failed:', error);
       console.error('Request body:', req.body);
