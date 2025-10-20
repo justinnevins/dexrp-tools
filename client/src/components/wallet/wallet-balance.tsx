@@ -33,7 +33,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
             Account not activated on XRPL network
           </p>
           <p className="text-xs text-white/60 mt-1">
-            Receive at least 10 XRP to activate this address
+            Receive at least 1 XRP to activate this address
           </p>
         </div>
         
@@ -65,9 +65,10 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
     ? xrplClient.formatXRPAmount(accountInfo.account_data.Balance)
     : '0.000000';
     
+  // Current XRPL reserve: 1 XRP base + 0.2 XRP per owned object
   const reservedBalance = (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.OwnerCount)
-    ? ((accountInfo.account_data.OwnerCount * 2) + 10).toString()
-    : '20.000000';
+    ? ((accountInfo.account_data.OwnerCount * 0.2) + 1).toFixed(6)
+    : '1.000000';
 
   const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
   const usdValue = xrpPrice ? (parseFloat(balance) * xrpPrice).toFixed(2) : '0.00';
