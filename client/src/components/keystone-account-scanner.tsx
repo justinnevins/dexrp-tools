@@ -84,10 +84,10 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
 
       // Only accept proper Keystone UR codes
       console.log('QR code is not a valid Keystone UR format');
-      setError('Please scan the account QR code from your Keystone Pro 3 device. Looking for UR:BYTES/ format.');
+      setError('Please scan the account QR code from your Keystone 3 Pro device. Looking for UR:BYTES/ format.');
     } catch (err) {
       console.error('Error parsing QR data:', err);
-      setError('Invalid QR code format. Please scan the account QR from Keystone Pro 3.');
+      setError('Invalid QR code format. Please scan the account QR from Keystone 3 Pro.');
     }
   };
 
@@ -326,7 +326,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="text-sm text-muted-foreground">
-          <p><strong>Step 1:</strong> On your Keystone Pro 3, go to "Software Wallet" menu</p>
+          <p><strong>Step 1:</strong> On your Keystone 3 Pro, go to "Software Wallet" menu</p>
           <p><strong>Step 2:</strong> Select "XRP" or "Connect Wallet"</p>
           <p><strong>Step 3:</strong> Display the account/address QR code on your device</p>
           <p><strong>Step 4:</strong> Scan that QR code with the camera below</p>

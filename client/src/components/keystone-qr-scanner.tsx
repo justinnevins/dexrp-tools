@@ -10,7 +10,7 @@ interface KeystoneQRScannerProps {
   description?: string;
 }
 
-export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transaction", description = "Scan the signed transaction QR code from your Keystone Pro 3" }: KeystoneQRScannerProps) {
+export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transaction", description = "Scan the signed transaction QR code from your Keystone 3 Pro" }: KeystoneQRScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);

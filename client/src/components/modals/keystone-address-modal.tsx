@@ -88,9 +88,9 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
     <Dialog open={isOpen} onOpenChange={handleCancel}>
       <DialogContent className="max-w-md mx-auto">
         <DialogHeader>
-          <DialogTitle>Connect Keystone Pro 3</DialogTitle>
+          <DialogTitle>Connect Keystone 3 Pro</DialogTitle>
           <DialogDescription>
-            Enter your XRP address from your Keystone Pro 3 device to complete the connection.
+            Enter your XRP address from your Keystone 3 Pro device to complete the connection.
           </DialogDescription>
         </DialogHeader>
 
@@ -102,7 +102,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
               Scan QR Code
             </h4>
             <p className="text-sm text-muted-foreground">
-              Scan a QR code containing your Keystone Pro 3 wallet address
+              Scan a QR code containing your Keystone 3 Pro wallet address
             </p>
             <Button 
               onClick={() => setShowQRScanner(true)}
@@ -129,7 +129,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
           <div className="space-y-2">
             <Label htmlFor="xrp-address">XRP Address from Device</Label>
             <p className="text-sm text-muted-foreground">
-              1. Go to your Keystone Pro 3 device<br />
+              1. Go to your Keystone 3 Pro device<br />
               2. Navigate to XRP → Accounts<br />
               3. Copy the address for path m/44'/144'/0'/0/0<br />
               4. Enter the address below

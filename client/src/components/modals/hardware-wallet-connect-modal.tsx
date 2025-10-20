@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Usb, QrCode, Globe, CheckCircle, Loader2, Camera } from 'lucide-react';
+import { Shield, QrCode, CheckCircle, Loader2, Camera } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/hardware-wallet';
@@ -16,23 +16,11 @@ interface HardwareWalletConnectModalProps {
 }
 
 const walletInfo = {
-  'Keystone Pro 3': {
+  'Keystone 3 Pro': {
     icon: QrCode,
     description: 'Air-gapped cold storage via QR codes',
     connectionType: 'QR Code',
     features: ['Air-gapped security', 'QR code signing', 'Multi-currency support'],
-  },
-  'Ledger': {
-    icon: Usb,
-    description: 'Hardware wallet via USB connection',
-    connectionType: 'USB',
-    features: ['Secure element', 'USB connection', 'App-based verification'],
-  },
-  'DCent': {
-    icon: Globe,
-    description: 'Biometric hardware wallet',
-    connectionType: 'Web Bridge',
-    features: ['Biometric authentication', 'Mobile app', 'Web3 integration'],
   },
 };
 
@@ -47,77 +35,54 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
 
   useEffect(() => {
     if (isOpen) {
-      // Always show all wallet types for demonstration
-      setAvailableWallets(['Keystone Pro 3', 'Ledger', 'DCent']);
+      // Show only Keystone 3 Pro
+      setAvailableWallets(['Keystone 3 Pro']);
     }
   }, [isOpen]);
 
   const handleConnect = async (walletType: HardwareWalletType) => {
     setSelectedWallet(walletType);
     
-    if (walletType === 'Keystone Pro 3') {
-      // Show the proper Keystone account scanner
-      setShowKeystoneScanner(true);
-      return;
-    }
-    
-    try {
-      const connection = await connect(walletType);
-      
-      if (connection.connected) {
-        // Get the actual address from the hardware device
-        const address = await getAddress(walletType);
-        
-        await createWallet.mutateAsync({
-          address,
-          hardwareWalletType: walletType,
-        });
-        
-        onClose();
-      }
-    } catch (error: any) {
-      console.error('Connection failed:', error);
-      setSelectedWallet(null);
-      alert(`Hardware wallet connection failed: ${error.message}`);
-    }
+    // Show the Keystone 3 Pro account scanner
+    setShowKeystoneScanner(true);
   };
 
   const handleKeystoneAccountScan = async (address: string, publicKey: string) => {
     try {
-      console.log('Keystone account scanned:', { address, publicKey });
+      console.log('Keystone 3 Pro account scanned:', { address, publicKey });
       
-      await connect('Keystone Pro 3');
+      await connect('Keystone 3 Pro');
       
       await createWallet.mutateAsync({
         address,
         publicKey,
-        hardwareWalletType: 'Keystone Pro 3',
+        hardwareWalletType: 'Keystone 3 Pro',
       });
       
       setShowKeystoneScanner(false);
       setSelectedWallet(null);
       onClose();
     } catch (error: any) {
-      console.error('Keystone connection failed:', error);
-      alert(`Keystone connection failed: ${error.message}`);
+      console.error('Keystone 3 Pro connection failed:', error);
+      alert(`Keystone 3 Pro connection failed: ${error.message}`);
     }
   };
 
   const handleKeystoneConfirm = async (address: string) => {
     try {
-      await connect('Keystone Pro 3');
+      await connect('Keystone 3 Pro');
       
       await createWallet.mutateAsync({
         address,
-        hardwareWalletType: 'Keystone Pro 3',
+        hardwareWalletType: 'Keystone 3 Pro',
       });
       
       setShowKeystoneModal(false);
       setSelectedWallet(null);
       onClose();
     } catch (error: any) {
-      console.error('Keystone connection failed:', error);
-      alert(`Keystone connection failed: ${error.message}`);
+      console.error('Keystone 3 Pro connection failed:', error);
+      alert(`Keystone 3 Pro connection failed: ${error.message}`);
     }
   };
 
@@ -235,19 +200,6 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
           })}
         </div>
 
-        <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl">
-          <div className="flex items-start space-x-2">
-            <Shield className="w-4 h-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                Security Notice
-              </p>
-              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                Only connect hardware wallets from trusted manufacturers. Never share your recovery phrases or private keys.
-              </p>
-            </div>
-          </div>
-        </div>
       </DialogContent>
       
       <KeystoneAddressModal

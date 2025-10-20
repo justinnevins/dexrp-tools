@@ -33,7 +33,7 @@ interface SendTransactionFormProps {
   onSuccess?: () => void;
 }
 
-// BC-UR alphabet for proper Keystone Pro 3 encoding
+// BC-UR alphabet for proper Keystone 3 Pro encoding
 const BYTEWORDS = [
   "ABLE", "ACID", "ALSO", "APEX", "AQUA", "ARCH", "ATOM", "AUNT", "AWAY", "AXIS",
   "BACK", "BALD", "BARN", "BELT", "BETA", "BIAS", "BLUE", "BODY", "BRAG", "BREW",
@@ -272,7 +272,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       });
     }
     
-    // Create XRP transaction for Keystone Pro 3 using actual form data
+    // Create XRP transaction for Keystone 3 Pro using actual form data
     const xrpTransaction = {
       Account: currentWallet.address,
       Amount: amountInDrops,
@@ -344,15 +344,15 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       
     } catch (error) {
       console.error('Keystone encoding failed:', error);
-      throw new Error('Failed to encode transaction for Keystone Pro 3');
+      throw new Error('Failed to encode transaction for Keystone 3 Pro');
     }
   };
 
   const onSubmit = async (data: TransactionFormData) => {
-    if (!currentWallet?.hardwareWalletType || currentWallet.hardwareWalletType !== 'Keystone Pro 3') {
+    if (!currentWallet?.hardwareWalletType || currentWallet.hardwareWalletType !== 'Keystone 3 Pro') {
       toast({
         title: "Hardware Wallet Required",
-        description: "Please connect your Keystone Pro 3 device first",
+        description: "Please connect your Keystone 3 Pro device first",
         variant: "destructive",
       });
       return;
@@ -374,7 +374,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     setCurrentStep('qr-display');
 
     try {
-      // Create QR code data for Keystone Pro 3
+      // Create QR code data for Keystone 3 Pro
       const qrData = await createTransactionQR(data);
       setQrCodeData(qrData);
 
@@ -392,13 +392,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
 
       toast({
         title: "QR Code Generated",
-        description: "Scan the QR code with your Keystone Pro 3 to sign the transaction",
+        description: "Scan the QR code with your Keystone 3 Pro to sign the transaction",
       });
 
       // Wait for user to scan QR code and sign with Keystone device
       setCurrentStep('signing');
       
-      console.log('QR code displayed for Keystone Pro 3 signing');
+      console.log('QR code displayed for Keystone 3 Pro signing');
       
       // Store transaction data and wait for signed QR scan
       setPendingTransactionData(data);
@@ -491,7 +491,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           const urContent = signedQRData.substring(9); // Remove 'UR:BYTES/'
           
           try {
-            // Keystone Pro 3 uses CBOR-encoded signed transactions in UR format
+            // Keystone 3 Pro uses CBOR-encoded signed transactions in UR format
             console.log('Attempting CBOR-based decoding for Keystone signed transaction...');
             
             // Import CBOR decoder
@@ -737,7 +737,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             <span>Send XRP</span>
           </CardTitle>
           <CardDescription>
-            Send XRP using your Keystone Pro 3 hardware wallet
+            Send XRP using your Keystone 3 Pro hardware wallet
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -847,7 +847,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
               {!currentWallet?.hardwareWalletType && (
                 <div className="flex items-center space-x-2 text-amber-600 dark:text-amber-400 text-sm">
                   <AlertCircle className="w-4 h-4" />
-                  <span>Connect your Keystone Pro 3 device to send transactions</span>
+                  <span>Connect your Keystone 3 Pro device to send transactions</span>
                 </div>
               )}
             </form>
@@ -863,7 +863,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
               <span>Sign Transaction</span>
             </DialogTitle>
             <DialogDescription>
-              Scan this QR code with your Keystone Pro 3 device to sign the transaction
+              Scan this QR code with your Keystone 3 Pro device to sign the transaction
             </DialogDescription>
           </DialogHeader>
           
@@ -882,7 +882,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
               {currentStep === 'qr-display' && (
                 <>
                   <p className="text-sm text-muted-foreground">
-                    1. Open the XRP app on your Keystone Pro 3
+                    1. Open the XRP app on your Keystone 3 Pro
                   </p>
                   <p className="text-sm text-muted-foreground">
                     2. Scan this QR code with your device
@@ -899,7 +899,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                     <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
                     <p className="text-sm font-medium">Transaction Signed</p>
                     <p className="text-sm text-muted-foreground">
-                      Now scan the signed transaction QR code from your Keystone Pro 3
+                      Now scan the signed transaction QR code from your Keystone 3 Pro
                     </p>
                   </div>
                   <Button 
@@ -964,7 +964,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           onScan={handleSignedQRScan}
           onClose={() => setShowSignedQRScanner(false)}
           title="Scan Signed Transaction"
-          description="Scan the signed transaction QR code from your Keystone Pro 3 device"
+          description="Scan the signed transaction QR code from your Keystone 3 Pro device"
         />
       )}
     </>

@@ -174,7 +174,7 @@ export function SendModal({ isOpen, onClose, onSecurityConfirm }: SendModalProps
                   Hardware Wallet Required
                 </p>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                  This transaction will require confirmation on your Keystone Pro 3 device.
+                  This transaction will require confirmation on your Keystone 3 Pro device.
                 </p>
               </div>
             </div>

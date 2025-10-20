@@ -93,22 +93,8 @@ export function useHardwareWallet() {
   }, [toast]);
 
   const detectAvailableWallets = useCallback(async (): Promise<HardwareWalletType[]> => {
-    const availableWallets: HardwareWalletType[] = [];
-
-    // Check for Ledger support (WebUSB)
-    if (typeof navigator !== 'undefined' && (navigator as any).usb) {
-      availableWallets.push('Ledger');
-    }
-
-    // Keystone is always available (QR code based)
-    availableWallets.push('Keystone Pro 3');
-
-    // Check for DCent bridge
-    if (typeof window !== 'undefined' && (window as any).DCentWebConnector) {
-      availableWallets.push('DCent');
-    }
-
-    return availableWallets;
+    // Keystone 3 Pro is always available (QR code based, no special hardware required)
+    return ['Keystone 3 Pro'];
   }, []);
 
   // Initialize connection state from service

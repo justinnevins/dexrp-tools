@@ -67,7 +67,7 @@ export function SecurityConfirmationModal({
           </div>
           <h3 className="text-lg font-semibold mb-2">Confirm on Hardware Wallet</h3>
           <p className="text-sm text-muted-foreground">
-            Please confirm this transaction on your Keystone Pro 3 device
+            Please confirm this transaction on your Keystone 3 Pro device
           </p>
         </div>
         

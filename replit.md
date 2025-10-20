@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a mobile-first XRP Ledger (XRPL) software wallet application built with React and Express. The application focuses on integrating with air-gapped hardware wallets, particularly the Keystone Pro 3, using QR code-based transaction signing. The wallet provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and transactions while maintaining the security benefits of hardware wallet integration.
+This is a mobile-first XRP Ledger (XRPL) software wallet application built with React and Express. The application focuses exclusively on integrating with the Keystone 3 Pro air-gapped hardware wallet using QR code-based transaction signing. The wallet provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and transactions while maintaining the security benefits of hardware wallet integration.
 
 ## User Preferences
 
@@ -34,17 +34,15 @@ Preferred communication style: Simple, everyday language.
 
 ### Hardware Wallet Integration
 
-**Keystone Pro 3 (Primary Focus)**: QR code-based air-gapped communication using the `@keystonehq/keystone-sdk` and `@ngraveio/bc-ur` for encoding/decoding UR (Uniform Resources) formatted data. The wallet displays unsigned transactions as QR codes, which users scan with their Keystone device, sign offline, and scan the resulting signed transaction QR code back into the application.
+**Keystone 3 Pro (Exclusive Support)**: QR code-based air-gapped communication using the `@keystonehq/keystone-sdk` and `@ngraveio/bc-ur` for encoding/decoding UR (Uniform Resources) formatted data. The wallet displays unsigned transactions as QR codes, which users scan with their Keystone 3 Pro device, sign offline, and scan the resulting signed transaction QR code back into the application.
 
 **Camera Integration**: Multiple QR scanner implementations using the `qr-scanner` library and native `getUserMedia` API for camera access. Different scanner components handle various use cases (account setup, transaction signing, address scanning).
-
-**Ledger Support (Partial)**: Integration points exist for Ledger hardware wallets via `@ledgerhq/hw-app-xrp` and `@ledgerhq/hw-transport-webusb`, though the primary focus remains on Keystone.
 
 **Transaction Flow**: 
 1. User creates transaction in UI
 2. Transaction is encoded and displayed as QR code
-3. User scans QR with hardware wallet
-4. Hardware wallet signs transaction offline
+3. User scans QR with Keystone 3 Pro hardware wallet
+4. Keystone 3 Pro signs transaction offline (air-gapped)
 5. User scans signed transaction QR back into app
 6. App submits signed transaction to XRPL
 
@@ -67,10 +65,9 @@ Preferred communication style: Simple, everyday language.
 - Testnet: `wss://s.altnet.rippletest.net:51233`
 
 **Hardware Wallet SDKs**:
-- `@keystonehq/keystone-sdk` - Keystone Pro 3 integration
+- `@keystonehq/keystone-sdk` - Keystone 3 Pro integration
 - `@keystonehq/bc-ur-registry` - UR format encoding/decoding
 - `@ngraveio/bc-ur` - Alternative BC-UR implementation
-- `@ledgerhq/hw-app-xrp` - Ledger device communication
 - `cbor-web` - CBOR encoding for QR data payloads
 
 **Pricing Data**: CoinGecko API for XRP/USD price conversions (with fallback to $0.50 if API fails).
