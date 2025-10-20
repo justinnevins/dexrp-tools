@@ -52,7 +52,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md mx-auto bottom-0 translate-y-0 rounded-t-3xl data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom">
+      <DialogContent className="max-w-md mx-auto">
         <DialogHeader className="pb-4 border-b border-border">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-semibold">Receive XRP</DialogTitle>
