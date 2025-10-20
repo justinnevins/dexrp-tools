@@ -96,12 +96,20 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
     
     // CBOR encode the payload
     const cborDataRaw = cborEncode(keystonePayload);
-    console.log('CBOR encoded data length:', cborDataRaw.byteLength);
+    console.log('CBOR encoded data type:', typeof cborDataRaw);
+    console.log('CBOR encoded data:', cborDataRaw);
     
     // Ensure we have a proper Uint8Array
-    const cborData = cborDataRaw instanceof Uint8Array 
-      ? cborDataRaw 
-      : new Uint8Array(cborDataRaw);
+    let cborData: Uint8Array;
+    if (cborDataRaw instanceof Uint8Array) {
+      cborData = cborDataRaw;
+    } else if (cborDataRaw instanceof ArrayBuffer) {
+      cborData = new Uint8Array(cborDataRaw);
+    } else if (typeof cborDataRaw === 'object' && cborDataRaw.buffer) {
+      cborData = new Uint8Array(cborDataRaw.buffer);
+    } else {
+      throw new Error('Unexpected CBOR encoding result type: ' + typeof cborDataRaw);
+    }
     
     console.log('CBOR Uint8Array length:', cborData.length);
     console.log('CBOR preview:', Array.from(cborData.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
