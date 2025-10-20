@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { X, Copy, Share2, QrCode } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Copy, Share2, QrCode, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
+import QRCodeLib from 'qrcode';
 
 interface ReceiveModalProps {
   isOpen: boolean;
@@ -13,6 +14,41 @@ interface ReceiveModalProps {
 export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
   const { currentWallet } = useWallet();
   const { toast } = useToast();
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    const generateQRCode = async () => {
+      if (!currentWallet?.address || !isOpen) {
+        setQrCodeUrl(null);
+        return;
+      }
+
+      setIsGenerating(true);
+      try {
+        const url = await QRCodeLib.toDataURL(currentWallet.address, {
+          width: 256,
+          margin: 2,
+          color: {
+            dark: '#000000',
+            light: '#FFFFFF',
+          },
+        });
+        setQrCodeUrl(url);
+      } catch (error) {
+        console.error('Failed to generate QR code:', error);
+        toast({
+          title: "QR Code Error",
+          description: "Unable to generate QR code",
+          variant: "destructive",
+        });
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    generateQRCode();
+  }, [currentWallet?.address, isOpen, toast]);
 
   const copyAddress = async () => {
     if (!currentWallet?.address) return;
@@ -71,12 +107,23 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
         </DialogHeader>
         
         <div className="pt-4 text-center pb-6">
-          {/* QR Code Placeholder */}
-          <div className="w-48 h-48 mx-auto bg-muted rounded-xl mb-4 flex items-center justify-center">
-            <QrCode className="w-16 h-16 text-muted-foreground" />
+          {/* QR Code */}
+          <div className="w-64 h-64 mx-auto bg-white rounded-xl mb-4 flex items-center justify-center p-4">
+            {isGenerating ? (
+              <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+            ) : qrCodeUrl ? (
+              <img 
+                src={qrCodeUrl} 
+                alt="Wallet Address QR Code" 
+                className="w-full h-full"
+                data-testid="qr-code-image"
+              />
+            ) : (
+              <QrCode className="w-16 h-16 text-muted-foreground" />
+            )}
           </div>
           
-          <p className="text-sm text-muted-foreground mb-4">Your XRP Address</p>
+          <p className="text-sm text-muted-foreground mb-4">Scan to send XRP to this address</p>
           
           <div className="bg-muted rounded-xl p-4 mb-4">
             <p className="font-mono text-sm break-all">
