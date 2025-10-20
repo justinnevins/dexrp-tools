@@ -107,36 +107,40 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         // @ts-ignore - cbor-web doesn't have TypeScript types
         const { decode: cborDecode } = await import('cbor-web');
         
-        // BC-UR Bytewords - complete 256-word table (BCR-2020-012 specification)
+        // BC-UR Bytewords - complete 256-word table (BCR-2020-012 official specification)
         const bytewords = [
-          "able", "acid", "also", "apex", "aqua", "arch", "atom", "aunt",
-          "away", "axis", "back", "bald", "barn", "belt", "beta", "bias",
-          "blue", "body", "brag", "brew", "bulb", "buzz", "calm", "cash",
-          "cats", "chef", "city", "claw", "code", "cola", "cook", "cost",
-          "crux", "curl", "cusp", "cyan", "dark", "data", "days", "deli",
-          "dice", "diet", "door", "down", "draw", "drop", "drum", "dull",
-          "duty", "each", "easy", "echo", "edge", "epic", "even", "exam",
-          "exit", "eyes", "fact", "fair", "fern", "figs", "film", "fish",
-          "flap", "flew", "flux", "foxy", "free", "frog", "fuel", "fund",
-          "gala", "game", "gear", "gems", "gift", "girl", "glow", "good",
-          "gray", "grim", "gush", "guru", "half", "hang", "hard", "hawk",
-          "heat", "help", "high", "hill", "holy", "hope", "horn", "huts",
-          "icey", "idea", "idle", "inch", "inky", "into", "iris", "iron",
-          "item", "jade", "jazz", "join", "jolt", "jowl", "judo", "jugs",
-          "jump", "junk", "jury", "keep", "keno", "kept", "keys", "kick",
-          "kiln", "king", "kite", "kiwi", "knob", "lamb", "lazy", "leaf",
-          "omit", "onyx", "open", "oval", "owls", "paid", "part", "peck",
-          "play", "plus", "poem", "pool", "pose", "puff", "puma", "purr",
-          "quad", "quiz", "race", "ramp", "real", "redo", "rich", "road",
-          "rock", "roof", "ruby", "ruin", "runs", "rust", "safe", "saga",
-          "scar", "sets", "silk", "skew", "slam", "slot", "slug", "solo",
-          "song", "stub", "surf", "swan", "task", "tent", "tied", "time",
-          "tiny", "toil", "tomb", "toys", "trip", "tuna", "twin", "ugly",
-          "undo", "unit", "urge", "user", "vast", "very", "veto", "vial",
-          "vibe", "view", "void", "vows", "wall", "wand", "warm", "wasp",
-          "wave", "waxy", "webs", "what", "when", "whiz", "wolf", "work",
-          "yank", "yawn", "yell", "yoga", "yurt", "zaps", "zero", "zest",
-          "zinc", "zoom", "zone", "zulu"
+          "able", "acid", "also", "apex", "aqua", "arch", "atom", "aunt",  // 0x00-0x07
+          "away", "axis", "back", "bald", "barn", "belt", "beta", "bias",  // 0x08-0x0F
+          "blue", "body", "brag", "brew", "bulb", "buzz", "calm", "cash",  // 0x10-0x17
+          "cats", "chef", "city", "claw", "code", "cola", "cook", "cost",  // 0x18-0x1F
+          "crux", "curl", "cusp", "cyan", "dark", "data", "days", "deli",  // 0x20-0x27
+          "dice", "diet", "door", "down", "draw", "drop", "drum", "dull",  // 0x28-0x2F
+          "duty", "each", "easy", "echo", "edge", "epic", "even", "exam",  // 0x30-0x37
+          "exit", "eyes", "fact", "fair", "fern", "figs", "film", "fish",  // 0x38-0x3F
+          "fizz", "flap", "flew", "flux", "foxy", "free", "frog", "fuel",  // 0x40-0x47
+          "fund", "gala", "game", "gear", "gems", "gift", "girl", "glow",  // 0x48-0x4F
+          "good", "gray", "grim", "guru", "gush", "gyro", "half", "hang",  // 0x50-0x57
+          "hard", "hawk", "heat", "help", "high", "hill", "holy", "hope",  // 0x58-0x5F
+          "horn", "huts", "iced", "idea", "idle", "inch", "inky", "into",  // 0x60-0x67
+          "iris", "iron", "item", "jade", "jazz", "join", "jolt", "jowl",  // 0x68-0x6F
+          "judo", "jugs", "jump", "junk", "jury", "keep", "keno", "kept",  // 0x70-0x77
+          "keys", "kick", "kiln", "king", "kite", "kiwi", "knob", "lamb",  // 0x78-0x7F
+          "lava", "lazy", "leaf", "legs", "liar", "limp", "lion", "list",  // 0x80-0x87
+          "logo", "loud", "love", "luau", "luck", "lung", "main", "many",  // 0x88-0x8F
+          "math", "maze", "memo", "menu", "meow", "mild", "mint", "miss",  // 0x90-0x97
+          "monk", "nail", "navy", "need", "news", "next", "noon", "note",  // 0x98-0x9F
+          "numb", "obey", "oboe", "omit", "onyx", "open", "oval", "owls",  // 0xA0-0xA7
+          "paid", "part", "peck", "play", "plus", "poem", "pool", "pose",  // 0xA8-0xAF
+          "puff", "puma", "purr", "quad", "quiz", "race", "ramp", "real",  // 0xB0-0xB7
+          "redo", "rich", "road", "rock", "roof", "ruby", "ruin", "runs",  // 0xB8-0xBF
+          "rust", "safe", "saga", "scar", "sets", "silk", "skew", "slot",  // 0xC0-0xC7
+          "soap", "solo", "song", "stub", "surf", "swan", "taco", "task",  // 0xC8-0xCF
+          "taxi", "tent", "tied", "time", "tiny", "toil", "tomb", "toys",  // 0xD0-0xD7
+          "trip", "tuna", "twin", "ugly", "undo", "unit", "urge", "user",  // 0xD8-0xDF
+          "vast", "very", "veto", "vial", "vibe", "view", "visa", "void",  // 0xE0-0xE7
+          "vows", "wall", "wand", "warm", "wasp", "wave", "waxy", "webs",  // 0xE8-0xEF
+          "what", "when", "whiz", "wolf", "work", "yank", "yawn", "yell",  // 0xF0-0xF7
+          "yoga", "yurt", "zaps", "zero", "zest", "zinc", "zone", "zoom"   // 0xF8-0xFF
         ];
         
         // Build minimal bytewords lookup (first + last letter → byte value)
