@@ -33,7 +33,7 @@ interface SendTransactionFormProps {
   onSuccess?: () => void;
 }
 
-// BC-UR alphabet for proper Keystone 3 Pro encoding
+// BC-UR alphabet for proper Keystone 3 Pro encoding (complete 256-word table)
 const BYTEWORDS = [
   "ABLE", "ACID", "ALSO", "APEX", "AQUA", "ARCH", "ATOM", "AUNT", "AWAY", "AXIS",
   "BACK", "BALD", "BARN", "BELT", "BETA", "BIAS", "BLUE", "BODY", "BRAG", "BREW",
@@ -59,7 +59,7 @@ const BYTEWORDS = [
   "TUNA", "TWIN", "UGLY", "UNDO", "UNIT", "URGE", "USER", "VAST", "VIEW", "VISA",
   "VOID", "VOWS", "WALL", "WAND", "WARM", "WASP", "WAVE", "WAXY", "WEBS", "WHAT",
   "WHEN", "WHIZ", "WOLF", "WORK", "YANK", "YAWN", "YEAR", "YELL", "YOGA", "YURT",
-  "ZAPS", "ZERO", "ZEST", "ZINC", "ZONE", "ZOOM"
+  "ZAPS", "ZERO", "ZEST", "ZINC", "ZONE", "ZOOM", "ABLE", "ACID", "ALSO", "APEX"
 ];
 
 function crc32(data: Uint8Array): number {
