@@ -249,11 +249,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const ur = keystoneSDK.xrp.generateSignRequest(transaction);
       
       // Convert UR to format suitable for QR display
-      const urString = ur.toString();
+      // The UR object has a toURString() method that generates the proper format
+      const urString = `ur:${ur.type}/${ur.cbor.toString('hex')}`;
       const cborHex = ur.cbor.toString('hex');
       
       console.log('Backend: Generated UR type:', ur.type);
-      console.log('Backend: UR string preview:', urString.substring(0, 50) + '...');
+      console.log('Backend: UR string format:', urString.substring(0, 100) + '...');
+      console.log('Backend: CBOR hex length:', cborHex.length);
       
       // Return the UR data for frontend to display
       res.json({
