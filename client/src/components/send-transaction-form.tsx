@@ -38,28 +38,28 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
   console.log('Transaction to encode:', transactionTemplate);
   
   try {
-    // Use the actual BC-UR library
-    const { UR, UREncoder } = await import('@ngraveio/bc-ur');
-    const { encode: cborEncode } = await import('cbor-web');
+    // Use the official Keystone SDK for XRPL
+    const { KeystoneSDK } = await import('@keystonehq/keystone-sdk');
+    const { encode } = await import('ripple-binary-codec');
     
-    // CBOR encode the transaction
-    const cborDataRaw = cborEncode(transactionTemplate);
+    // Encode the transaction using XRPL binary codec
+    const encodedTx = encode(transactionTemplate);
+    console.log('Binary encoded transaction:', encodedTx);
     
-    // Convert to Buffer
-    const cborData = Buffer.from(cborDataRaw);
-    console.log('CBOR data length:', cborData.length);
-    console.log('CBOR hex preview:', cborData.slice(0, 20).toString('hex'));
+    // Create Keystone SDK instance
+    const keystoneSDK = new KeystoneSDK();
     
-    // Create UR with type 'bytes'
-    const ur = new UR(cborData, 'bytes');
+    // Generate QR code data using Keystone SDK
+    const qrData = keystoneSDK.xrp.generateSignRequest({
+      requestId: crypto.randomUUID(),
+      signData: encodedTx,
+      xfp: 'FFFFFFFF', // Master fingerprint - using default for air-gapped wallets
+      origin: 'XRPL Wallet'
+    });
     
-    // Encode to UR string
-    const urEncoder = new UREncoder(ur, 400);
-    const urString = urEncoder.nextPart().toUpperCase();
+    console.log('Generated Keystone QR data');
     
-    console.log('Generated UR string:', urString);
-    
-    return urString;
+    return qrData.toUREncoder(400).nextPart();
     
   } catch (error) {
     console.error('Keystone UR encoding failed:', error);
