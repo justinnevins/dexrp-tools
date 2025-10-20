@@ -102,136 +102,105 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         // Extract the UR content
         const urContent = urData.substring(urData.indexOf('/') + 1);
         console.log('UR content to decode:', urContent.substring(0, 50) + '...');
+        console.log('Decoding UR using manual base32 decoder...');
         
+        // @ts-ignore - cbor-web doesn't have TypeScript types
+        const { decode: cborDecode } = await import('cbor-web');
+        
+        // BC-UR uses a custom base32 alphabet - decode it manually
+        const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
+        const urContentLower = urContent.toLowerCase();
+        
+        console.log('Decoding base32 with BC-UR alphabet...');
+        
+        // Convert BC-UR base32 to bytes
+        const bytes: number[] = [];
+        let bits = 0;
+        let value = 0;
+        
+        for (let i = 0; i < urContentLower.length; i++) {
+          const char = urContentLower[i];
+          const charValue = alphabet.indexOf(char);
+          
+          if (charValue === -1) {
+            console.log('Invalid character in UR:', char);
+            continue;
+          }
+          
+          value = (value << 5) | charValue;
+          bits += 5;
+          
+          if (bits >= 8) {
+            bytes.push((value >> (bits - 8)) & 0xFF);
+            bits -= 8;
+          }
+        }
+        
+        const decodedBytes = new Uint8Array(bytes);
+        console.log('Decoded bytes length:', decodedBytes.length);
+        console.log('First 20 bytes:', Array.from(decodedBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+        
+        // Try CBOR decoding
         try {
-          // Import UR decoder library
-          const { URDecoder } = await import('@ngraveio/bc-ur');
+          const cborData = cborDecode(decodedBytes);
+          console.log('CBOR decoded successfully:', cborData);
           
-          // Decode the UR
-          const decoder = new URDecoder();
-          console.log('URDecoder created, receiving part...');
-          decoder.receivePart(urData);
-          
-          console.log('Decoder complete?', decoder.isComplete());
-          console.log('Decoder progress:', decoder.estimatedPercentComplete());
-          
-          if (decoder.isComplete()) {
-            console.log('Decoder is complete, getting result...');
-            const ur = decoder.resultUR();
-            console.log('UR result obtained, type:', ur.type);
-            const decodedBytes = ur.decodeCBOR();
+          // Try to extract address and public key from CBOR data
+          const extractFromData = (data: any): { address: string; publicKey: string } | null => {
+            if (!data) return null;
             
-            console.log('Decoded UR data type:', typeof decodedBytes);
-            console.log('Decoded UR data:', decodedBytes);
+            // Direct properties
+            const address = data.address || data.Address || data.addr;
+            const publicKey = data.publicKey || data.PublicKey || data.pubKey || data.key;
             
-            // Try to extract account information from the decoded data
-            // The data structure varies, so we'll try multiple approaches
-            
-            // First check if it's a Buffer or Uint8Array - decode as UTF-8 JSON
-            if (decodedBytes instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(decodedBytes))) {
-              const textDecoder = new TextDecoder();
-              const jsonString = textDecoder.decode(decodedBytes);
-              console.log('Decoded as text:', jsonString.substring(0, 200));
-              
-              try {
-                const parsed = JSON.parse(jsonString);
-                const address = parsed.address || parsed.Address;
-                const publicKey = parsed.publicKey || parsed.PublicKey || parsed.pubKey;
-                
-                if (address && publicKey) {
-                  console.log('Extracted from JSON:', { address, publicKey });
-                  return { address, publicKey };
-                }
-              } catch (jsonError) {
-                console.log('Not valid JSON');
-              }
+            if (address && publicKey) {
+              return { address, publicKey };
             }
-            // If it's a plain object with properties
-            else if (decodedBytes && typeof decodedBytes === 'object' && !Array.isArray(decodedBytes)) {
-              const data = decodedBytes as any;
-              const address = data.address || data.Address || data.addr;
-              const publicKey = data.publicKey || data.PublicKey || data.pubKey || data.pubkey;
-              
-              if (address && publicKey) {
-                console.log('Extracted from direct object:', { address, publicKey });
-                return { address, publicKey };
-              }
-              
-              // Check if there's nested structure
-              if (data.account || data.accounts) {
-                const account = data.account || (data.accounts && data.accounts[0]);
-                if (account) {
-                  const address = account.address || account.Address;
-                  const publicKey = account.publicKey || account.PublicKey || account.pubKey;
-                  if (address && publicKey) {
-                    console.log('Extracted from nested account:', { address, publicKey });
-                    return { address, publicKey };
-                  }
-                }
+            
+            // Check arrays
+            if (Array.isArray(data)) {
+              for (const item of data) {
+                const result = extractFromData(item);
+                if (result) return result;
               }
             }
             
-            console.log('Could not extract address and publicKey from decoded data');
+            // Check nested objects
+            if (typeof data === 'object') {
+              for (const key in data) {
+                const result = extractFromData(data[key]);
+                if (result) return result;
+              }
+            }
+            
             return null;
-          } else {
-            console.log('UR decoder not complete, may need multiple QR frames');
-            return null;
-          }
-        } catch (decodeError) {
-          console.error('UR decoding failed:', decodeError);
-          console.error('Error details:', {
-            message: (decodeError as Error).message,
-            stack: (decodeError as Error).stack
-          });
-          console.log('Attempting fallback base32 decoding...');
+          };
           
-          // Fallback: Try manual base32 decoding
-          try {
-            // @ts-ignore - cbor-web doesn't have TypeScript types
-            const { decode: cborDecode } = await import('cbor-web');
-            const { Buffer } = await import('buffer');
-            
-            // BC-UR uses a custom base32 alphabet
-            const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
-            const standardAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-            const translation: Record<string, string> = {};
-            
-            for (let i = 0; i < alphabet.length; i++) {
-              translation[alphabet[i].toUpperCase()] = standardAlphabet[i];
-            }
-            
-            // Translate UR content to standard base32
-            let translated = '';
-            for (const char of urContent.toUpperCase()) {
-              translated += translation[char] || char;
-            }
-            
-            // Try different padding amounts
-            for (let padding = 0; padding < 8; padding++) {
-              try {
-                const padded = translated + '='.repeat(padding);
-                const decoded = Buffer.from(padded, 'base64');
-                
-                // Try CBOR decode
-                const cborData = cborDecode(decoded);
-                console.log('CBOR decoded data:', cborData);
-                
-                // Extract address and publicKey
-                const address = cborData.address || cborData.Address;
-                const publicKey = cborData.publicKey || cborData.PublicKey || cborData.pubKey;
-                
-                if (address && publicKey) {
-                  console.log('Extracted via fallback:', { address, publicKey });
-                  return { address, publicKey };
-                }
-              } catch (paddingError) {
-                // Try next padding amount
-                continue;
-              }
-            }
-          } catch (fallbackError) {
-            console.error('Fallback decoding also failed:', fallbackError);
+          const extracted = extractFromData(cborData);
+          if (extracted) {
+            console.log('Successfully extracted account info:', extracted);
+            return extracted;
           }
+        } catch (cborError) {
+          console.log('CBOR decode failed, trying as raw data:', cborError);
+        }
+        
+        // Try to decode as UTF-8 JSON
+        try {
+          const textDecoder = new TextDecoder();
+          const jsonString = textDecoder.decode(decodedBytes);
+          console.log('Decoded as UTF-8:', jsonString.substring(0, 200));
+          
+          const parsed = JSON.parse(jsonString);
+          const address = parsed.address || parsed.Address;
+          const publicKey = parsed.publicKey || parsed.PublicKey || parsed.pubKey;
+          
+          if (address && publicKey) {
+            console.log('Extracted from JSON:', { address, publicKey });
+            return { address, publicKey };
+          }
+        } catch (jsonError) {
+          console.log('Not valid UTF-8 JSON');
         }
       }
 
