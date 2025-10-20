@@ -3,8 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
 import QrScanner from 'qr-scanner';
-// @ts-ignore
-import { decode as cborDecode } from 'cbor-web';
 
 interface KeystoneAccountScannerProps {
   onScan: (address: string, publicKey: string) => void;
@@ -60,7 +58,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     setIsScanning(false);
   };
 
-  const handleScanResult = (data: string) => {
+  const handleScanResult = async (data: string) => {
     console.log('Scanned QR data:', data);
 
     try {
@@ -71,7 +69,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         console.log('Keystone UR detected, decoding...');
         
         // Parse the UR data to extract address and public key
-        const urData = parseKeystoneAccountUR(data);
+        const urData = await parseKeystoneAccountUR(data);
         if (urData) {
           console.log('Successfully parsed Keystone account:', urData);
           stopScanning();
@@ -93,27 +91,137 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     }
   };
 
-  const parseKeystoneAccountUR = (urData: string): { address: string; publicKey: string } | null => {
+  const parseKeystoneAccountUR = async (urData: string): Promise<{ address: string; publicKey: string } | null> => {
     try {
       console.log('Parsing Keystone UR:', urData);
       
       // Handle the actual Keystone UR format
       const upperData = urData.toUpperCase();
       
-      if (upperData.startsWith('UR:BYTES/')) {
+      if (upperData.startsWith('UR:BYTES/') || upperData.startsWith('UR:XRP-ACCOUNT/')) {
         // Extract the UR content
-        const urContent = urData.substring(9); // Remove 'UR:BYTES/'
+        const urContent = urData.substring(urData.indexOf('/') + 1);
         console.log('UR content to decode:', urContent.substring(0, 50) + '...');
         
-        // Keystone Pro 3 device detected - extract account info
-        console.log('Processing authentic Keystone UR format...');
-        
-        // Since we have the actual UR from your Keystone device, use it
-        // This is the authentic device data you scanned
-        return {
-          address: 'rBz7Rzy4tUDicbbiggj9DbXep8VNCrZG64',
-          publicKey: '0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6'
-        };
+        try {
+          // Import UR decoder library
+          const { URDecoder } = await import('@ngraveio/bc-ur');
+          
+          // Decode the UR
+          const decoder = new URDecoder();
+          decoder.receivePart(urData);
+          
+          if (decoder.isComplete()) {
+            const ur = decoder.resultUR();
+            const decodedBytes = ur.decodeCBOR();
+            
+            console.log('Decoded UR data:', decodedBytes);
+            
+            // Try to extract account information from the decoded data
+            // The data structure varies, so we'll try multiple approaches
+            
+            // First check if it's a Buffer or Uint8Array - decode as UTF-8 JSON
+            if (decodedBytes instanceof Uint8Array || (typeof Buffer !== 'undefined' && Buffer.isBuffer(decodedBytes))) {
+              const textDecoder = new TextDecoder();
+              const jsonString = textDecoder.decode(decodedBytes);
+              console.log('Decoded as text:', jsonString.substring(0, 200));
+              
+              try {
+                const parsed = JSON.parse(jsonString);
+                const address = parsed.address || parsed.Address;
+                const publicKey = parsed.publicKey || parsed.PublicKey || parsed.pubKey;
+                
+                if (address && publicKey) {
+                  console.log('Extracted from JSON:', { address, publicKey });
+                  return { address, publicKey };
+                }
+              } catch (jsonError) {
+                console.log('Not valid JSON');
+              }
+            }
+            // If it's a plain object with properties
+            else if (decodedBytes && typeof decodedBytes === 'object' && !Array.isArray(decodedBytes)) {
+              const data = decodedBytes as any;
+              const address = data.address || data.Address || data.addr;
+              const publicKey = data.publicKey || data.PublicKey || data.pubKey || data.pubkey;
+              
+              if (address && publicKey) {
+                console.log('Extracted from direct object:', { address, publicKey });
+                return { address, publicKey };
+              }
+              
+              // Check if there's nested structure
+              if (data.account || data.accounts) {
+                const account = data.account || (data.accounts && data.accounts[0]);
+                if (account) {
+                  const address = account.address || account.Address;
+                  const publicKey = account.publicKey || account.PublicKey || account.pubKey;
+                  if (address && publicKey) {
+                    console.log('Extracted from nested account:', { address, publicKey });
+                    return { address, publicKey };
+                  }
+                }
+              }
+            }
+            
+            console.log('Could not extract address and publicKey from decoded data');
+            return null;
+          } else {
+            console.log('UR decoder not complete, may need multiple QR frames');
+            return null;
+          }
+        } catch (decodeError) {
+          console.error('UR decoding failed:', decodeError);
+          console.log('Attempting fallback base32 decoding...');
+          
+          // Fallback: Try manual base32 decoding
+          try {
+            // @ts-ignore - cbor-web doesn't have TypeScript types
+            const { decode: cborDecode } = await import('cbor-web');
+            const { Buffer } = await import('buffer');
+            
+            // BC-UR uses a custom base32 alphabet
+            const alphabet = "023456789acdefghjklmnpqrstuvwxyz";
+            const standardAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+            const translation: Record<string, string> = {};
+            
+            for (let i = 0; i < alphabet.length; i++) {
+              translation[alphabet[i].toUpperCase()] = standardAlphabet[i];
+            }
+            
+            // Translate UR content to standard base32
+            let translated = '';
+            for (const char of urContent.toUpperCase()) {
+              translated += translation[char] || char;
+            }
+            
+            // Try different padding amounts
+            for (let padding = 0; padding < 8; padding++) {
+              try {
+                const padded = translated + '='.repeat(padding);
+                const decoded = Buffer.from(padded, 'base64');
+                
+                // Try CBOR decode
+                const cborData = cborDecode(decoded);
+                console.log('CBOR decoded data:', cborData);
+                
+                // Extract address and publicKey
+                const address = cborData.address || cborData.Address;
+                const publicKey = cborData.publicKey || cborData.PublicKey || cborData.pubKey;
+                
+                if (address && publicKey) {
+                  console.log('Extracted via fallback:', { address, publicKey });
+                  return { address, publicKey };
+                }
+              } catch (paddingError) {
+                // Try next padding amount
+                continue;
+              }
+            }
+          } catch (fallbackError) {
+            console.error('Fallback decoding also failed:', fallbackError);
+          }
+        }
       }
 
       return null;

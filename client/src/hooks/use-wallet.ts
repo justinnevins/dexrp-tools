@@ -21,9 +21,10 @@ export function useWallet() {
   }, [walletsQuery.data, currentWallet]);
 
   const createWallet = useMutation({
-    mutationFn: async (walletData: { address: string; hardwareWalletType?: string }) => {
+    mutationFn: async (walletData: { address: string; hardwareWalletType?: string; publicKey?: string }) => {
       const wallet = browserStorage.createWallet({
         address: walletData.address,
+        publicKey: walletData.publicKey,
         hardwareWalletType: walletData.hardwareWalletType,
         balance: '0',
         reservedBalance: '20',
