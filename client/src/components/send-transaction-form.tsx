@@ -34,37 +34,68 @@ interface SendTransactionFormProps {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<string> {
-  console.log('=== KEYSTONE SDK UR ENCODING ===');
+  console.log('=== DIAGNOSTIC: KEYSTONE ENCODING START ===');
   console.log('Transaction to encode:', transactionTemplate);
+  console.log('Browser environment check:', {
+    hasProcess: typeof process !== 'undefined',
+    hasBuffer: typeof Buffer !== 'undefined',
+    hasGlobal: typeof global !== 'undefined',
+    hasWindow: typeof window !== 'undefined'
+  });
   
   try {
-    // Use the official Keystone SDK for XRPL
-    const { KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-    const { encode } = await import('ripple-binary-codec');
+    console.log('STEP 1: Attempting to import ripple-binary-codec...');
+    const rippleCodec = await import('ripple-binary-codec');
+    console.log('✓ ripple-binary-codec imported successfully');
+    console.log('  - encode function available:', typeof rippleCodec.encode === 'function');
     
-    // Encode the transaction using XRPL binary codec
-    const encodedTx = encode(transactionTemplate);
-    console.log('Binary encoded transaction:', encodedTx);
+    console.log('STEP 2: Attempting to encode transaction with ripple-binary-codec...');
+    const encodedTx = rippleCodec.encode(transactionTemplate);
+    console.log('✓ Transaction encoded successfully:', encodedTx);
     
-    // Create Keystone SDK instance
-    const keystoneSDK = new KeystoneSDK();
+    console.log('STEP 3: Attempting to import @keystonehq/keystone-sdk...');
+    const keystoneSdkModule = await import('@keystonehq/keystone-sdk');
+    console.log('✓ Keystone SDK module imported');
+    console.log('  - Available exports:', Object.keys(keystoneSdkModule));
     
-    // Generate QR code data using Keystone SDK
+    console.log('STEP 4: Attempting to create KeystoneSDK instance...');
+    const keystoneSDK = new keystoneSdkModule.KeystoneSDK();
+    console.log('✓ KeystoneSDK instance created');
+    
+    console.log('STEP 5: Attempting to generate sign request...');
     const qrData = keystoneSDK.xrp.generateSignRequest({
       requestId: crypto.randomUUID(),
       signData: encodedTx,
-      xfp: 'FFFFFFFF', // Master fingerprint - using default for air-gapped wallets
+      xfp: 'FFFFFFFF',
       origin: 'XRPL Wallet'
     });
+    console.log('✓ QR data generated');
     
-    console.log('Generated Keystone QR data');
+    console.log('STEP 6: Attempting to encode to UR format...');
+    const urString = qrData.toUREncoder(400).nextPart();
+    console.log('✓ UR string generated:', urString.substring(0, 50) + '...');
     
-    return qrData.toUREncoder(400).nextPart();
+    return urString;
     
   } catch (error) {
-    console.error('Keystone UR encoding failed:', error);
-    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('❌ ENCODING FAILED AT SOME STEP');
+    console.error('Error type:', error?.constructor?.name);
+    console.error('Error message:', error instanceof Error ? error.message : String(error));
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // Try to identify which library caused the issue
+    if (error instanceof Error && error.stack) {
+      if (error.stack.includes('ripple-binary-codec')) {
+        console.error('→ FAILURE SOURCE: ripple-binary-codec library');
+      } else if (error.stack.includes('keystone-sdk') || error.stack.includes('keystonehq')) {
+        console.error('→ FAILURE SOURCE: Keystone SDK library');
+      } else if (error.stack.includes('util.js') || error.stack.includes('assert')) {
+        console.error('→ FAILURE SOURCE: Node.js built-in modules (util, assert, stream)');
+      } else {
+        console.error('→ FAILURE SOURCE: Unknown');
+      }
+    }
+    
     throw new Error('Failed to encode transaction for Keystone 3 Pro. Please try again.');
   }
 }
