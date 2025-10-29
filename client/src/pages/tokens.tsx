@@ -54,9 +54,14 @@ export default function Tokens() {
     isNative: true,
   });
   
-  // Add XRPL trustlines
+  // Add XRPL trustlines (filter out those with limit = 0, which are being removed)
   if (xrplLines?.lines) {
     xrplLines.lines.forEach((line: any) => {
+      // Skip trustlines with limit 0 (user has removed them)
+      if (parseFloat(line.limit) === 0) {
+        return;
+      }
+      
       const decodedCurrency = xrplClient.decodeCurrency(line.currency);
       trustlines.push({
         id: `xrpl-${line.account}-${line.currency}`,
