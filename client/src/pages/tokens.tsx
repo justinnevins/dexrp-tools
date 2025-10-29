@@ -18,11 +18,13 @@ import { TrustlineModal } from '@/components/modals/trustline-modal';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
 import { useQueryClient } from '@tanstack/react-query';
+import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 
 export default function Tokens() {
   const [trustlineModalOpen, setTrustlineModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [trustlineToDelete, setTrustlineToDelete] = useState<any>(null);
+  const [removeTrustlineData, setRemoveTrustlineData] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentWallet } = useWallet();
@@ -125,10 +127,60 @@ export default function Tokens() {
           return;
         }
 
-        toast({
-          title: "Feature coming soon",
-          description: "XRPL trustline removal requires hardware wallet signing and will be available in a future update.",
-          variant: "default",
+        // Fetch account info to get sequence number
+        const accountInfo = await xrplClient.getAccountInfo(currentWallet.address);
+        
+        if (!accountInfo || !('account_data' in accountInfo)) {
+          throw new Error('Failed to fetch account information');
+        }
+
+        const sequence = accountInfo.account_data?.Sequence || 1;
+        const ledgerIndex = accountInfo.ledger_current_index || 95943000;
+
+        // Use the rawCurrency if available (hex format), otherwise use decoded currency
+        const currencyCode = trustlineToDelete.rawCurrency || trustlineToDelete.currency;
+
+        // Prepare TrustSet transaction to remove the trustline (limit = "0")
+        const trustSetTx = {
+          TransactionType: 'TrustSet',
+          Account: currentWallet.address,
+          LimitAmount: {
+            currency: currencyCode,
+            issuer: trustlineToDelete.issuer,
+            value: "0" // Setting limit to 0 removes the trustline
+          },
+          Sequence: sequence,
+          LastLedgerSequence: ledgerIndex + 10,
+          Fee: "12"
+        };
+
+        console.log('Preparing TrustSet transaction to remove trustline:', trustSetTx);
+
+        // Encode the transaction for Keystone
+        const response = await fetch('/api/keystone/xrp/sign-request', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            transaction: trustSetTx
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.details || 'Failed to encode transaction');
+        }
+
+        const { type, cbor } = await response.json();
+
+        // Close the confirmation dialog and open the hardware wallet signer
+        setDeleteDialogOpen(false);
+        setRemoveTrustlineData({
+          transactionUR: { type, cbor },
+          unsignedTransaction: trustSetTx,
+          walletId: currentWallet.id,
+          currency: trustlineToDelete.currency
         });
       } else {
         // Database trustline - can be removed locally
@@ -146,10 +198,10 @@ export default function Tokens() {
           title: "Trustline removed",
           description: `${trustlineToDelete.currency} trustline has been removed from your wallet.`,
         });
+        
+        setDeleteDialogOpen(false);
+        setTrustlineToDelete(null);
       }
-
-      setDeleteDialogOpen(false);
-      setTrustlineToDelete(null);
     } catch (error: any) {
       toast({
         title: "Failed to remove trustline",
@@ -157,6 +209,23 @@ export default function Tokens() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleRemoveTrustlineSuccess = () => {
+    // Invalidate queries to refresh the trustline list
+    if (currentWallet) {
+      queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
+      queryClient.invalidateQueries({ queryKey: ['accountLines', currentWallet.address] });
+    }
+    
+    // Reset state
+    setRemoveTrustlineData(null);
+    setTrustlineToDelete(null);
+    
+    toast({
+      title: "Trustline Removed",
+      description: "Your trustline has been successfully removed from the XRPL network.",
+    });
   };
 
   if (isLoading) {
@@ -295,6 +364,8 @@ export default function Tokens() {
               <br /><br />
               <strong>Important:</strong> You can only remove a trustline if your balance is 0. 
               Removing a trustline means you won't be able to hold this token until you create the trustline again.
+              <br /><br />
+              This requires signing with your Keystone 3 Pro hardware wallet.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -309,6 +380,18 @@ export default function Tokens() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {removeTrustlineData && (
+        <KeystoneTransactionSigner
+          isOpen={!!removeTrustlineData}
+          onClose={() => setRemoveTrustlineData(null)}
+          transactionUR={removeTrustlineData.transactionUR}
+          unsignedTransaction={removeTrustlineData.unsignedTransaction}
+          walletId={removeTrustlineData.walletId}
+          onSuccess={handleRemoveTrustlineSuccess}
+          transactionType="TrustSet"
+        />
+      )}
     </div>
   );
 }
