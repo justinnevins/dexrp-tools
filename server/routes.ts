@@ -218,14 +218,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const keystoneSDK = new KeystoneSDK();
       
       // Format transaction for Keystone
-      const xrpTransaction = {
+      const xrpTransaction: any = {
         ...transaction,
-        Amount: String(transaction.Amount),
         Fee: String(transaction.Fee),
         Sequence: Number(transaction.Sequence),
         LastLedgerSequence: Number(transaction.LastLedgerSequence),
         Flags: Number(transaction.Flags)
       };
+
+      // Only add Amount for Payment transactions
+      if (transaction.TransactionType === 'Payment' && transaction.Amount) {
+        xrpTransaction.Amount = String(transaction.Amount);
+      }
       
       console.log('Backend: Formatted transaction:', xrpTransaction);
       
