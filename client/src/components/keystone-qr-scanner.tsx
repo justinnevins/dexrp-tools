@@ -128,10 +128,9 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                         // Get progress from decoder - receivedPartIndexes() returns an array
                         const receivedIndexes = decoderRef.current.receivedPartIndexes();
                         const receivedCount = receivedIndexes ? receivedIndexes.length : 0;
-                        const estimatedTotal = decoderRef.current.estimatedPartCount() || seqLen;
                         
-                        setScanProgress({ current: receivedCount, total: estimatedTotal });
-                        console.log(`Progress: ${receivedCount}/${estimatedTotal} parts received`);
+                        setScanProgress({ current: receivedCount, total: seqLen });
+                        console.log(`Progress: ${receivedCount}/${seqLen} parts received`);
                         
                         // Check if we have all parts - decoder knows when it's complete
                         if (decoderRef.current.isComplete()) {
