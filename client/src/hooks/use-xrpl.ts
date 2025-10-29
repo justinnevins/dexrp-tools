@@ -74,25 +74,43 @@ export function useAccountInfo(address: string | null) {
 }
 
 export function useAccountTransactions(address: string | null, limit = 20) {
+  const currentNetwork = xrplClient.getCurrentNetwork();
   return useQuery({
-    queryKey: ['accountTransactions', address, limit],
+    queryKey: ['accountTransactions', address, limit, currentNetwork],
     queryFn: async () => {
       if (!address) return null;
-      return await xrplClient.getAccountTransactions(address, limit);
+      try {
+        return await xrplClient.getAccountTransactions(address, limit);
+      } catch (error: any) {
+        console.error('Error fetching transactions:', error);
+        // Return empty result instead of throwing to prevent UI errors
+        return { transactions: [] };
+      }
     },
     enabled: !!address,
     refetchInterval: 60000, // Refetch every minute
+    retry: 3, // Retry failed requests
+    retryDelay: 1000, // Wait 1 second between retries
   });
 }
 
 export function useAccountLines(address: string | null) {
+  const currentNetwork = xrplClient.getCurrentNetwork();
   return useQuery({
-    queryKey: ['accountLines', address],
+    queryKey: ['accountLines', address, currentNetwork],
     queryFn: async () => {
       if (!address) return null;
-      return await xrplClient.getAccountLines(address);
+      try {
+        return await xrplClient.getAccountLines(address);
+      } catch (error: any) {
+        console.error('Error fetching account lines:', error);
+        // Return empty result instead of throwing to prevent UI errors
+        return { lines: [] };
+      }
     },
     enabled: !!address,
     refetchInterval: 60000, // Refetch every minute
+    retry: 3, // Retry failed requests
+    retryDelay: 1000, // Wait 1 second between retries
   });
 }
