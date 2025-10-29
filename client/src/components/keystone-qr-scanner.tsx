@@ -121,7 +121,9 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                     // Feed this part to the decoder
                     if (decoderRef.current && !hasSubmittedRef.current) {
                       try {
+                        console.log('Attempting to receive part:', qrData.substring(0, 80) + '...');
                         decoderRef.current.receivePart(qrData.toLowerCase());
+                        console.log('Part received successfully');
                         
                         // Get progress from decoder - receivedPartIndexes() returns an array
                         const receivedIndexes = decoderRef.current.receivedPartIndexes();
@@ -160,6 +162,7 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                         }
                       } catch (decodeError) {
                         console.error('Error processing UR part:', decodeError);
+                        console.error('Error details:', decodeError instanceof Error ? decodeError.message : 'Unknown error');
                       }
                     }
                   } else {
