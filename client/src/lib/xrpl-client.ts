@@ -161,7 +161,12 @@ class XRPLClient {
         ledger_index_max: -1
       });
       return response.result;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle account not found error (account not activated)
+      if (error.data?.error === 'actNotFound') {
+        return { transactions: [], account: address, marker: undefined };
+      }
+      
       console.error('Error fetching transactions:', error);
       throw error;
     }

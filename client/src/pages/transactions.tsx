@@ -18,17 +18,35 @@ export default function Transactions() {
     // Add XRPL transactions first
     if (xrplTransactions?.transactions) {
       xrplTransactions.transactions.forEach((tx: any) => {
-        if (tx.tx?.TransactionType === 'Payment' && tx.tx?.Amount && typeof tx.tx.Amount === 'string') {
-          const amount = xrplClient.formatXRPAmount(tx.tx.Amount);
-          const isOutgoing = tx.tx.Account === currentWallet?.address;
+        // Handle both tx.tx_json (historical) and tx structure (real-time)
+        const transaction = tx.tx_json || tx.tx || tx;
+        
+        if (transaction?.TransactionType === 'Payment') {
+          // Handle both XRP (string) and token (object) amounts
+          // Note: Amount field was renamed to DeliverMax in newer XRPL versions
+          const amountField = transaction.DeliverMax || transaction.Amount;
+          let amount = '0';
+          let currency = 'XRP';
+          
+          if (typeof amountField === 'string') {
+            // XRP payment (in drops)
+            amount = xrplClient.formatXRPAmount(amountField);
+            currency = 'XRP';
+          } else if (typeof amountField === 'object' && amountField.value) {
+            // Token payment
+            amount = amountField.value;
+            currency = xrplClient.decodeCurrency(amountField.currency);
+          }
+          
+          const isOutgoing = transaction.Account === currentWallet?.address;
           
           transactions.push({
-            id: tx.tx.hash,
+            id: transaction.hash || tx.hash,
             type: isOutgoing ? 'sent' : 'received',
-            amount: `${isOutgoing ? '-' : '+'}${amount} XRP`,
-            address: isOutgoing ? tx.tx.Destination : tx.tx.Account,
-            time: new Date(tx.tx.date * 1000 + 946684800000),
-            hash: tx.tx.hash,
+            amount: `${isOutgoing ? '-' : '+'}${amount} ${currency}`,
+            address: isOutgoing ? transaction.Destination : transaction.Account,
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
             status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
             icon: isOutgoing ? ArrowUp : ArrowDown,
             iconBg: isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30',
