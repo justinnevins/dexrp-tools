@@ -193,26 +193,6 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Network Status */}
-      <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Network Status</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground mb-1">Current Network</p>
-            <p className="font-semibold flex items-center gap-2">
-              <span className={`inline-block w-2 h-2 rounded-full ${
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`} />
-              {isConnected ? currentNetwork.charAt(0).toUpperCase() + currentNetwork.slice(1) : 'Disconnected'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-
-
-
-
       {/* Danger Zone */}
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
         <Button
