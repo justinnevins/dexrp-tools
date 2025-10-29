@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
+import { URDecoder } from '@ngraveio/bc-ur';
 
 interface KeystoneQRScannerProps {
   onScan: (data: string) => void;
@@ -15,9 +16,12 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const decoderRef = useRef<URDecoder | null>(null);
+  const scannedPartsRef = useRef<Set<string>>(new Set());
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{ current: number; total: number } | null>(null);
 
   useEffect(() => {
     startCamera();
@@ -85,32 +89,70 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
       const QrScanner = (await import('qr-scanner')).default;
       
       if (videoRef.current) {
-        console.log('Initializing QR scanner...');
+        console.log('Initializing QR scanner for multi-part UR support...');
         setIsScanning(true);
         
-        // Scan every 500ms
+        // Initialize URDecoder for multi-part QR codes
+        decoderRef.current = new URDecoder();
+        scannedPartsRef.current = new Set();
+        
+        // Scan every 300ms for faster multi-part scanning
         scanIntervalRef.current = setInterval(async () => {
           if (videoRef.current && canvasRef.current) {
             try {
               const result = await QrScanner.scanImage(videoRef.current, { returnDetailedScanResult: true });
               
               if (result && result.data) {
-                console.log('QR code detected:', result.data.substring(0, 50) + '...');
+                const qrData = result.data.trim();
                 
-                // Check if it's a valid QR code
-                if (result.data && result.data.length > 10) {
-                  console.log('QR code detected, processing...');
+                // Check if it's a Keystone UR format
+                if (qrData.toUpperCase().startsWith('UR:')) {
+                  const upperQR = qrData.toUpperCase();
                   
-                  // Check if it's a Keystone signed transaction
-                  if (result.data.toUpperCase().startsWith('UR:BYTES/') || 
-                      result.data.toUpperCase().startsWith('UR:XRP-SIGNATURE/') ||
-                      result.data.toUpperCase().startsWith('UR:')) {
-                    console.log('Keystone signed transaction QR detected!');
-                    stopCamera();
-                    onScan(result.data);
-                    return;
+                  // Check if this is a multi-part UR (contains sequence numbers like /1-5/ or /5-5/)
+                  const multiPartMatch = upperQR.match(/UR:[^/]+\/(\d+)-(\d+)\//);
+                  
+                  if (multiPartMatch) {
+                    // Multi-part UR detected
+                    const currentPart = parseInt(multiPartMatch[1]);
+                    const totalParts = parseInt(multiPartMatch[2]);
+                    
+                    console.log(`Multi-part UR detected: part ${currentPart} of ${totalParts}`);
+                    
+                    // Avoid scanning the same part multiple times
+                    if (scannedPartsRef.current.has(qrData.toLowerCase())) {
+                      return;
+                    }
+                    
+                    scannedPartsRef.current.add(qrData.toLowerCase());
+                    
+                    // Feed this part to the decoder
+                    if (decoderRef.current) {
+                      decoderRef.current.receivePart(qrData.toLowerCase());
+                      
+                      // Update progress
+                      const receivedCount = decoderRef.current.receivedPartIndexes().size;
+                      setScanProgress({ current: receivedCount, total: totalParts });
+                      console.log(`Progress: ${receivedCount}/${totalParts} parts received`);
+                      
+                      // Check if we have all parts
+                      if (decoderRef.current.isComplete()) {
+                        console.log('All parts received! Decoding complete UR...');
+                        const completeUR = decoderRef.current.resultUR();
+                        const completeURString = completeUR.toString();
+                        console.log('Complete UR reconstructed:', completeURString.substring(0, 50) + '...');
+                        
+                        stopCamera();
+                        onScan(completeURString);
+                        return;
+                      }
+                    }
                   } else {
-                    console.log('Non-Keystone QR detected:', result.data.substring(0, 30));
+                    // Single-part UR (no sequence numbers)
+                    console.log('Single-part UR detected');
+                    stopCamera();
+                    onScan(qrData);
+                    return;
                   }
                 }
               }
@@ -118,7 +160,7 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
               // No QR code found, continue scanning
             }
           }
-        }, 500);
+        }, 300);
       }
     } catch (error) {
       console.error('QR Scanner initialization failed:', error);
@@ -205,9 +247,25 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                     </div>
                     
                     {/* Scanning indicator */}
-                    {isScanning && (
+                    {isScanning && !scanProgress && (
                       <div className="absolute top-4 right-4 bg-green-500 text-white px-2 py-1 rounded text-xs">
                         🔍 Scanning...
+                      </div>
+                    )}
+                    
+                    {/* Multi-part progress indicator */}
+                    {scanProgress && (
+                      <div className="absolute top-4 left-4 right-4 bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-medium shadow-lg">
+                        <div className="flex items-center justify-between">
+                          <span>Scanning parts...</span>
+                          <span className="font-bold">{scanProgress.current}/{scanProgress.total}</span>
+                        </div>
+                        <div className="mt-1 w-full bg-blue-300 rounded-full h-2">
+                          <div 
+                            className="bg-white rounded-full h-2 transition-all duration-300"
+                            style={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }}
+                          />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -219,10 +277,16 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
               {isActive && (
                 <div className="text-center space-y-2">
                   <div className="text-sm text-green-600 font-medium">
-                    Camera is active and scanning for QR codes
+                    {scanProgress 
+                      ? `Collecting QR parts: ${scanProgress.current}/${scanProgress.total}`
+                      : 'Camera is active and scanning for QR codes'
+                    }
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Hold your Keystone device's screen steady in front of the camera
+                    {scanProgress
+                      ? 'Keep the camera steady. The Keystone will cycle through multiple QR codes.'
+                      : 'Hold your Keystone device\'s screen steady in front of the camera'
+                    }
                   </p>
                 </div>
               )}

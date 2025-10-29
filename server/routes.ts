@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
       const bcur = await import('@ngraveio/bc-ur');
-      const { URDecoder } = bcur;
+      const { UR } = bcur;
       
       const { ur: urString } = req.body;
       
@@ -267,19 +267,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Decode the UR string using BC-UR library
-      const decoder = new URDecoder();
+      // The frontend has already reconstructed the complete UR from all parts
+      // We just need to parse it directly
+      const decodedUR = UR.fromString(urString.toLowerCase());
       
-      // The UR string is already complete (single part), so we can decode it directly
-      // Remove 'ur:' prefix if present and decode
-      const urPart = urString.toLowerCase();
-      decoder.receivePart(urPart);
-      
-      if (!decoder.isComplete()) {
-        throw new Error('UR decoding incomplete');
-      }
-      
-      const decodedUR = decoder.resultUR();
       console.log('Backend: Decoded UR type:', decodedUR.type);
       console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
       
