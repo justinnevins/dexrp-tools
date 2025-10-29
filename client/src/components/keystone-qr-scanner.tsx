@@ -17,7 +17,6 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
   const streamRef = useRef<MediaStream | null>(null);
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const decoderRef = useRef<URDecoder | null>(null);
-  const scannedPartsRef = useRef<Set<string>>(new Set());
   const hasSubmittedRef = useRef<boolean>(false);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +94,6 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
         
         // Initialize URDecoder for multi-part QR codes
         decoderRef.current = new URDecoder();
-        scannedPartsRef.current = new Set();
         
         // Scan every 300ms for faster multi-part scanning
         scanIntervalRef.current = setInterval(async () => {
@@ -114,32 +112,27 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                   const multiPartMatch = upperQR.match(/UR:[^/]+\/(\d+)-(\d+)\//);
                   
                   if (multiPartMatch) {
-                    // Multi-part UR detected - format is {total}-{current}
-                    const totalParts = parseInt(multiPartMatch[1]);
-                    const currentPart = parseInt(multiPartMatch[2]);
+                    // Multi-part UR detected - format is {seq_num}-{seq_len}
+                    const seqNum = parseInt(multiPartMatch[1]);
+                    const seqLen = parseInt(multiPartMatch[2]);
                     
-                    console.log(`Multi-part UR detected: part ${currentPart + 1} of ${totalParts}`);
-                    
-                    // Avoid scanning the same part multiple times
-                    if (scannedPartsRef.current.has(qrData.toLowerCase())) {
-                      return;
-                    }
-                    
-                    scannedPartsRef.current.add(qrData.toLowerCase());
+                    console.log(`Multi-part UR detected: sequence ${seqNum} of ${seqLen}`);
                     
                     // Feed this part to the decoder
                     if (decoderRef.current && !hasSubmittedRef.current) {
                       try {
                         decoderRef.current.receivePart(qrData.toLowerCase());
                         
-                        // Update progress - get the actual received part indexes
+                        // Get progress from decoder - receivedPartIndexes() returns an array
                         const receivedIndexes = decoderRef.current.receivedPartIndexes();
-                        const receivedCount = receivedIndexes ? receivedIndexes.size : 0;
-                        setScanProgress({ current: receivedCount, total: totalParts });
-                        console.log(`Progress: ${receivedCount}/${totalParts} parts received`);
+                        const receivedCount = receivedIndexes ? receivedIndexes.length : 0;
+                        const estimatedTotal = decoderRef.current.estimatedPartCount() || seqLen;
                         
-                        // Check if we have all parts
-                        if (decoderRef.current.isComplete() && receivedCount === totalParts) {
+                        setScanProgress({ current: receivedCount, total: estimatedTotal });
+                        console.log(`Progress: ${receivedCount}/${estimatedTotal} parts received`);
+                        
+                        // Check if we have all parts - decoder knows when it's complete
+                        if (decoderRef.current.isComplete()) {
                           console.log('All parts received! Decoding complete UR...');
                           
                           // Prevent multiple submissions
