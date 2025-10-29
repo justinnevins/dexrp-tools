@@ -116,6 +116,10 @@ class XRPLClient {
     };
   }
 
+  getClient(): Client | null {
+    return this.client;
+  }
+
   async getAccountInfo(address: string) {
     await this.connect();
     if (!this.client) {

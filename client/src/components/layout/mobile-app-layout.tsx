@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Settings, Home, ArrowLeftRight, Coins, User } from 'lucide-react';
+import { Moon, Sun, Settings, Home, ArrowLeftRight, Coins, User, TrendingUp } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
+import { TestnetBanner } from '@/components/testnet-banner';
+import { fetchXRPPrice, formatPrice, type XRPPriceData } from '@/lib/xrp-price';
+import { useNetwork } from '@/contexts/network-context';
 
 interface MobileAppLayoutProps {
   children: React.ReactNode;
@@ -11,10 +14,35 @@ interface MobileAppLayoutProps {
 export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const { theme, setTheme } = useTheme();
   const [location] = useLocation();
+  const { currentNetwork } = useNetwork();
+  const [xrpPrice, setXrpPrice] = useState<XRPPriceData | null>(null);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
+
+  // Fetch XRP price on mainnet only
+  useEffect(() => {
+    if (currentNetwork !== 'mainnet') {
+      setXrpPrice(null);
+      return;
+    }
+
+    const updatePrice = async () => {
+      const price = await fetchXRPPrice();
+      if (price) {
+        setXrpPrice(price);
+      }
+    };
+
+    // Initial fetch
+    updatePrice();
+
+    // Update price every 30 seconds
+    const interval = setInterval(updatePrice, 30000);
+
+    return () => clearInterval(interval);
+  }, [currentNetwork]);
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -36,6 +64,9 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         </div>
       </div>
 
+      {/* Testnet Banner */}
+      <TestnetBanner />
+
       {/* App Header */}
       <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-4">
         <div className="flex items-center justify-between">
@@ -45,7 +76,16 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
             </div>
             <div>
               <h1 className="text-lg font-semibold">XRPL Wallet</h1>
-              <p className="text-xs text-muted-foreground">Secure & Mobile-First</p>
+              <p className="text-xs text-muted-foreground">
+                {xrpPrice ? (
+                  <span className="flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    XRP {formatPrice(xrpPrice.price)}
+                  </span>
+                ) : (
+                  'Secure & Mobile-First'
+                )}
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -54,6 +94,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
               size="sm"
               onClick={toggleTheme}
               className="p-2 rounded-full bg-muted"
+              data-testid="theme-toggle"
             >
               {theme === 'dark' ? (
                 <Sun className="w-4 h-4" />
@@ -61,7 +102,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
                 <Moon className="w-4 h-4" />
               )}
             </Button>
-            <Button variant="ghost" size="sm" className="p-2 rounded-full bg-muted">
+            <Button variant="ghost" size="sm" className="p-2 rounded-full bg-muted" data-testid="settings-button">
               <Settings className="w-4 h-4" />
             </Button>
           </div>
