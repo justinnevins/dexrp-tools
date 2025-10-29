@@ -56,9 +56,19 @@ export default function Tokens() {
   
   // Add XRPL trustlines (filter out those with limit = 0, which are being removed)
   if (xrplLines?.lines) {
+    console.log('XRPL lines data:', xrplLines.lines);
     xrplLines.lines.forEach((line: any) => {
+      console.log('Processing trustline:', {
+        currency: line.currency,
+        limit: line.limit,
+        limitType: typeof line.limit,
+        parsedLimit: parseFloat(line.limit),
+        isZero: parseFloat(line.limit) === 0
+      });
+      
       // Skip trustlines with limit 0 (user has removed them)
       if (parseFloat(line.limit) === 0) {
+        console.log('Skipping trustline with 0 limit:', line.currency);
         return;
       }
       
@@ -75,6 +85,7 @@ export default function Tokens() {
         isNative: false,
       });
     });
+    console.log('Final trustlines array length:', trustlines.length);
   }
 
   // Add database trustlines if no XRPL data (excluding XRP)
