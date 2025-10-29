@@ -137,13 +137,13 @@ export default function Tokens() {
         const sequence = accountInfo.account_data?.Sequence || 1;
         const ledgerIndex = accountInfo.ledger_current_index || 95943000;
 
-        // Use rawCurrency if available (already hex), otherwise encode the currency
-        const currencyCode = trustlineToDelete.rawCurrency || xrplClient.encodeCurrency(trustlineToDelete.currency);
+        // For standard 3-letter codes, just use them as-is
+        // The XRPL library will handle the encoding automatically
+        const currencyCode = trustlineToDelete.rawCurrency || trustlineToDelete.currency;
 
-        console.log('Currency encoding:', {
-          original: trustlineToDelete.currency,
-          raw: trustlineToDelete.rawCurrency,
-          encoded: currencyCode
+        console.log('Currency for TrustSet:', {
+          currency: currencyCode,
+          issuer: trustlineToDelete.issuer
         });
 
         // Prepare TrustSet transaction to remove the trustline (limit = "0")
@@ -156,8 +156,9 @@ export default function Tokens() {
             value: "0" // Setting limit to 0 removes the trustline
           },
           Sequence: sequence,
-          LastLedgerSequence: ledgerIndex + 10,
-          Fee: "12"
+          LastLedgerSequence: ledgerIndex + 1000,
+          Fee: "12",
+          SigningPubKey: currentWallet.publicKey || ""
         };
 
         console.log('Preparing TrustSet transaction to remove trustline:', trustSetTx);
