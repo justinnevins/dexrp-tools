@@ -29,6 +29,15 @@ Preferred communication style: Simple, everyday language.
     6. App submits signed transaction to XRPL network
   - Added hardware wallet requirement notice in trustline creation form
   - Properly invalidates account lines cache after successful trustline creation
+- **Multi-part QR code scanning support**
+  - Keystone devices display large transaction signatures as multiple cycling QR codes
+  - Updated `KeystoneQRScanner` to use URDecoder for accumulating all QR parts
+  - Scanner detects multi-part URs (e.g., `/52-2/` format) and collects all parts
+  - Real-time progress indicator shows parts collected (e.g., "Scanning parts: 25/52")
+  - Visual progress bar displays completion percentage
+  - Only processes signature once all parts are received and reconstructed
+  - Scan interval reduced to 300ms for faster multi-part collection
+  - Fixed backend to parse complete UR strings using `UR.fromString()`
 
 ### October 29, 2025 - Terminology Update (Wallet → Account)
 - Updated all user-facing terminology from "wallet" to "account" to clarify that Keystone 3 Pro is the hardware wallet and the app manages XRPL accounts
