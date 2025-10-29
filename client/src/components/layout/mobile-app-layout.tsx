@@ -53,17 +53,6 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
   return (
     <div className="max-w-md mx-auto bg-white dark:bg-card min-h-screen relative">
-      {/* Status Bar */}
-      <div className="bg-[hsl(var(--xrpl-dark))] dark:bg-black text-white px-4 py-2 text-sm flex justify-between items-center">
-        <span>9:41</span>
-        <div className="flex items-center space-x-1 text-xs">
-          <span>•••</span>
-          <span>📶</span>
-          <span>📶</span>
-          <span>🔋</span>
-        </div>
-      </div>
-
       {/* Testnet Banner */}
       <TestnetBanner />
 
@@ -83,7 +72,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
                     XRP {formatPrice(xrpPrice.price)}
                   </span>
                 ) : (
-                  'Secure & Mobile-First'
+                  <span className="capitalize">{currentNetwork}</span>
                 )}
               </p>
             </div>
