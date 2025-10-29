@@ -215,8 +215,6 @@ export default function Profile() {
 
       {/* Danger Zone */}
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
-        <h3 className="font-semibold text-red-800 dark:text-red-200 mb-4">Danger Zone</h3>
-        
         <Button
           onClick={handleDisconnectWallet}
           variant="outline"
