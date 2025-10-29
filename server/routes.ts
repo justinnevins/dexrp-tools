@@ -222,9 +222,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...transaction,
         Fee: String(transaction.Fee),
         Sequence: Number(transaction.Sequence),
-        LastLedgerSequence: Number(transaction.LastLedgerSequence),
-        Flags: Number(transaction.Flags)
+        LastLedgerSequence: Number(transaction.LastLedgerSequence)
       };
+
+      // Only add Flags if it's defined
+      if (transaction.Flags !== undefined && transaction.Flags !== null) {
+        xrpTransaction.Flags = Number(transaction.Flags);
+      }
 
       // Only add Amount for Payment transactions
       if (transaction.TransactionType === 'Payment' && transaction.Amount) {
