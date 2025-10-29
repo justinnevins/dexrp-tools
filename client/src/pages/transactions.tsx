@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Lock, Filter, ArrowLeftRight } from 'lucide-react';
+import { ArrowUp, ArrowDown, Filter, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet, useTransactions } from '@/hooks/use-wallet';
 import { useAccountTransactions } from '@/hooks/use-xrpl';
@@ -69,13 +69,10 @@ export default function Transactions() {
           time: new Date(tx.createdAt),
           hash: tx.txHash || null,
           status: tx.status,
-          icon: tx.type === 'escrow' ? Lock : isOutgoing ? ArrowUp : ArrowDown,
-          iconBg: tx.type === 'escrow' ? 'bg-purple-100 dark:bg-purple-900/30' : 
-                   isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30',
-          iconColor: tx.type === 'escrow' ? 'text-purple-600 dark:text-purple-400' :
-                     isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
-          amountColor: tx.type === 'escrow' ? 'text-purple-600 dark:text-purple-400' :
-                       isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+          icon: isOutgoing ? ArrowUp : ArrowDown,
+          iconBg: isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30',
+          iconColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+          amountColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
         });
       });
     }
@@ -190,14 +187,10 @@ export default function Transactions() {
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.type === 'sent' ? 'Sent XRP' : 
-                         transaction.type === 'received' ? 'Received XRP' : 
-                         'Escrow Created'}
+                        {transaction.type === 'sent' ? 'Sent XRP' : 'Received XRP'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {transaction.type === 'sent' ? 'To:' : 
-                         transaction.type === 'received' ? 'From:' : 
-                         'Release:'} {formatAddress(transaction.address)}
+                        {transaction.type === 'sent' ? 'To:' : 'From:'} {formatAddress(transaction.address)}
                       </p>
                     </div>
                   </div>

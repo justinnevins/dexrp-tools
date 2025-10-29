@@ -3,8 +3,6 @@ export {
   useWallet,
   useTransactions,
   useTrustlines,
-  useEscrows,
   useCreateTransaction,
   useCreateTrustline,
-  useCreateEscrow,
 } from '@/contexts/wallet-context';

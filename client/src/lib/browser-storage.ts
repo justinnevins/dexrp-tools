@@ -2,11 +2,9 @@ import type {
   Wallet, 
   Transaction, 
   Trustline, 
-  Escrow,
   InsertWallet, 
   InsertTransaction, 
-  InsertTrustline, 
-  InsertEscrow 
+  InsertTrustline
 } from "@shared/schema";
 
 class BrowserStorage {
@@ -14,7 +12,6 @@ class BrowserStorage {
     WALLETS: 'xrpl_wallets',
     TRANSACTIONS: 'xrpl_transactions',
     TRUSTLINES: 'xrpl_trustlines',
-    ESCROWS: 'xrpl_escrows',
     COUNTERS: 'xrpl_counters'
   };
 
@@ -23,8 +20,7 @@ class BrowserStorage {
     return stored ? JSON.parse(stored) : {
       walletId: 1,
       transactionId: 1,
-      trustlineId: 1,
-      escrowId: 1
+      trustlineId: 1
     };
   }
 
@@ -118,9 +114,6 @@ class BrowserStorage {
     const trustlines = this.getAllTrustlines().filter(t => t.walletId !== id);
     this.saveData(this.STORAGE_KEYS.TRUSTLINES, trustlines);
     
-    const escrows = this.getAllEscrows().filter(e => e.walletId !== id);
-    this.saveData(this.STORAGE_KEYS.ESCROWS, escrows);
-    
     return true;
   }
 
@@ -188,7 +181,7 @@ class BrowserStorage {
 
   getTrustlinesByWallet(walletId: number): Trustline[] {
     const trustlines = this.getAllTrustlines();
-    return trustlines.filter(t => t.walletId === walletId);
+    return trustlines.filter(t => t.walletId === walletId && t.isActive);
   }
 
   createTrustline(insertTrustline: InsertTrustline): Trustline {
@@ -226,55 +219,6 @@ class BrowserStorage {
     return trustlines[index];
   }
 
-  // Escrow operations
-  getAllEscrows(): Escrow[] {
-    return this.getStoredData<Escrow>(this.STORAGE_KEYS.ESCROWS);
-  }
-
-  getEscrow(id: number): Escrow | undefined {
-    const escrows = this.getAllEscrows();
-    return escrows.find(e => e.id === id);
-  }
-
-  getEscrowsByWallet(walletId: number): Escrow[] {
-    const escrows = this.getAllEscrows();
-    return escrows.filter(e => e.walletId === walletId);
-  }
-
-  createEscrow(insertEscrow: InsertEscrow): Escrow {
-    const counters = this.getCounters();
-    const escrows = this.getAllEscrows();
-    
-    const escrow: Escrow = {
-      id: counters.escrowId++,
-      walletId: insertEscrow.walletId,
-      amount: insertEscrow.amount,
-      recipient: insertEscrow.recipient,
-      releaseDate: insertEscrow.releaseDate,
-      status: insertEscrow.status || 'active',
-      txHash: insertEscrow.txHash || null,
-      createdAt: new Date()
-    };
-
-    escrows.push(escrow);
-    this.saveData(this.STORAGE_KEYS.ESCROWS, escrows);
-    this.saveCounters(counters);
-    
-    return escrow;
-  }
-
-  updateEscrow(id: number, updates: Partial<Escrow>): Escrow | undefined {
-    const escrows = this.getAllEscrows();
-    const index = escrows.findIndex(e => e.id === id);
-    
-    if (index === -1) return undefined;
-    
-    escrows[index] = { ...escrows[index], ...updates };
-    this.saveData(this.STORAGE_KEYS.ESCROWS, escrows);
-    
-    return escrows[index];
-  }
-
   // Clear all data
   clearAllData(): void {
     Object.values(this.STORAGE_KEYS).forEach(key => {
@@ -287,7 +231,6 @@ class BrowserStorage {
     wallets?: Wallet[];
     transactions?: Transaction[];
     trustlines?: Trustline[];
-    escrows?: Escrow[];
   }) {
     if (data.wallets) {
       this.saveData(this.STORAGE_KEYS.WALLETS, data.wallets);
@@ -297,9 +240,6 @@ class BrowserStorage {
     }
     if (data.trustlines) {
       this.saveData(this.STORAGE_KEYS.TRUSTLINES, data.trustlines);
-    }
-    if (data.escrows) {
-      this.saveData(this.STORAGE_KEYS.ESCROWS, data.escrows);
     }
   }
 }

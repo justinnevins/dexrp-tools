@@ -1,10 +1,30 @@
-import { Plus, Coins } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Coins, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useWallet, useTrustlines } from '@/hooks/use-wallet';
 import { useAccountLines, useAccountInfo } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
+import { TrustlineModal } from '@/components/modals/trustline-modal';
+import { useToast } from '@/hooks/use-toast';
+import { browserStorage } from '@/lib/browser-storage';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Tokens() {
+  const [trustlineModalOpen, setTrustlineModalOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [trustlineToDelete, setTrustlineToDelete] = useState<any>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const { currentWallet } = useWallet();
   const { data: dbTrustlines, isLoading: dbLoading } = useTrustlines(currentWallet?.id || null);
   const { data: xrplLines, isLoading: xrplLoading } = useAccountLines(currentWallet?.address || null);
@@ -77,6 +97,68 @@ export default function Tokens() {
     return colors[currency as keyof typeof colors] || 'bg-gray-500';
   };
 
+  const handleDeleteClick = (token: any) => {
+    setTrustlineToDelete(token);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!trustlineToDelete || !currentWallet) return;
+
+    try {
+      // Check if this is an XRPL trustline (string ID starting with 'xrpl-') or database trustline (numeric ID)
+      const idString = String(trustlineToDelete.id);
+      const isXRPLTrustline = idString.startsWith('xrpl-');
+      
+      if (isXRPLTrustline) {
+        // XRPL trustlines require on-chain transactions with hardware wallet signing
+        // Check if balance is 0
+        const balance = parseFloat(trustlineToDelete.balance);
+        if (balance !== 0) {
+          toast({
+            title: "Cannot remove trustline",
+            description: "You must have a zero balance before removing a trustline. Please send or exchange your tokens first.",
+            variant: "destructive",
+          });
+          setDeleteDialogOpen(false);
+          setTrustlineToDelete(null);
+          return;
+        }
+
+        toast({
+          title: "Feature coming soon",
+          description: "XRPL trustline removal requires hardware wallet signing and will be available in a future update.",
+          variant: "default",
+        });
+      } else {
+        // Database trustline - can be removed locally
+        const trustlineId = typeof trustlineToDelete.id === 'number' 
+          ? trustlineToDelete.id 
+          : parseInt(trustlineToDelete.id);
+        
+        await browserStorage.updateTrustline(trustlineId, { isActive: false });
+        
+        // Invalidate queries with proper keys to refresh the UI
+        queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
+        queryClient.invalidateQueries({ queryKey: ['accountLines', currentWallet.address] });
+
+        toast({
+          title: "Trustline removed",
+          description: `${trustlineToDelete.currency} trustline has been removed from your wallet.`,
+        });
+      }
+
+      setDeleteDialogOpen(false);
+      setTrustlineToDelete(null);
+    } catch (error: any) {
+      toast({
+        title: "Failed to remove trustline",
+        description: error.message || "An error occurred while removing the trustline.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="px-4 py-6">
@@ -112,7 +194,12 @@ export default function Tokens() {
     <div className="px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">My Tokens</h1>
-        <Button variant="outline" size="sm">
+        <Button 
+          variant="outline" 
+          size="sm"
+          onClick={() => setTrustlineModalOpen(true)}
+          data-testid="button-add-token"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Add Token
         </Button>
@@ -127,7 +214,11 @@ export default function Tokens() {
           <p className="text-muted-foreground text-sm mb-4">
             Create trustlines to hold other tokens on the XRP Ledger.
           </p>
-          <Button variant="outline">
+          <Button 
+            variant="outline"
+            onClick={() => setTrustlineModalOpen(true)}
+            data-testid="button-add-trustline"
+          >
             <Plus className="w-4 h-4 mr-2" />
             Add Trustline
           </Button>
@@ -138,6 +229,7 @@ export default function Tokens() {
             <div
               key={token.id}
               className="bg-white dark:bg-card border border-border rounded-xl p-4"
+              data-testid={`token-card-${token.currency}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
@@ -151,13 +243,26 @@ export default function Tokens() {
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">
-                    {formatBalance(token.balance)} {token.currency}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {token.isNative ? '' : `Limit: ${formatLimit(token.limit)} ${token.currency}`}
-                  </p>
+                <div className="flex items-center space-x-3">
+                  <div className="text-right">
+                    <p className="font-semibold">
+                      {formatBalance(token.balance)} {token.currency}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {token.isNative ? '' : `Limit: ${formatLimit(token.limit)} ${token.currency}`}
+                    </p>
+                  </div>
+                  {!token.isNative && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteClick(token)}
+                      className="text-muted-foreground hover:text-destructive"
+                      data-testid={`button-delete-${token.currency}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </div>
               
@@ -175,6 +280,35 @@ export default function Tokens() {
           ))}
         </div>
       )}
+
+      <TrustlineModal
+        isOpen={trustlineModalOpen}
+        onClose={() => setTrustlineModalOpen(false)}
+      />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Trustline</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove the trustline for {trustlineToDelete?.currency}?
+              <br /><br />
+              <strong>Important:</strong> You can only remove a trustline if your balance is 0. 
+              Removing a trustline means you won't be able to hold this token until you create the trustline again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              Remove Trustline
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -17,7 +17,7 @@ export const wallets = pgTable("wallets", {
 export const transactions = pgTable("transactions", {
   id: serial("id").primaryKey(),
   walletId: integer("walletId").notNull(),
-  type: text("type").notNull(), // 'sent', 'received', 'escrow'
+  type: text("type").notNull(), // 'sent', 'received'
   amount: text("amount").notNull(),
   currency: text("currency").notNull().default("XRP"),
   fromAddress: text("fromAddress"),
@@ -40,17 +40,6 @@ export const trustlines = pgTable("trustlines", {
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 
-export const escrows = pgTable("escrows", {
-  id: serial("id").primaryKey(),
-  walletId: integer("walletId").notNull(),
-  amount: text("amount").notNull(),
-  recipient: text("recipient").notNull(),
-  releaseDate: timestamp("releaseDate").notNull(),
-  status: text("status").notNull().default("active"), // 'active', 'released', 'cancelled'
-  txHash: text("txHash"),
-  createdAt: timestamp("createdAt").notNull().defaultNow(),
-});
-
 export const insertWalletSchema = createInsertSchema(wallets).omit({
   id: true,
   createdAt: true,
@@ -66,16 +55,9 @@ export const insertTrustlineSchema = createInsertSchema(trustlines).omit({
   createdAt: true,
 });
 
-export const insertEscrowSchema = createInsertSchema(escrows).omit({
-  id: true,
-  createdAt: true,
-});
-
 export type Wallet = typeof wallets.$inferSelect;
 export type InsertWallet = z.infer<typeof insertWalletSchema>;
 export type Transaction = typeof transactions.$inferSelect;
 export type InsertTransaction = z.infer<typeof insertTransactionSchema>;
 export type Trustline = typeof trustlines.$inferSelect;
 export type InsertTrustline = z.infer<typeof insertTrustlineSchema>;
-export type Escrow = typeof escrows.$inferSelect;
-export type InsertEscrow = z.infer<typeof insertEscrowSchema>;

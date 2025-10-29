@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { browserStorage } from '@/lib/browser-storage';
-import type { Wallet, Transaction, Trustline, Escrow } from '@shared/schema';
+import type { Wallet, Transaction, Trustline } from '@shared/schema';
 
 interface WalletContextType {
   currentWallet: Wallet | null;
@@ -138,15 +138,6 @@ export function useTrustlines(walletId: number | null) {
   });
 }
 
-export function useEscrows(walletId: number | null) {
-  return useQuery<Escrow[]>({
-    queryKey: ['browser-escrows', walletId],
-    queryFn: () => Promise.resolve(walletId ? browserStorage.getEscrowsByWallet(walletId) : []),
-    enabled: !!walletId,
-    staleTime: 0,
-  });
-}
-
 export function useCreateTransaction() {
   const queryClient = useQueryClient();
   
@@ -185,28 +176,6 @@ export function useCreateTrustline() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['browser-trustlines', variables.walletId] });
-    },
-  });
-}
-
-export function useCreateEscrow() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async (escrowData: {
-      walletId: number;
-      amount: string;
-      recipient: string;
-      releaseDate: string;
-    }) => {
-      const escrow = browserStorage.createEscrow({
-        ...escrowData,
-        releaseDate: new Date(escrowData.releaseDate)
-      });
-      return escrow;
-    },
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['browser-escrows', variables.walletId] });
     },
   });
 }

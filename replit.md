@@ -4,9 +4,32 @@
 
 This is a mobile-first XRP Ledger (XRPL) software wallet application built with React and Express. The application focuses exclusively on integrating with the Keystone 3 Pro air-gapped hardware wallet using QR code-based transaction signing. The wallet provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and transactions while maintaining the security benefits of hardware wallet integration.
 
+The application follows a simplified, streamlined design philosophy with core functionality consolidated into dedicated pages:
+- **Home**: Wallet balance overview with Send/Receive actions and recent transaction history
+- **Transactions**: Complete transaction history and filtering
+- **Tokens**: Comprehensive trustline/token management (view, add, remove)
+- **Profile**: Account settings and preferences
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes
+
+### October 29, 2025 - UI Simplification and Feature Consolidation
+- Removed Quick Actions section from home page for cleaner interface
+- Consolidated all trustline/token management into the Tokens page
+  - Added "Add Token" button functionality to open trustline modal
+  - Added delete/remove functionality for trustlines with confirmation dialog
+  - Centralized token operations in one location for better UX
+- Removed escrow functionality (postponed as advanced feature for future implementation)
+  - Removed escrow table from database schema
+  - Removed escrow-related API routes and storage methods
+  - Removed escrow UI components and references
+- Fixed transaction history display issues
+  - Properly handling XRPL API's `tx_json` field structure
+  - Supporting both `Amount` and `DeliverMax` fields for payment amounts
+  - Added retry logic and connection management for reliable data fetching
 
 ## System Architecture
 
@@ -20,13 +43,13 @@ Preferred communication style: Simple, everyday language.
 
 **Mobile-First Design**: The application uses a mobile app layout with bottom navigation, optimized for mobile devices with a maximum width constraint (max-w-md). The design includes simulated status bars and mobile-specific UI patterns.
 
-**Data Storage Strategy**: Browser localStorage is the primary storage mechanism through the `BrowserStorage` class, which manages wallets, transactions, trustlines, and escrows entirely client-side. This approach was chosen to eliminate backend database dependencies while maintaining data persistence across sessions.
+**Data Storage Strategy**: Browser localStorage is the primary storage mechanism through the `BrowserStorage` class, which manages wallets, transactions, and trustlines entirely client-side. This approach was chosen to eliminate backend database dependencies while maintaining data persistence across sessions.
 
 ### Backend Architecture
 
 **Server Framework**: Express.js with TypeScript, serving both API endpoints and the Vite development middleware.
 
-**API Design**: RESTful API endpoints for wallet management (`/api/wallets`), transactions, trustlines, and escrows. The backend provides CRUD operations but defers to client-side storage for actual data persistence.
+**API Design**: RESTful API endpoints for wallet management (`/api/wallets`), transactions, and trustlines. The backend provides CRUD operations but defers to client-side storage for actual data persistence.
 
 **Storage Layer**: The backend includes both an in-memory storage implementation (`MemStorage`) and database schema definitions using Drizzle ORM, but the application primarily uses browser-based storage for simplicity and offline capability.
 

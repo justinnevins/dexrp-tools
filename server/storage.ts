@@ -2,15 +2,12 @@ import {
   wallets, 
   transactions, 
   trustlines, 
-  escrows,
   type Wallet, 
   type Transaction, 
   type Trustline, 
-  type Escrow,
   type InsertWallet, 
   type InsertTransaction, 
-  type InsertTrustline, 
-  type InsertEscrow 
+  type InsertTrustline
 } from "@shared/schema";
 
 export interface IStorage {
@@ -33,12 +30,6 @@ export interface IStorage {
   createTrustline(trustline: InsertTrustline): Promise<Trustline>;
   updateTrustline(id: number, updates: Partial<Trustline>): Promise<Trustline | undefined>;
   
-  // Escrow operations
-  getEscrow(id: number): Promise<Escrow | undefined>;
-  getEscrowsByWallet(walletId: number): Promise<Escrow[]>;
-  createEscrow(escrow: InsertEscrow): Promise<Escrow>;
-  updateEscrow(id: number, updates: Partial<Escrow>): Promise<Escrow | undefined>;
-  
   // Clear all data
   clearAllData(): Promise<void>;
 }
@@ -47,21 +38,17 @@ export class MemStorage implements IStorage {
   private wallets: Map<number, Wallet>;
   private transactions: Map<number, Transaction>;
   private trustlines: Map<number, Trustline>;
-  private escrows: Map<number, Escrow>;
   private currentWalletId: number;
   private currentTransactionId: number;
   private currentTrustlineId: number;
-  private currentEscrowId: number;
 
   constructor() {
     this.wallets = new Map();
     this.transactions = new Map();
     this.trustlines = new Map();
-    this.escrows = new Map();
     this.currentWalletId = 1;
     this.currentTransactionId = 1;
     this.currentTrustlineId = 1;
-    this.currentEscrowId = 1;
 
     // Initialize with a test wallet
     this.initializeTestData();
@@ -178,48 +165,13 @@ export class MemStorage implements IStorage {
     return updatedTrustline;
   }
 
-  // Escrow operations
-  async getEscrow(id: number): Promise<Escrow | undefined> {
-    return this.escrows.get(id);
-  }
-
-  async getEscrowsByWallet(walletId: number): Promise<Escrow[]> {
-    return Array.from(this.escrows.values())
-      .filter(escrow => escrow.walletId === walletId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-  }
-
-  async createEscrow(insertEscrow: InsertEscrow): Promise<Escrow> {
-    const id = this.currentEscrowId++;
-    const escrow: Escrow = { 
-      ...insertEscrow, 
-      id, 
-      createdAt: new Date(),
-      status: insertEscrow.status || "active",
-      txHash: insertEscrow.txHash || null,
-    };
-    this.escrows.set(id, escrow);
-    return escrow;
-  }
-
-  async updateEscrow(id: number, updates: Partial<Escrow>): Promise<Escrow | undefined> {
-    const escrow = this.escrows.get(id);
-    if (!escrow) return undefined;
-
-    const updatedEscrow = { ...escrow, ...updates };
-    this.escrows.set(id, updatedEscrow);
-    return updatedEscrow;
-  }
-
   async clearAllData(): Promise<void> {
     this.wallets.clear();
     this.transactions.clear();
     this.trustlines.clear();
-    this.escrows.clear();
     this.currentWalletId = 1;
     this.currentTransactionId = 1;
     this.currentTrustlineId = 1;
-    this.currentEscrowId = 1;
   }
 }
 

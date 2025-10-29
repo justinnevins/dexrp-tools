@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertWalletSchema, insertTransactionSchema, insertTrustlineSchema, insertEscrowSchema } from "@shared/schema";
+import { insertWalletSchema, insertTransactionSchema, insertTrustlineSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -203,46 +203,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(trustline);
     } catch (error) {
       res.status(500).json({ error: "Failed to update trustline" });
-    }
-  });
-
-  // Escrow routes
-  app.get("/api/escrows/:walletId", async (req, res) => {
-    try {
-      const walletId = parseInt(req.params.walletId);
-      const escrows = await storage.getEscrowsByWallet(walletId);
-      res.json(escrows);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch escrows" });
-    }
-  });
-
-  app.post("/api/escrows", async (req, res) => {
-    try {
-      const escrowData = insertEscrowSchema.parse(req.body);
-      const escrow = await storage.createEscrow(escrowData);
-      res.status(201).json(escrow);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid escrow data", details: error.errors });
-      }
-      res.status(500).json({ error: "Failed to create escrow" });
-    }
-  });
-
-  app.patch("/api/escrows/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const updates = req.body;
-      const escrow = await storage.updateEscrow(id, updates);
-      
-      if (!escrow) {
-        return res.status(404).json({ error: "Escrow not found" });
-      }
-      
-      res.json(escrow);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to update escrow" });
     }
   });
 
