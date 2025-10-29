@@ -18,6 +18,7 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const decoderRef = useRef<URDecoder | null>(null);
   const scannedPartsRef = useRef<Set<string>>(new Set());
+  const hasSubmittedRef = useRef<boolean>(false);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
@@ -127,33 +128,41 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                     scannedPartsRef.current.add(qrData.toLowerCase());
                     
                     // Feed this part to the decoder
-                    if (decoderRef.current) {
+                    if (decoderRef.current && !hasSubmittedRef.current) {
                       try {
                         decoderRef.current.receivePart(qrData.toLowerCase());
                         
-                        // Update progress
+                        // Update progress - get the actual received part indexes
                         const receivedIndexes = decoderRef.current.receivedPartIndexes();
-                        const receivedCount = receivedIndexes ? receivedIndexes.size : scannedPartsRef.current.size;
+                        const receivedCount = receivedIndexes ? receivedIndexes.size : 0;
                         setScanProgress({ current: receivedCount, total: totalParts });
                         console.log(`Progress: ${receivedCount}/${totalParts} parts received`);
                         
                         // Check if we have all parts
-                        if (decoderRef.current.isComplete()) {
+                        if (decoderRef.current.isComplete() && receivedCount === totalParts) {
                           console.log('All parts received! Decoding complete UR...');
                           
-                          // Stop scanning immediately to prevent multiple submissions
+                          // Prevent multiple submissions
+                          hasSubmittedRef.current = true;
+                          
+                          // Stop scanning immediately
                           if (scanIntervalRef.current) {
                             clearInterval(scanIntervalRef.current);
                             scanIntervalRef.current = null;
                           }
                           
-                          const completeUR = decoderRef.current.resultUR();
-                          // Convert UR to string format
-                          const completeURString = `ur:${completeUR.type}/${completeUR.cbor.toString('hex')}`;
-                          console.log('Complete UR reconstructed:', completeURString.substring(0, 50) + '...');
-                          
-                          stopCamera();
-                          onScan(completeURString);
+                          try {
+                            const completeUR = decoderRef.current.resultUR();
+                            // Convert UR to string format
+                            const completeURString = `ur:${completeUR.type}/${completeUR.cbor.toString('hex')}`;
+                            console.log('Complete UR reconstructed:', completeURString.substring(0, 50) + '...');
+                            
+                            stopCamera();
+                            onScan(completeURString);
+                          } catch (urError) {
+                            console.error('Error creating complete UR:', urError);
+                            hasSubmittedRef.current = false;
+                          }
                           return;
                         }
                       } catch (decodeError) {
