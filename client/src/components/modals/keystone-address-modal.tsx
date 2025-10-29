@@ -63,7 +63,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
           setIsValid(true);
           setShowQRScanner(false);
         } else {
-          alert('Invalid wallet address QR code. Please scan a valid XRPL address.');
+          alert('Invalid account address QR code. Please scan a valid XRPL address.');
         }
       }
     } catch (error) {
@@ -73,7 +73,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
         setIsValid(true);
         setShowQRScanner(false);
       } else {
-        alert('Invalid QR code format. Please scan a valid XRPL wallet address.');
+        alert('Invalid QR code format. Please scan a valid XRPL account address.');
       }
     }
   };
@@ -102,7 +102,7 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
               Scan QR Code
             </h4>
             <p className="text-sm text-muted-foreground">
-              Scan a QR code containing your Keystone 3 Pro wallet address
+              Scan a QR code containing your Keystone 3 Pro account address
             </p>
             <Button 
               onClick={() => setShowQRScanner(true)}
@@ -185,8 +185,8 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
         <WalletAddressScanner
           onScan={handleQRScan}
           onClose={() => setShowQRScanner(false)}
-          title="Scan Wallet Address"
-          description="Position the QR code containing your wallet address within the camera view"
+          title="Scan Account Address"
+          description="Position the QR code containing your account address within the camera view"
         />
       )}
     </Dialog>

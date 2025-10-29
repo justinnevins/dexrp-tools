@@ -135,7 +135,7 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
   };
 
   const handleManualEntry = () => {
-    const address = prompt('Enter your XRPL wallet address (starting with "r"):');
+    const address = prompt('Enter your XRPL account address (starting with "r"):');
     if (address && address.trim().startsWith('r') && address.trim().length >= 25) {
       onScan(address.trim());
     } else if (address) {

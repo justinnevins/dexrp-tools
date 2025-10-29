@@ -127,9 +127,9 @@ Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
           console.log('No data entered or empty string');
         }
       } else {
-        // For wallet addresses
+        // For account addresses
         console.log('Opening address prompt...');
-        const address = prompt('Enter XRPL wallet address (starting with "r"):');
+        const address = prompt('Enter XRPL account address (starting with "r"):');
         if (address && address.startsWith('r') && address.length >= 25) {
           onScan(address);
         } else if (address) {

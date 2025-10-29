@@ -114,7 +114,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
             ) : qrCodeUrl ? (
               <img 
                 src={qrCodeUrl} 
-                alt="Wallet Address QR Code" 
+                alt="Account Address QR Code" 
                 className="w-full h-full"
                 data-testid="qr-code-image"
               />
@@ -127,7 +127,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
           
           <div className="bg-muted rounded-xl p-4 mb-4">
             <p className="font-mono text-sm break-all">
-              {currentWallet?.address || 'No wallet connected'}
+              {currentWallet?.address || 'No account selected'}
             </p>
           </div>
           

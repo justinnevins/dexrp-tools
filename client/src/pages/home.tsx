@@ -27,7 +27,7 @@ export default function Home() {
     setSecurityModalOpen(false);
   };
 
-  // Show empty state when no wallets are connected (authentic data integrity)
+  // Show empty state when no accounts are added (authentic data integrity)
   if (!wallets.data || wallets.data.length === 0) {
     return <EmptyWalletState />;
   }

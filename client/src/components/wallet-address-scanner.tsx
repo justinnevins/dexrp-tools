@@ -11,7 +11,7 @@ interface WalletAddressScannerProps {
   description?: string;
 }
 
-export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Address", description = "Use your camera to scan the QR code or enter manually" }: WalletAddressScannerProps) {
+export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Address", description = "Use your camera to scan the QR code or enter manually" }: WalletAddressScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
@@ -31,7 +31,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
 
   const initCamera = async () => {
     try {
-      console.log('Requesting camera access for wallet scanning...');
+      console.log('Requesting camera access for account scanning...');
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -51,7 +51,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
           video.play().then(() => {
             setIsActive(true);
             setError(null);
-            console.log('Camera ready for wallet address scanning');
+            console.log('Camera ready for account address scanning');
             
             // Start QR detection after camera is ready
             setTimeout(() => {
@@ -198,7 +198,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
   };
 
   const handleManualEntry = () => {
-    const address = prompt('Enter your Keystone Pro 3 wallet address (starting with "r"):');
+    const address = prompt('Enter your Keystone Pro 3 account address (starting with "r"):');
     if (address && address.trim().startsWith('r') && address.trim().length >= 25) {
       onScan(address.trim());
       cleanup();
@@ -295,7 +295,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Wallet Add
                 </p>
                 <ol className="text-xs text-blue-600 space-y-1">
                   <li>1. Navigate to XRP account</li>
-                  <li>2. Display wallet address QR code</li>
+                  <li>2. Display account address QR code</li>
                   <li>3. Position QR code in camera view</li>
                 </ol>
               </div>

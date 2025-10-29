@@ -99,7 +99,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
           handleKeystoneConfirm(parsed.address);
           setShowQRScanner(false);
         } else {
-          alert('Invalid wallet address QR code. Please scan a valid XRPL address.');
+          alert('Invalid account address QR code. Please scan a valid XRPL address.');
         }
       }
     } catch (error) {
@@ -108,7 +108,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         handleKeystoneConfirm(data);
         setShowQRScanner(false);
       } else {
-        alert('Invalid QR code format. Please scan a valid XRPL wallet address.');
+        alert('Invalid QR code format. Please scan a valid XRPL account address.');
       }
     }
   };
