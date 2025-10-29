@@ -205,6 +205,11 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
     setIsActive(false);
   };
 
+  const handleClose = () => {
+    stopCamera();
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4">
       <Card className="w-full max-w-md">
@@ -213,7 +218,7 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
             <CardTitle className="text-lg">{title}</CardTitle>
             <CardDescription className="text-sm">{description}</CardDescription>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={handleClose} data-testid="button-close-scanner">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
@@ -311,7 +316,7 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
           )}
           
           <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} className="flex-1">
+            <Button variant="outline" onClick={handleClose} className="flex-1" data-testid="button-cancel-scanner">
               Cancel
             </Button>
           </div>
