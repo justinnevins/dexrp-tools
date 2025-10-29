@@ -45,23 +45,24 @@ export default function Profile() {
     return "0";
   };
 
-  const handleRemoveWallet = (walletId: number) => {
+  const handleRemoveAccount = (walletId: number) => {
     if (!currentWallet) return;
     
     const allWallets = wallets.data || [];
+    
+    // Remove the account
+    browserStorage.deleteWallet(walletId);
+    
+    // If this was the last account, redirect to setup
     if (allWallets.length === 1) {
-      toast({
-        title: "Cannot Remove",
-        description: "You must have at least one wallet. Use 'Disconnect All' to remove everything.",
-        variant: "destructive",
-      });
+      localStorage.clear();
+      localStorage.setItem('xrpl_target_network', 'mainnet');
+      queryClient.clear();
+      window.location.href = '/';
       return;
     }
     
-    // Remove the wallet
-    browserStorage.deleteWallet(walletId);
-    
-    // If removing the current wallet, switch to another one
+    // If removing the current account, switch to another one
     if (currentWallet.id === walletId) {
       const remainingWallets = allWallets.filter(w => w.id !== walletId);
       if (remainingWallets.length > 0) {
@@ -73,12 +74,12 @@ export default function Profile() {
     queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     
     toast({
-      title: "Wallet Removed",
-      description: "The wallet has been removed from your account list.",
+      title: "Account Removed",
+      description: "The account has been removed from your list.",
     });
   };
 
-  const handleDisconnectWallet = async () => {
+  const handleRemoveAllAccounts = async () => {
     try {
       // Disconnect hardware wallet first
       await disconnectHardwareWallet();
@@ -100,8 +101,8 @@ export default function Profile() {
       
       // Show confirmation toast
       toast({
-        title: "Wallet Disconnected",
-        description: "All data cleared, reloading application...",
+        title: "All Accounts Removed",
+        description: "All account data cleared, reloading application...",
       });
       
       // Force immediate page reload
@@ -124,9 +125,9 @@ export default function Profile() {
     <div className="px-4 py-6">
       <h1 className="text-2xl font-bold mb-6">Profile & Settings</h1>
 
-      {/* Connected Wallets */}
+      {/* XRPL Accounts */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">Connected Wallets</h2>
+        <h2 className="text-lg font-semibold mb-4">XRPL Accounts</h2>
         <div className="space-y-3">
           {wallets.data && wallets.data.length > 0 ? (
             wallets.data.map((wallet, index) => (
@@ -176,11 +177,11 @@ export default function Profile() {
                     </Button>
                   )}
                   <Button
-                    onClick={() => handleRemoveWallet(wallet.id)}
+                    onClick={() => handleRemoveAccount(wallet.id)}
                     variant="ghost"
                     size="sm"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    data-testid={`remove-wallet-${wallet.id}`}
+                    data-testid={`remove-account-${wallet.id}`}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -188,20 +189,20 @@ export default function Profile() {
               </div>
             ))
           ) : (
-            <p className="text-center text-muted-foreground py-4">No wallets connected</p>
+            <p className="text-center text-muted-foreground py-4">No accounts added</p>
           )}
         </div>
       </div>
 
-      {/* Danger Zone */}
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
         <Button
-          onClick={handleDisconnectWallet}
+          onClick={handleRemoveAllAccounts}
           variant="outline"
           className="w-full border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 touch-target"
+          data-testid="remove-all-accounts"
         >
           <LogOut className="w-4 h-4 mr-2" />
-          Disconnect Wallet
+          Remove All Accounts
         </Button>
       </div>
 

@@ -128,10 +128,10 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Shield className="w-5 h-5 text-primary" />
-            <span>Connect Hardware Wallet</span>
+            <span>Add XRPL Account</span>
           </DialogTitle>
           <DialogDescription>
-            Select and connect your hardware wallet for secure transaction signing.
+            Add your Keystone 3 Pro account for secure transaction signing.
           </DialogDescription>
         </DialogHeader>
 
@@ -192,7 +192,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
                       Connected
                     </>
                   ) : (
-                    `Connect ${walletType}`
+                    `Add ${walletType} Account`
                   )}
                 </Button>
               </div>

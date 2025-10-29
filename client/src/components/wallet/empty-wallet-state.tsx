@@ -37,11 +37,11 @@ export function EmptyWalletState() {
           </div>
           
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
-            No Wallets Connected
+            No Accounts Added
           </h2>
           
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-            Connect your hardware wallet to view real XRPL account data, including balance, transactions, and trustlines.
+            Add your Keystone 3 Pro XRPL account to view real-time balance, transactions, and trustlines.
           </p>
           
           <div className="space-y-3 mb-6">
@@ -62,10 +62,10 @@ export function EmptyWalletState() {
           <Button 
             onClick={() => setShowScanner(true)}
             className="w-full"
-            data-testid="connect-wallet-button"
+            data-testid="add-account-button"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Connect Keystone 3 Pro
+            Add Keystone 3 Pro Account
           </Button>
         </CardContent>
       </Card>
