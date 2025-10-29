@@ -14,6 +14,7 @@ interface KeystoneTransactionSignerProps {
   transactionUR: { type: string; cbor: string } | null;
   unsignedTransaction: any;
   transactionType: 'Payment' | 'TrustSet';
+  walletId: number;
 }
 
 type SigningStep = 'qr-display' | 'signing' | 'submitting' | 'complete';
@@ -24,7 +25,8 @@ export function KeystoneTransactionSigner({
   onSuccess,
   transactionUR,
   unsignedTransaction,
-  transactionType
+  transactionType,
+  walletId
 }: KeystoneTransactionSignerProps) {
   const [currentStep, setCurrentStep] = useState<SigningStep>('qr-display');
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
@@ -128,13 +130,35 @@ export function KeystoneTransactionSigner({
       console.log('Submitting signed transaction to XRPL...');
       console.log('Transaction blob:', signedTransaction.txBlob);
 
-      const submitResponse = await fetch('/api/xrpl/submit', {
+      // Prepare transaction data based on type
+      const transactionData = transactionType === 'Payment' 
+        ? {
+            type: 'payment',
+            amount: unsignedTransaction.Amount || '0',
+            currency: 'XRP',
+            fromAddress: unsignedTransaction.Account,
+            toAddress: unsignedTransaction.Destination,
+            destinationTag: unsignedTransaction.DestinationTag
+          }
+        : {
+            type: 'trustline',
+            amount: '0',
+            currency: unsignedTransaction.LimitAmount?.currency || 'Unknown',
+            fromAddress: unsignedTransaction.Account,
+            toAddress: unsignedTransaction.LimitAmount?.issuer || '',
+            destinationTag: undefined
+          };
+
+      const submitResponse = await fetch('/api/transactions/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          txBlob: signedTransaction.txBlob
+          walletId: walletId,
+          txBlob: signedTransaction.txBlob,
+          txHash: signedTransaction.txHash || null,
+          transactionData
         })
       });
 

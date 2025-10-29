@@ -382,6 +382,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         transactionUR={transactionUR}
         unsignedTransaction={unsignedTransaction}
         transactionType="TrustSet"
+        walletId={currentWallet?.id || 0}
       />
     </>
   );
