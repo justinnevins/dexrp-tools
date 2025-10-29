@@ -109,15 +109,15 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                 if (qrData.toUpperCase().startsWith('UR:')) {
                   const upperQR = qrData.toUpperCase();
                   
-                  // Check if this is a multi-part UR (contains sequence numbers like /1-5/ or /5-5/)
+                  // Check if this is a multi-part UR (format: UR:BYTES/{total}-{current}/)
                   const multiPartMatch = upperQR.match(/UR:[^/]+\/(\d+)-(\d+)\//);
                   
                   if (multiPartMatch) {
-                    // Multi-part UR detected
-                    const currentPart = parseInt(multiPartMatch[1]);
-                    const totalParts = parseInt(multiPartMatch[2]);
+                    // Multi-part UR detected - format is {total}-{current}
+                    const totalParts = parseInt(multiPartMatch[1]);
+                    const currentPart = parseInt(multiPartMatch[2]);
                     
-                    console.log(`Multi-part UR detected: part ${currentPart} of ${totalParts}`);
+                    console.log(`Multi-part UR detected: part ${currentPart + 1} of ${totalParts}`);
                     
                     // Avoid scanning the same part multiple times
                     if (scannedPartsRef.current.has(qrData.toLowerCase())) {
@@ -128,23 +128,36 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                     
                     // Feed this part to the decoder
                     if (decoderRef.current) {
-                      decoderRef.current.receivePart(qrData.toLowerCase());
-                      
-                      // Update progress
-                      const receivedCount = decoderRef.current.receivedPartIndexes().size;
-                      setScanProgress({ current: receivedCount, total: totalParts });
-                      console.log(`Progress: ${receivedCount}/${totalParts} parts received`);
-                      
-                      // Check if we have all parts
-                      if (decoderRef.current.isComplete()) {
-                        console.log('All parts received! Decoding complete UR...');
-                        const completeUR = decoderRef.current.resultUR();
-                        const completeURString = completeUR.toString();
-                        console.log('Complete UR reconstructed:', completeURString.substring(0, 50) + '...');
+                      try {
+                        decoderRef.current.receivePart(qrData.toLowerCase());
                         
-                        stopCamera();
-                        onScan(completeURString);
-                        return;
+                        // Update progress
+                        const receivedIndexes = decoderRef.current.receivedPartIndexes();
+                        const receivedCount = receivedIndexes ? receivedIndexes.size : scannedPartsRef.current.size;
+                        setScanProgress({ current: receivedCount, total: totalParts });
+                        console.log(`Progress: ${receivedCount}/${totalParts} parts received`);
+                        
+                        // Check if we have all parts
+                        if (decoderRef.current.isComplete()) {
+                          console.log('All parts received! Decoding complete UR...');
+                          
+                          // Stop scanning immediately to prevent multiple submissions
+                          if (scanIntervalRef.current) {
+                            clearInterval(scanIntervalRef.current);
+                            scanIntervalRef.current = null;
+                          }
+                          
+                          const completeUR = decoderRef.current.resultUR();
+                          // Convert UR to string format
+                          const completeURString = `ur:${completeUR.type}/${completeUR.cbor.toString('hex')}`;
+                          console.log('Complete UR reconstructed:', completeURString.substring(0, 50) + '...');
+                          
+                          stopCamera();
+                          onScan(completeURString);
+                          return;
+                        }
+                      } catch (decodeError) {
+                        console.error('Error processing UR part:', decodeError);
                       }
                     }
                   } else {
