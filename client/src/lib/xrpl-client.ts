@@ -207,6 +207,42 @@ class XRPLClient {
     return (parseFloat(xrp) * 1000000).toString();
   }
 
+  encodeCurrency(currencyCode: string): string {
+    // If it's already a 40-character hex string, return as-is
+    if (currencyCode.length === 40 && /^[0-9A-F]+$/i.test(currencyCode)) {
+      return currencyCode.toUpperCase();
+    }
+    
+    // XRP doesn't need encoding (native currency)
+    if (currencyCode === 'XRP') {
+      return currencyCode;
+    }
+    
+    // For standard 3-letter currency codes, encode to XRPL hex format
+    // Format: 12 zeros + ASCII hex + 5 zeros = 40 characters total
+    if (currencyCode.length <= 3 && /^[A-Z]{1,3}$/i.test(currencyCode)) {
+      const paddedCode = currencyCode.toUpperCase().padEnd(3, '\0');
+      let hex = '';
+      for (let i = 0; i < paddedCode.length; i++) {
+        hex += paddedCode.charCodeAt(i).toString(16).padStart(2, '0');
+      }
+      // Pad to 40 characters: 12 zeros + 6 hex chars (3 bytes) + 22 zeros = 40
+      return '00000000000000000000000' + hex.toUpperCase() + '0000000000000000000000';
+    }
+    
+    // For longer codes (up to 20 chars), convert to hex without standard currency padding
+    if (currencyCode.length <= 20) {
+      let hex = '';
+      for (let i = 0; i < currencyCode.length; i++) {
+        hex += currencyCode.charCodeAt(i).toString(16).padStart(2, '0');
+      }
+      return hex.toUpperCase().padEnd(40, '0');
+    }
+    
+    // Fallback: return as-is
+    return currencyCode;
+  }
+
   decodeCurrency(currencyCode: string): string {
     if (!currencyCode) return '';
     
