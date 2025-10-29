@@ -1,13 +1,48 @@
 import { useState } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useWallet, useTrustlines, useCreateTrustline } from '@/hooks/use-wallet';
-import { useAccountLines } from '@/hooks/use-xrpl';
+import { useWallet, useTrustlines } from '@/hooks/use-wallet';
+import { useAccountInfo, useAccountLines } from '@/hooks/use-xrpl';
 import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
+import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
+import { queryClient } from '@/lib/queryClient';
+
+async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
+  console.log('=== ENCODING TRUSTSET TRANSACTION ===');
+  console.log('Transaction object:', transactionTemplate);
+  
+  try {
+    const response = await fetch('/api/keystone/xrp/sign-request', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        transaction: transactionTemplate
+      })
+    });
+    
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('Backend error:', error);
+      throw new Error(error.details || 'Failed to generate Keystone sign request');
+    }
+    
+    const result = await response.json();
+    console.log('✓ SDK generated type:', result.type);
+    console.log('✓ CBOR hex length:', result.cbor.length);
+    
+    return { type: result.type, cbor: result.cbor };
+    
+  } catch (error) {
+    console.error('❌ Keystone encoding failed:', error);
+    throw new Error('Failed to encode transaction. Please try again.');
+  }
+}
 
 interface TrustlineModalProps {
   isOpen: boolean;
@@ -20,11 +55,15 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const [issuer, setIssuer] = useState('');
   const [issuerName, setIssuerName] = useState('');
   const [limit, setLimit] = useState('');
+  const [showSigner, setShowSigner] = useState(false);
+  const [transactionUR, setTransactionUR] = useState<{ type: string; cbor: string } | null>(null);
+  const [unsignedTransaction, setUnsignedTransaction] = useState<any>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const { currentWallet } = useWallet();
   const { data: dbTrustlines } = useTrustlines(currentWallet?.id || null);
   const { data: xrplLines } = useAccountLines(currentWallet?.address || null);
-  const createTrustline = useCreateTrustline();
+  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null);
   const { toast } = useToast();
 
   // Combine trustlines from database and XRPL
@@ -64,32 +103,95 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       return;
     }
 
-    try {
-      await createTrustline.mutateAsync({
-        walletId: currentWallet.id,
-        currency,
-        issuer,
-        issuerName,
-        limit,
-      });
-
+    if (!xrplClient.isValidAddress(issuer)) {
       toast({
-        title: "Trustline Created",
-        description: `Trustline for ${currency} has been created`,
+        title: "Invalid Issuer",
+        description: "Please enter a valid XRPL address for the issuer",
+        variant: "destructive",
       });
+      return;
+    }
 
-      setCurrency('');
-      setIssuer('');
-      setIssuerName('');
-      setLimit('');
-      setShowAddForm(false);
+    if (isCreating) return;
+
+    try {
+      setIsCreating(true);
+
+      let transactionSequence = 1;
+      let transactionLedger = 1000;
+      
+      if (accountInfo && 'account_data' in accountInfo && accountInfo.account_data) {
+        transactionSequence = accountInfo.account_data.Sequence || 1;
+        transactionLedger = accountInfo.ledger_current_index || 95943000;
+        
+        console.log('Using real XRPL network data:', {
+          sequence: transactionSequence,
+          currentLedger: transactionLedger,
+          accountBalance: accountInfo.account_data.Balance
+        });
+      }
+
+      const trustSetTransaction = {
+        Account: currentWallet.address,
+        TransactionType: "TrustSet",
+        LimitAmount: {
+          currency: currency,
+          issuer: issuer,
+          value: limit
+        },
+        Fee: "12",
+        Flags: 2147483648,
+        LastLedgerSequence: transactionLedger + 1000,
+        Sequence: transactionSequence,
+        SigningPubKey: currentWallet.publicKey || ""
+      };
+
+      console.log('Creating TrustSet transaction:', trustSetTransaction);
+
+      const keystoneUR = await encodeKeystoneUR(trustSetTransaction);
+      
+      setTransactionUR(keystoneUR);
+      setUnsignedTransaction(trustSetTransaction);
+      setShowSigner(true);
+
     } catch (error) {
+      console.error('Failed to create trustline transaction:', error);
+      setIsCreating(false);
       toast({
         title: "Error",
-        description: "Failed to create trustline",
+        description: error instanceof Error ? error.message : "Failed to create trustline transaction",
         variant: "destructive",
       });
     }
+  };
+
+  const handleSigningSuccess = async (txHash: string) => {
+    console.log('Trustline transaction successful:', txHash);
+    
+    await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
+    await queryClient.invalidateQueries({ queryKey: ['accountLines', currentWallet?.address] });
+    
+    setCurrency('');
+    setIssuer('');
+    setIssuerName('');
+    setLimit('');
+    setShowAddForm(false);
+    setShowSigner(false);
+    setTransactionUR(null);
+    setUnsignedTransaction(null);
+    setIsCreating(false);
+    
+    toast({
+      title: "Trustline Created",
+      description: `Trustline for ${currency} has been created successfully`,
+    });
+  };
+
+  const handleSignerClose = () => {
+    setShowSigner(false);
+    setTransactionUR(null);
+    setUnsignedTransaction(null);
+    setIsCreating(false);
   };
 
   const formatBalance = (balance: string) => {
@@ -98,6 +200,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md mx-auto bottom-0 translate-y-0 rounded-t-3xl data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom max-h-[80vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-border sticky top-0 bg-background">
@@ -186,6 +289,20 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                 </Button>
               </div>
 
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 mb-4">
+                <div className="flex items-start space-x-3">
+                  <Shield className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-1 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                      Hardware Wallet Required
+                    </p>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      Creating a trustline requires signing with your Keystone 3 Pro device
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="currency" className="block text-sm font-medium mb-2">
                   Currency Code
@@ -248,14 +365,24 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
               <Button
                 type="submit"
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
-                disabled={!currency || !issuer || !issuerName || !limit || createTrustline.isPending}
+                disabled={!currency || !issuer || !issuerName || !limit || isCreating}
               >
-                {createTrustline.isPending ? 'Creating...' : 'Create Trustline'}
+                {isCreating ? 'Preparing...' : 'Sign with Keystone'}
               </Button>
             </form>
           )}
         </div>
       </DialogContent>
-    </Dialog>
+      </Dialog>
+
+      <KeystoneTransactionSigner
+        isOpen={showSigner}
+        onClose={handleSignerClose}
+        onSuccess={handleSigningSuccess}
+        transactionUR={transactionUR}
+        unsignedTransaction={unsignedTransaction}
+        transactionType="TrustSet"
+      />
+    </>
   );
 }

@@ -16,6 +16,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### October 29, 2025 - Hardware Wallet Signing for Trustlines
+- **Implemented QR code signing workflow for trustline creation**
+  - Created reusable `KeystoneTransactionSigner` component for both Payment and TrustSet transactions
+  - Updated trustline modal to require hardware wallet signing instead of direct API calls
+  - Trustlines now follow the same secure signing flow as payment transactions:
+    1. Create TrustSet transaction with currency, issuer, and limit
+    2. Encode transaction as QR code using Keystone SDK
+    3. User scans with Keystone 3 Pro device
+    4. User signs transaction offline on hardware wallet
+    5. User scans signed transaction QR back into app
+    6. App submits signed transaction to XRPL network
+  - Added hardware wallet requirement notice in trustline creation form
+  - Properly invalidates account lines cache after successful trustline creation
+
+### October 29, 2025 - Terminology Update (Wallet → Account)
+- Updated all user-facing terminology from "wallet" to "account" to clarify that Keystone 3 Pro is the hardware wallet and the app manages XRPL accounts
+- Updated prompts, alerts, and UI text in QR scanners, modals, and forms
+- Removed restriction on deleting the last account - now allows removing all accounts which clears all data and redirects to setup
+- Renamed "Disconnect Wallet" to "Remove All Accounts" with clearer messaging
+
 ### October 29, 2025 - UI Simplification and Feature Consolidation
 - Removed Quick Actions section from home page for cleaner interface
 - Consolidated all trustline/token management into the Tokens page
