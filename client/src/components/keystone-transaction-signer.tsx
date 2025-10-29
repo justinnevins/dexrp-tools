@@ -187,7 +187,7 @@ export function KeystoneTransactionSigner({
 
     } catch (error) {
       console.error('Transaction signing/submission failed:', error);
-      setCurrentStep('signing');
+      setCurrentStep('qr-display');
       setIsSubmitting(false);
       
       toast({
@@ -199,13 +199,8 @@ export function KeystoneTransactionSigner({
   };
 
   const handleMarkSigned = () => {
-    console.log('User marked transaction as signed on Keystone');
-    setCurrentStep('signing');
-    
-    toast({
-      title: "Waiting for Signature",
-      description: "After signing on your Keystone device, scan the signed transaction QR code",
-    });
+    console.log('User ready to scan signed transaction from Keystone');
+    setShowSignedQRScanner(true);
   };
 
   return (
@@ -255,24 +250,6 @@ export function KeystoneTransactionSigner({
                 </>
               )}
               
-              {currentStep === 'signing' && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
-                    <p className="text-sm font-medium">Transaction Signed</p>
-                    <p className="text-sm text-muted-foreground">
-                      Now scan the signed transaction QR code from your Keystone 3 Pro
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setShowSignedQRScanner(true)}
-                    className="w-full mb-2"
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    Scan Signed Transaction
-                  </Button>
-                </div>
-              )}
               
               {currentStep === 'submitting' && (
                 <div className="space-y-2">
