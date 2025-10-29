@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Settings, Home, ArrowLeftRight, Coins, User, TrendingUp } from 'lucide-react';
+import { Moon, Sun, Home, ArrowLeftRight, Coins, User, TrendingUp } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
@@ -90,9 +90,6 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
               ) : (
                 <Moon className="w-4 h-4" />
               )}
-            </Button>
-            <Button variant="ghost" size="sm" className="p-2 rounded-full bg-muted" data-testid="settings-button">
-              <Settings className="w-4 h-4" />
             </Button>
           </div>
         </div>
