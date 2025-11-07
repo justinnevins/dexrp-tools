@@ -412,6 +412,7 @@ export default function Tokens() {
           walletId={removeTrustlineData.walletId}
           onSuccess={handleRemoveTrustlineSuccess}
           transactionType="TrustSet"
+          network={xrplClient.getCurrentNetwork()}
         />
       )}
     </div>

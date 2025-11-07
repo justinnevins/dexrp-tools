@@ -404,6 +404,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         unsignedTransaction={unsignedTransaction}
         transactionType="TrustSet"
         walletId={currentWallet?.id || 0}
+        network={xrplClient.getCurrentNetwork()}
       />
     </>
   );

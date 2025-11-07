@@ -924,6 +924,7 @@ export default function DEX() {
           walletId={currentWallet.id}
           onSuccess={handleSigningSuccess}
           onClose={handleSignerClose}
+          network={currentNetwork}
         />
       )}
     </div>

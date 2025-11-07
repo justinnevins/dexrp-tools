@@ -111,17 +111,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Submit signed transaction to XRPL network
   app.post("/api/transactions/submit", async (req, res) => {
     try {
-      const { walletId, txBlob, txHash, transactionData } = req.body;
+      const { walletId, txBlob, txHash, transactionData, network = 'testnet' } = req.body;
       
-      console.log('Submitting transaction to XRPL network...');
+      console.log('Submitting transaction to XRPL network:', network);
       console.log('Transaction blob:', txBlob);
       
       // Connect to XRPL and submit the transaction
       const xrpl = await import('xrpl');
-      const client = new xrpl.Client('wss://s.altnet.rippletest.net:51233'); // Testnet
+      const endpoint = network === 'mainnet' 
+        ? 'wss://xrplcluster.com'
+        : 'wss://s.altnet.rippletest.net:51233';
+      
+      const client = new xrpl.Client(endpoint);
       
       await client.connect();
-      console.log('Connected to XRPL testnet');
+      console.log(`Connected to XRPL ${network}`);
       
       try {
         // Submit the signed transaction blob

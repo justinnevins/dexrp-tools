@@ -15,6 +15,7 @@ interface KeystoneTransactionSignerProps {
   unsignedTransaction: any;
   transactionType: 'Payment' | 'TrustSet' | 'OfferCreate' | 'OfferCancel';
   walletId: number;
+  network?: 'mainnet' | 'testnet';
 }
 
 type SigningStep = 'qr-display' | 'signing' | 'submitting' | 'complete';
@@ -26,7 +27,8 @@ export function KeystoneTransactionSigner({
   transactionUR,
   unsignedTransaction,
   transactionType,
-  walletId
+  walletId,
+  network = 'testnet'
 }: KeystoneTransactionSignerProps) {
   const [currentStep, setCurrentStep] = useState<SigningStep>('qr-display');
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
@@ -158,7 +160,8 @@ export function KeystoneTransactionSigner({
           walletId: walletId,
           txBlob: signedTransaction.txBlob,
           txHash: signedTransaction.txHash || null,
-          transactionData
+          transactionData,
+          network
         })
       });
 
