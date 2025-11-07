@@ -112,6 +112,19 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       return;
     }
 
+    // Validate currency format: either 3 chars OR 40 hex chars
+    const isStandardCurrency = /^[A-Z]{3}$/.test(currency);
+    const isHexCurrency = /^[0-9A-F]{40}$/i.test(currency);
+    
+    if (!isStandardCurrency && !isHexCurrency) {
+      toast({
+        title: "Invalid Currency Code",
+        description: "Currency must be either a 3-letter code (e.g., USD) or a 40-character hex code (e.g., 524C555344...)",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (isCreating) return;
 
     try {
@@ -315,12 +328,15 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                 <Input
                   id="currency"
                   type="text"
-                  placeholder="USD, BTC, ETH..."
+                  placeholder="USD or 524C555344000000000000000000000000000000"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value.toUpperCase())}
-                  className="touch-target"
-                  maxLength={3}
+                  className="touch-target font-mono"
+                  maxLength={40}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Standard codes (3 chars) or hex codes (40 chars)
+                </p>
               </div>
 
               <div>
