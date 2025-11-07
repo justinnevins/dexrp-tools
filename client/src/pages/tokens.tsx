@@ -56,19 +56,9 @@ export default function Tokens() {
   
   // Add XRPL trustlines (filter out those with limit = 0, which are being removed)
   if (xrplLines?.lines) {
-    console.log('XRPL lines data:', xrplLines.lines);
     xrplLines.lines.forEach((line: any) => {
-      console.log('Processing trustline:', {
-        currency: line.currency,
-        limit: line.limit,
-        limitType: typeof line.limit,
-        parsedLimit: parseFloat(line.limit),
-        isZero: parseFloat(line.limit) === 0
-      });
-      
       // Skip trustlines with limit 0 (user has removed them)
       if (parseFloat(line.limit) === 0) {
-        console.log('Skipping trustline with 0 limit:', line.currency);
         return;
       }
       
@@ -85,7 +75,6 @@ export default function Tokens() {
         isNative: false,
       });
     });
-    console.log('Final trustlines array length:', trustlines.length);
   }
 
   // Add database trustlines if no XRPL data (excluding XRP)
@@ -215,7 +204,12 @@ export default function Tokens() {
         
         // Invalidate queries with proper keys to refresh the UI
         queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
-        queryClient.invalidateQueries({ queryKey: ['accountLines', currentWallet.address] });
+        // Use predicate to match accountLines queries regardless of network parameter
+        queryClient.invalidateQueries({ 
+          predicate: (query) => 
+            query.queryKey[0] === 'accountLines' && 
+            query.queryKey[1] === currentWallet.address 
+        });
 
         toast({
           title: "Trustline removed",
@@ -238,7 +232,12 @@ export default function Tokens() {
     // Invalidate queries to refresh the trustline list
     if (currentWallet) {
       queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
-      queryClient.invalidateQueries({ queryKey: ['accountLines', currentWallet.address] });
+      // Use predicate to match accountLines queries regardless of network parameter
+      queryClient.invalidateQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'accountLines' && 
+          query.queryKey[1] === currentWallet.address 
+      });
     }
     
     // Reset state

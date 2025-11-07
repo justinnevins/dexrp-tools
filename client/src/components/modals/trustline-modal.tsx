@@ -169,7 +169,12 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
     console.log('Trustline transaction successful:', txHash);
     
     await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
-    await queryClient.invalidateQueries({ queryKey: ['accountLines', currentWallet?.address] });
+    // Use predicate to match accountLines queries regardless of network parameter
+    await queryClient.invalidateQueries({ 
+      predicate: (query) => 
+        query.queryKey[0] === 'accountLines' && 
+        query.queryKey[1] === currentWallet?.address 
+    });
     
     setCurrency('');
     setIssuer('');
