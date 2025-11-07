@@ -16,6 +16,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 7, 2025 - DEX Trading Currency Selection Enhancement
+- **Replaced text inputs with dropdown selects for currency selection**
+  - Currency selection now limited to XRP + active trustlines + common tokens
+  - Added prepopulated list of top 10 common XRPL tokens (Mainnet/Testnet specific)
+  - Common tokens include: RLUSD, USDC, Bitstamp USD/BTC/ETH, GateHub EUR/USD/GBP, SOLO, CSC
+  - Testnet only shows RLUSD and USDC (other tokens not available on testnet)
+  - Issuer addresses automatically populated based on selected currency
+  - Displays issuer address in read-only format below selection
+- **Trading account indicator**
+  - Added prominent card showing trading account address and XRP balance
+  - Copy-to-clipboard functionality for account address
+  - Helps users confirm which account they're trading with
+- **Live market price display**
+  - Real-time pricing from XRPL order books
+  - Auto-refresh every 15 seconds
+  - Trading pair selection (XRP/USD, XRP/RLUSD)
+  - Manual refresh option
+  - Shows order book depth and last update time
+
 ### October 29, 2025 - Hardware Wallet Signing for Trustlines
 - **Implemented QR code signing workflow for trustline creation**
   - Created reusable `KeystoneTransactionSigner` component for both Payment and TrustSet transactions

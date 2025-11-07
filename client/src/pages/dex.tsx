@@ -19,11 +19,74 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useWallet } from '@/hooks/use-wallet';
-import { useAccountOffers, useAccountInfo } from '@/hooks/use-xrpl';
+import { useAccountOffers, useAccountInfo, useAccountLines } from '@/hooks/use-xrpl';
 import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { queryClient } from '@/lib/queryClient';
+
+// Common XRPL tokens with mainnet/testnet issuers
+interface CommonToken {
+  name: string;
+  currency: string;
+  mainnetIssuer?: string;
+  testnetIssuer?: string;
+}
+
+const COMMON_TOKENS: CommonToken[] = [
+  {
+    name: 'Ripple USD (RLUSD)',
+    currency: '524C555344000000000000000000000000000000',
+    mainnetIssuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
+    testnetIssuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV'
+  },
+  {
+    name: 'USD Coin (USDC)',
+    currency: '5553444300000000000000000000000000000000',
+    mainnetIssuer: 'rGm7WCVp9gb4jZHWTEtGUr4dd74z2XuWhE',
+    testnetIssuer: 'rHuGNhqTG32mfmAvWA8hUyWRLV3tCSwKQt'
+  },
+  {
+    name: 'Bitstamp USD',
+    currency: 'USD',
+    mainnetIssuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'
+  },
+  {
+    name: 'Bitstamp BTC',
+    currency: 'BTC',
+    mainnetIssuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'
+  },
+  {
+    name: 'Bitstamp ETH',
+    currency: 'ETH',
+    mainnetIssuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'
+  },
+  {
+    name: 'GateHub EUR',
+    currency: 'EUR',
+    mainnetIssuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq'
+  },
+  {
+    name: 'GateHub USD',
+    currency: 'USD',
+    mainnetIssuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq'
+  },
+  {
+    name: 'GateHub GBP',
+    currency: 'GBP',
+    mainnetIssuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq'
+  },
+  {
+    name: 'Sologenic (SOLO)',
+    currency: '534F4C4F00000000000000000000000000000000',
+    mainnetIssuer: 'rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz'
+  },
+  {
+    name: 'CasinoCoin (CSC)',
+    currency: 'CSC',
+    mainnetIssuer: 'rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr'
+  }
+];
 
 interface OfferData {
   takerGets: { currency: string; issuer?: string; value: string };
@@ -67,7 +130,10 @@ export default function DEX() {
   const { currentWallet } = useWallet();
   const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null);
   const { data: accountInfo } = useAccountInfo(currentWallet?.address || null);
+  const { data: accountLines } = useAccountLines(currentWallet?.address || null);
   const { toast } = useToast();
+
+  const currentNetwork = xrplClient.getCurrentNetwork();
 
   const calculateFlags = () => {
     let flags = 0;
@@ -337,7 +403,8 @@ export default function DEX() {
     setIsLoadingPrice(true);
     try {
       // Fetch order book - what we pay to get XRP (asks)
-      const takerGets = pair.base === 'XRP' ? 'XRP' : { currency: pair.base };
+      // XRP must be formatted as {currency: 'XRP'} for book_offers API
+      const takerGets = pair.base === 'XRP' ? { currency: 'XRP' } : { currency: pair.base };
       const takerPays = pair.quote;
 
       const bookData = await xrplClient.getOrderBook(takerPays, takerGets, 5);
@@ -399,6 +466,74 @@ export default function DEX() {
       : parseFloat(offer.TakerPays.value);
 
     return takerPays / takerGets;
+  };
+
+  // Get available currencies (XRP + active trustlines + common tokens)
+  const getAvailableCurrencies = () => {
+    const currencies: Array<{ label: string; value: string; issuer?: string }> = [
+      { label: 'XRP', value: 'XRP' }
+    ];
+
+    // Add active trustlines (with balance > 0 or limit > 0)
+    if (accountLines?.lines) {
+      accountLines.lines
+        .filter((line: any) => parseFloat(line.limit || '0') > 0)
+        .forEach((line: any) => {
+          const currencyLabel = line.currency.length === 3 
+            ? line.currency 
+            : `${line.currency.substring(0, 8)}...`;
+          currencies.push({
+            label: `${currencyLabel} (${line.account.substring(0, 8)}...)`,
+            value: line.currency,
+            issuer: line.account
+          });
+        });
+    }
+
+    // Add common tokens available on current network
+    COMMON_TOKENS.forEach(token => {
+      const issuer = currentNetwork === 'mainnet' ? token.mainnetIssuer : token.testnetIssuer;
+      if (issuer) {
+        // Don't add if already in active trustlines
+        const alreadyExists = currencies.some(
+          c => c.value === token.currency && c.issuer === issuer
+        );
+        if (!alreadyExists) {
+          currencies.push({
+            label: token.name,
+            value: token.currency,
+            issuer
+          });
+        }
+      }
+    });
+
+    return currencies;
+  };
+
+  // Handle currency selection
+  const handleTakerGetsCurrencyChange = (value: string) => {
+    setTakerGetsCurrency(value);
+    if (value === 'XRP') {
+      setTakerGetsIssuer('');
+    } else {
+      const currency = getAvailableCurrencies().find(c => c.value === value);
+      if (currency?.issuer) {
+        setTakerGetsIssuer(currency.issuer);
+      }
+    }
+  };
+
+  const handleTakerPaysCurrencyChange = (value: string) => {
+    setTakerPaysCurrency(value);
+    if (value === 'XRP') {
+      setTakerPaysIssuer('');
+    } else {
+      const currency = getAvailableCurrencies().find(c => c.value === value);
+      if (currency?.issuer) {
+        setTakerPaysIssuer(currency.issuer);
+      }
+    }
   };
 
   if (!currentWallet) {
@@ -549,25 +684,29 @@ export default function DEX() {
                     className="font-mono"
                     data-testid="input-taker-gets-amount"
                   />
-                  <Input
-                    type="text"
-                    placeholder="Currency"
-                    value={takerGetsCurrency}
-                    onChange={(e) => setTakerGetsCurrency(e.target.value.toUpperCase())}
-                    className="font-mono"
-                    maxLength={40}
-                    data-testid="input-taker-gets-currency"
-                  />
+                  <Select 
+                    value={takerGetsCurrency} 
+                    onValueChange={handleTakerGetsCurrencyChange}
+                  >
+                    <SelectTrigger data-testid="select-taker-gets-currency">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableCurrencies().map((currency) => (
+                        <SelectItem 
+                          key={`${currency.value}-${currency.issuer || 'native'}`} 
+                          value={currency.value}
+                        >
+                          {currency.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {takerGetsCurrency !== 'XRP' && (
-                  <Input
-                    type="text"
-                    placeholder="Issuer Address (required for non-XRP)"
-                    value={takerGetsIssuer}
-                    onChange={(e) => setTakerGetsIssuer(e.target.value)}
-                    className="font-mono text-xs"
-                    data-testid="input-taker-gets-issuer"
-                  />
+                {takerGetsCurrency !== 'XRP' && takerGetsIssuer && (
+                  <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+                    Issuer: {takerGetsIssuer}
+                  </div>
                 )}
               </div>
 
@@ -584,25 +723,29 @@ export default function DEX() {
                     className="font-mono"
                     data-testid="input-taker-pays-amount"
                   />
-                  <Input
-                    type="text"
-                    placeholder="Currency"
-                    value={takerPaysCurrency}
-                    onChange={(e) => setTakerPaysCurrency(e.target.value.toUpperCase())}
-                    className="font-mono"
-                    maxLength={40}
-                    data-testid="input-taker-pays-currency"
-                  />
+                  <Select 
+                    value={takerPaysCurrency} 
+                    onValueChange={handleTakerPaysCurrencyChange}
+                  >
+                    <SelectTrigger data-testid="select-taker-pays-currency">
+                      <SelectValue placeholder="Currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableCurrencies().map((currency) => (
+                        <SelectItem 
+                          key={`${currency.value}-${currency.issuer || 'native'}`} 
+                          value={currency.value}
+                        >
+                          {currency.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                {takerPaysCurrency !== 'XRP' && (
-                  <Input
-                    type="text"
-                    placeholder="Issuer Address (required for non-XRP)"
-                    value={takerPaysIssuer}
-                    onChange={(e) => setTakerPaysIssuer(e.target.value)}
-                    className="font-mono text-xs"
-                    data-testid="input-taker-pays-issuer"
-                  />
+                {takerPaysCurrency !== 'XRP' && takerPaysIssuer && (
+                  <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+                    Issuer: {takerPaysIssuer}
+                  </div>
                 )}
               </div>
 

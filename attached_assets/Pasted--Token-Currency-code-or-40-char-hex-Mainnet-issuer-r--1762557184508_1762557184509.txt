@@ -1,0 +1,23 @@
+| Token              | Currency code (or 40-char hex)             | Mainnet issuer (r…)                                 | Testnet issuer (r…)                                             |
+| ------------------ | ------------------------------------------ | --------------------------------------------------- | --------------------------------------------------------------- |
+| Ripple USD (RLUSD) | `524C555344000000000000000000000000000000` | rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De                  | rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV ([Ripple documentation][1])  |
+| USD Coin (USDC)    | `5553444300000000000000000000000000000000` | rGm7WCVp9gb4jZHWTEtGUr4dd74z2XuWhE                  | rHuGNhqTG32mfmAvWA8hUyWRLV3tCSwKQt ([developers.circle.com][2]) |
+| Bitstamp USD       | `USD`                                      | rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B                   | — ([Bitstamp][3])                                               |
+| Bitstamp BTC       | `BTC`                                      | rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B                   | — ([XRPSCAN - XRP Ledger Explorer][4])                          |
+| Bitstamp ETH       | `ETH`                                      | rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B                   | — ([XRP Ledger Explorer][5])                                    |
+| GateHub EUR        | `EUR`                                      | rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq                  | — ([XRP Ledger Explorer][6])                                    |
+| GateHub USD        | `USD`                                      | rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq *(GateHub cold)* | — ([XPMarket][7])                                               |
+| GateHub GBP        | `GBP`                                      | rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq                  | — ([XRP Ledger Explorer][8])                                    |
+| Sologenic (SOLO)   | `534F4C4F00000000000000000000000000000000` | rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz                  | — ([XRPSCAN - XRP Ledger Explorer][9])                          |
+| CasinoCoin (CSC)   | `CSC`                                      | rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr                   | — ([XRPSCAN - XRP Ledger Explorer][10])                         |
+
+[1]: https://docs.ripple.com/stablecoin/developer-resources/rlusd-on-the-xrpl/ "Ripple USD on the XRP Ledger"
+[2]: https://developers.circle.com/stablecoins/usdc-contract-addresses "USDC Contract Addresses"
+[3]: https://www.bitstamp.net/faq/iou-btc-usd-deposit/?utm_source=chatgpt.com "IOU deposit"
+[4]: https://xrpscan.com/token/BTC.rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B?utm_source=chatgpt.com "BTC - XRPL Token"
+[5]: https://www.bithomp.com/explorer/C3DB5EBAFE37CFA012E95A2ABD0BB4FDE694B4AC55E8EF991961E351F590F3C2?utm_source=chatgpt.com "XRP Ledger Transaction information ... - Bithomp"
+[6]: https://bithomp.com/explorer/E7A057A74915CEC8D1B9CD8EB68DAD6AD01A8A05A1EDF5A3F035E0CCB4734EBE?utm_source=chatgpt.com "XRP Ledger Transaction information ... - Bithomp"
+[7]: https://xpmarket.com/token/USD-rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq?utm_source=chatgpt.com "Get Acquainted with the USD Token on Gatehub - XRP ..."
+[8]: https://bithomp.com/explorer/rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq?utm_source=chatgpt.com "gatehub rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq - Bithomp"
+[9]: https://xrpscan.com/token/SOLO.rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz?utm_source=chatgpt.com "SOLO - XRPL Token"
+[10]: https://xrpscan.com/token/CSC.rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr?utm_source=chatgpt.com "CSC - XRPL Token"
