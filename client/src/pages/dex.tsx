@@ -672,9 +672,6 @@ export default function DEX() {
                 </span>
               </div>
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <div>
-                  Depth: {orderBook?.offers?.length || 0} offers
-                </div>
                 {lastUpdate && (
                   <div>
                     Updated {Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s ago
