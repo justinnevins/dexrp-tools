@@ -214,6 +214,27 @@ class XRPLClient {
     }
   }
 
+  async getOrderBook(takerPays: any, takerGets: any, limit = 10) {
+    await this.connect();
+    if (!this.client) {
+      throw new Error('XRPL client not initialized');
+    }
+    
+    try {
+      const response = await this.client.request({
+        command: 'book_offers',
+        taker_pays: takerPays,
+        taker_gets: takerGets,
+        limit,
+        ledger_index: 'validated'
+      });
+      return response.result;
+    } catch (error: any) {
+      console.error('Error fetching order book:', error);
+      throw error;
+    }
+  }
+
   isValidAddress(address: string): boolean {
     try {
       return /^r[a-zA-Z0-9]{24,34}$/.test(address);

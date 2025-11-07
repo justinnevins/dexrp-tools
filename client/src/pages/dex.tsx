@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { TrendingUp, Plus, X, Calendar, Wallet, Copy, Check } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { TrendingUp, Plus, X, Calendar, Wallet, Copy, Check, ArrowUpDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -57,6 +57,12 @@ export default function DEX() {
   const [unsignedTransaction, setUnsignedTransaction] = useState<any>(null);
   const [transactionType, setTransactionType] = useState<'OfferCreate' | 'OfferCancel'>('OfferCreate');
   const [addressCopied, setAddressCopied] = useState(false);
+
+  // Market data state
+  const [marketPair, setMarketPair] = useState('XRP/USD');
+  const [orderBook, setOrderBook] = useState<any>(null);
+  const [isLoadingPrice, setIsLoadingPrice] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const { currentWallet } = useWallet();
   const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null);
@@ -306,6 +312,95 @@ export default function DEX() {
     return '0.000000';
   };
 
+  // Market pairs configuration
+  const marketPairs: Record<string, { base: any; quote: any; issuer?: string }> = {
+    'XRP/USD': {
+      base: 'XRP',
+      quote: {
+        currency: 'USD',
+        issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq' // Gatehub USD issuer
+      }
+    },
+    'XRP/RLUSD': {
+      base: 'XRP',
+      quote: {
+        currency: '524C555344000000000000000000000000000000', // RLUSD hex
+        issuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV' // RLUSD issuer on testnet
+      }
+    }
+  };
+
+  const fetchMarketPrice = async () => {
+    const pair = marketPairs[marketPair];
+    if (!pair) return;
+
+    setIsLoadingPrice(true);
+    try {
+      // Fetch order book - what we pay to get XRP (asks)
+      const takerGets = pair.base === 'XRP' ? 'XRP' : { currency: pair.base };
+      const takerPays = pair.quote;
+
+      const bookData = await xrplClient.getOrderBook(takerPays, takerGets, 5);
+      setOrderBook(bookData);
+      setLastUpdate(new Date());
+    } catch (error) {
+      console.error('Failed to fetch market price:', error);
+    } finally {
+      setIsLoadingPrice(false);
+    }
+  };
+
+  // Fetch market price on mount and every 15 seconds
+  useEffect(() => {
+    fetchMarketPrice();
+    const interval = setInterval(fetchMarketPrice, 15000);
+    return () => clearInterval(interval);
+  }, [marketPair]);
+
+  const getBestPrice = () => {
+    if (!orderBook?.offers || orderBook.offers.length === 0) {
+      return null;
+    }
+
+    const bestOffer = orderBook.offers[0];
+    const takerGets = typeof bestOffer.TakerGets === 'string' 
+      ? parseFloat(xrplClient.formatXRPAmount(bestOffer.TakerGets))
+      : parseFloat(bestOffer.TakerGets.value);
+    
+    const takerPays = typeof bestOffer.TakerPays === 'string'
+      ? parseFloat(xrplClient.formatXRPAmount(bestOffer.TakerPays))
+      : parseFloat(bestOffer.TakerPays.value);
+
+    // Price = what we pay / what we get
+    return takerPays / takerGets;
+  };
+
+  const getSpread = () => {
+    if (!orderBook?.offers || orderBook.offers.length < 2) {
+      return null;
+    }
+
+    const bestBid = orderBook.offers[0];
+    const secondBid = orderBook.offers[1];
+
+    const price1 = calculateOfferPrice(bestBid);
+    const price2 = calculateOfferPrice(secondBid);
+
+    return Math.abs(price2 - price1);
+  };
+
+  const calculateOfferPrice = (offer: any) => {
+    const takerGets = typeof offer.TakerGets === 'string'
+      ? parseFloat(xrplClient.formatXRPAmount(offer.TakerGets))
+      : parseFloat(offer.TakerGets.value);
+    
+    const takerPays = typeof offer.TakerPays === 'string'
+      ? parseFloat(xrplClient.formatXRPAmount(offer.TakerPays))
+      : parseFloat(offer.TakerPays.value);
+
+    return takerPays / takerGets;
+  };
+
   if (!currentWallet) {
     return (
       <div className="px-4 py-6">
@@ -369,6 +464,66 @@ export default function DEX() {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Market Price Info */}
+      <Card className="mb-6">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <CardTitle className="text-base">Market Price</CardTitle>
+            </div>
+            <div className="flex items-center gap-2">
+              <Select value={marketPair} onValueChange={setMarketPair}>
+                <SelectTrigger className="w-32 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="XRP/USD">XRP/USD</SelectItem>
+                  <SelectItem value="XRP/RLUSD">XRP/RLUSD</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fetchMarketPrice}
+                disabled={isLoadingPrice}
+                className="h-8 w-8 p-0"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoadingPrice ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {getBestPrice() !== null ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold">
+                  {getBestPrice()?.toFixed(4)}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {marketPair.split('/')[1]}
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <div>
+                  Depth: {orderBook?.offers?.length || 0} offers
+                </div>
+                {lastUpdate && (
+                  <div>
+                    Updated {Math.floor((Date.now() - lastUpdate.getTime()) / 1000)}s ago
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              {isLoadingPrice ? 'Loading market data...' : 'No offers available'}
+            </div>
+          )}
         </CardContent>
       </Card>
 
