@@ -114,3 +114,24 @@ export function useAccountLines(address: string | null) {
     retryDelay: 1000, // Wait 1 second between retries
   });
 }
+
+export function useAccountOffers(address: string | null) {
+  const currentNetwork = xrplClient.getCurrentNetwork();
+  return useQuery({
+    queryKey: ['accountOffers', address, currentNetwork],
+    queryFn: async () => {
+      if (!address) return null;
+      try {
+        return await xrplClient.getAccountOffers(address);
+      } catch (error: any) {
+        console.error('Error fetching account offers:', error);
+        // Return empty result instead of throwing to prevent UI errors
+        return { offers: [] };
+      }
+    },
+    enabled: !!address,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    retry: 3,
+    retryDelay: 1000,
+  });
+}

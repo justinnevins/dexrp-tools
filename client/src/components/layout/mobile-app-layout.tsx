@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Home, ArrowLeftRight, Coins, User, TrendingUp } from 'lucide-react';
+import { Moon, Sun, Home, ArrowLeftRight, Coins, User, TrendingUp, LineChart } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
@@ -46,7 +46,8 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
-    { path: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+    { path: '/transactions', label: 'History', icon: ArrowLeftRight },
+    { path: '/dex', label: 'DEX', icon: LineChart },
     { path: '/tokens', label: 'Tokens', icon: Coins },
     { path: '/profile', label: 'Profile', icon: User },
   ];

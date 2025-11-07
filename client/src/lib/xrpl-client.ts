@@ -191,6 +191,29 @@ class XRPLClient {
     }
   }
 
+  async getAccountOffers(address: string) {
+    await this.connect();
+    if (!this.client) {
+      throw new Error('XRPL client not initialized');
+    }
+    
+    try {
+      const response = await this.client.request({
+        command: 'account_offers',
+        account: address,
+        ledger_index: 'validated'
+      });
+      return response.result;
+    } catch (error: any) {
+      // Handle account not found error
+      if (error.data?.error === 'actNotFound') {
+        return { offers: [], account: address };
+      }
+      console.error('Error fetching account offers:', error);
+      throw error;
+    }
+  }
+
   isValidAddress(address: string): boolean {
     try {
       return /^r[a-zA-Z0-9]{24,34}$/.test(address);

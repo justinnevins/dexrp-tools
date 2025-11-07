@@ -13,7 +13,7 @@ interface KeystoneTransactionSignerProps {
   onSuccess?: (txHash: string) => void;
   transactionUR: { type: string; cbor: string } | null;
   unsignedTransaction: any;
-  transactionType: 'Payment' | 'TrustSet';
+  transactionType: 'Payment' | 'TrustSet' | 'OfferCreate' | 'OfferCancel';
   walletId: number;
 }
 
