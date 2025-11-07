@@ -378,25 +378,41 @@ export default function DEX() {
     return '0.000000';
   };
 
-  // Market pairs configuration
-  const marketPairs: Record<string, { base: any; quote: any; issuer?: string }> = {
-    'XRP/USD': {
-      base: 'XRP',
-      quote: {
-        currency: 'USD',
-        issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq' // Gatehub USD issuer
-      }
-    },
-    'XRP/RLUSD': {
-      base: 'XRP',
-      quote: {
-        currency: '524C555344000000000000000000000000000000', // RLUSD hex
-        issuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV' // RLUSD issuer on testnet
-      }
+  // Market pairs configuration - network aware
+  const marketPairs: Record<string, { base: any; quote: any; issuer?: string }> | null = (() => {
+    if (currentNetwork === 'mainnet') {
+      return {
+        'XRP/USD': {
+          base: 'XRP',
+          quote: {
+            currency: 'USD',
+            issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq' // GateHub USD on mainnet
+          }
+        },
+        'XRP/RLUSD': {
+          base: 'XRP',
+          quote: {
+            currency: '524C555344000000000000000000000000000000', // RLUSD hex
+            issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De' // RLUSD on mainnet
+          }
+        }
+      };
+    } else {
+      // Testnet - only RLUSD is available
+      return {
+        'XRP/RLUSD': {
+          base: 'XRP',
+          quote: {
+            currency: '524C555344000000000000000000000000000000', // RLUSD hex
+            issuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV' // RLUSD on testnet
+          }
+        }
+      };
     }
-  };
+  })();
 
   const fetchMarketPrice = async () => {
+    if (!marketPairs) return;
     const pair = marketPairs[marketPair];
     if (!pair) return;
 
@@ -407,7 +423,9 @@ export default function DEX() {
       const takerGets = pair.base === 'XRP' ? { currency: 'XRP' } : { currency: pair.base };
       const takerPays = pair.quote;
 
+      console.log('Fetching order book for:', { takerPays, takerGets, network: currentNetwork });
       const bookData = await xrplClient.getOrderBook(takerPays, takerGets, 5);
+      console.log('Order book response:', bookData);
       setOrderBook(bookData);
       setLastUpdate(new Date());
     } catch (error) {
@@ -419,10 +437,19 @@ export default function DEX() {
 
   // Fetch market price on mount and every 15 seconds
   useEffect(() => {
+    // Reset to default pair if current pair not available on network
+    if (marketPairs && !marketPairs[marketPair]) {
+      const firstPair = Object.keys(marketPairs)[0];
+      if (firstPair) {
+        setMarketPair(firstPair);
+      }
+      return;
+    }
+    
     fetchMarketPrice();
     const interval = setInterval(fetchMarketPrice, 15000);
     return () => clearInterval(interval);
-  }, [marketPair]);
+  }, [marketPair, currentNetwork]);
 
   const getBestPrice = () => {
     if (!orderBook?.offers || orderBook.offers.length === 0) {
@@ -616,8 +643,9 @@ export default function DEX() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="XRP/USD">XRP/USD</SelectItem>
-                  <SelectItem value="XRP/RLUSD">XRP/RLUSD</SelectItem>
+                  {marketPairs && Object.keys(marketPairs).map(pair => (
+                    <SelectItem key={pair} value={pair}>{pair}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button
