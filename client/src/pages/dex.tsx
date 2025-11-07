@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { TrendingUp, Plus, X, Calendar } from 'lucide-react';
+import { TrendingUp, Plus, X, Calendar, Wallet, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -56,6 +56,7 @@ export default function DEX() {
   const [transactionUR, setTransactionUR] = useState<{ type: string; cbor: string } | null>(null);
   const [unsignedTransaction, setUnsignedTransaction] = useState<any>(null);
   const [transactionType, setTransactionType] = useState<'OfferCreate' | 'OfferCancel'>('OfferCreate');
+  const [addressCopied, setAddressCopied] = useState(false);
 
   const { currentWallet } = useWallet();
   const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null);
@@ -290,6 +291,21 @@ export default function DEX() {
     return `${parseFloat(amount.value).toFixed(6)} ${amount.currency}`;
   };
 
+  const copyAddress = () => {
+    if (currentWallet?.address) {
+      navigator.clipboard.writeText(currentWallet.address);
+      setAddressCopied(true);
+      setTimeout(() => setAddressCopied(false), 2000);
+    }
+  };
+
+  const getXRPBalance = () => {
+    if (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.Balance) {
+      return xrplClient.formatXRPAmount(accountInfo.account_data.Balance);
+    }
+    return '0.000000';
+  };
+
   if (!currentWallet) {
     return (
       <div className="px-4 py-6">
@@ -320,6 +336,41 @@ export default function DEX() {
           {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
         </Button>
       </div>
+
+      {/* Trading Account Info */}
+      <Card className="mb-6 bg-primary/5 border-primary/20">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+              <Wallet className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase">Trading Account</p>
+                <p className="text-sm font-semibold text-primary">{getXRPBalance()} XRP</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <code className="text-xs font-mono bg-muted px-2 py-1 rounded truncate flex-1">
+                  {currentWallet?.address}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={copyAddress}
+                  className="h-7 w-7 p-0 flex-shrink-0"
+                  data-testid="button-copy-address"
+                >
+                  {addressCopied ? (
+                    <Check className="w-3 h-3 text-green-600" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Create Offer Form */}
       {showCreateForm && (
