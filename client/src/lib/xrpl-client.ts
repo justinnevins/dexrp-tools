@@ -185,8 +185,26 @@ class XRPLClient {
         ledger_index: 'validated'
       });
       return response.result;
-    } catch (error) {
+    } catch (error: any) {
+      // Handle account not found error (account not activated)
+      if (error.data?.error === 'actNotFound') {
+        return { lines: [], account: address, marker: undefined };
+      }
+      
       console.error('Error fetching account lines:', error);
+      
+      // Retry once on disconnection errors
+      if (error.name === 'DisconnectedError' || error.message?.includes('disconnected')) {
+        console.log('Retrying account lines fetch after disconnection...');
+        await this.connect();
+        const response = await this.client.request({
+          command: 'account_lines',
+          account: address,
+          ledger_index: 'validated'
+        });
+        return response.result;
+      }
+      
       throw error;
     }
   }
