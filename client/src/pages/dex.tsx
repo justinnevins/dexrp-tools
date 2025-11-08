@@ -205,7 +205,8 @@ export default function DEX() {
       
       if (accountInfo && 'account_data' in accountInfo && accountInfo.account_data) {
         transactionSequence = accountInfo.account_data.Sequence || 1;
-        transactionLedger = accountInfo.ledger_current_index || 95943000;
+        // Check both possible ledger index fields (current or validated ledger)
+        transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       }
 
       // Build TakerGets
@@ -278,7 +279,8 @@ export default function DEX() {
       
       if (accountInfo && 'account_data' in accountInfo && accountInfo.account_data) {
         transactionSequence = accountInfo.account_data.Sequence || 1;
-        transactionLedger = accountInfo.ledger_current_index || 95943000;
+        // Check both possible ledger index fields (current or validated ledger)
+        transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       }
 
       const transaction = {
