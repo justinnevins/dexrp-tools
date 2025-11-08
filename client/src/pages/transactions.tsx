@@ -30,6 +30,15 @@ export default function Transactions() {
         const transaction = tx.tx_json || tx.tx || tx;
         
         if (transaction?.TransactionType === 'Payment') {
+          // Skip transactions where current wallet is neither sender nor receiver
+          // (these are transactions where the wallet was involved indirectly, like offer consumption)
+          const isSender = transaction.Account === currentWallet?.address;
+          const isReceiver = transaction.Destination === currentWallet?.address;
+          
+          if (!isSender && !isReceiver) {
+            return; // Skip this transaction
+          }
+          
           // Handle both XRP (string) and token (object) amounts
           // For path payments, use delivered_amount from metadata instead of DeliverMax
           let amountField = transaction.DeliverMax || transaction.Amount;
@@ -52,7 +61,7 @@ export default function Transactions() {
             currency = xrplClient.decodeCurrency(amountField.currency);
           }
           
-          const isOutgoing = transaction.Account === currentWallet?.address;
+          const isOutgoing = isSender;
           
           transactions.push({
             id: transaction.hash || tx.hash,
