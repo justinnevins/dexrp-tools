@@ -102,7 +102,9 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             transactions.push({
               id: transaction.hash || tx.hash,
               type: 'exchange',
-              amount: `${paysAmount} ${paysCurrency} → ${getsAmount} ${getsCurrency}`,
+              amount: `Paid ${paysAmount} ${paysCurrency} • Received ${getsAmount} ${getsCurrency}`,
+              paidAmount: `${paysAmount} ${paysCurrency}`,
+              receivedAmount: `${getsAmount} ${getsCurrency}`,
               address: 'DEX Trading',
               time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
               icon: ArrowLeftRight,
