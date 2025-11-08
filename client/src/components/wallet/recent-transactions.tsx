@@ -185,9 +185,11 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                       <p className="font-medium">
                         {transaction.type === 'sent' ? 'Sent' : transaction.type === 'received' ? 'Received' : 'DEX Trade'}
                       </p>
-                      <p className="text-sm text-muted-foreground">
-                        {transaction.type === 'exchange' ? transaction.address : (transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
-                      </p>
+                      {transaction.type !== 'exchange' && (
+                        <p className="text-sm text-muted-foreground">
+                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
