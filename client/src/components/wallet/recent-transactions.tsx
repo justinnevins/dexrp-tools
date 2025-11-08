@@ -81,7 +81,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             let paysAmount = '0';
             let paysCurrency = 'XRP';
             
-            // Parse TakerGets (what the offer creator receives when someone takes the offer)
+            // Parse TakerGets (what taker gets = what YOU pay as offer creator)
             if (typeof takerGets === 'string') {
               getsAmount = xrplClient.formatXRPAmount(takerGets);
               getsCurrency = 'XRP';
@@ -90,7 +90,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
               getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
             }
             
-            // Parse TakerPays (what the offer creator pays when someone takes the offer)
+            // Parse TakerPays (what taker pays = what YOU receive as offer creator)
             if (typeof takerPays === 'string') {
               paysAmount = xrplClient.formatXRPAmount(takerPays);
               paysCurrency = 'XRP';
@@ -102,9 +102,9 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             transactions.push({
               id: transaction.hash || tx.hash,
               type: 'exchange',
-              amount: `Paid ${paysAmount} ${paysCurrency} • Received ${getsAmount} ${getsCurrency}`,
-              paidAmount: `${paysAmount} ${paysCurrency}`,
-              receivedAmount: `${getsAmount} ${getsCurrency}`,
+              amount: `Paid ${getsAmount} ${getsCurrency} • Received ${paysAmount} ${paysCurrency}`,
+              paidAmount: `${getsAmount} ${getsCurrency}`,
+              receivedAmount: `${paysAmount} ${paysCurrency}`,
               address: 'DEX Trading',
               time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
               icon: ArrowLeftRight,
