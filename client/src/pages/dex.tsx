@@ -508,11 +508,10 @@ export default function DEX() {
       accountLines.lines
         .filter((line: any) => parseFloat(line.limit || '0') > 0)
         .forEach((line: any) => {
-          const currencyLabel = line.currency.length === 3 
-            ? line.currency 
-            : `${line.currency.substring(0, 8)}...`;
+          // Decode hex currency codes to readable format
+          const decodedCurrency = xrplClient.decodeCurrency(line.currency);
           currencies.push({
-            label: `${currencyLabel} (${line.account.substring(0, 8)}...)`,
+            label: `${decodedCurrency} (${line.account.substring(0, 8)}...)`,
             value: line.currency,
             issuer: line.account
           });
