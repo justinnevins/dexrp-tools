@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowLeftRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
 import { useTransactions } from '@/hooks/use-wallet';
@@ -54,6 +54,48 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             iconColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
             amountColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
           });
+        } else if (transaction?.TransactionType === 'OfferCreate' || transaction?.TransactionType === 'OfferCancel') {
+          // Handle DEX offer transactions
+          const takerGets = transaction.TakerGets;
+          const takerPays = transaction.TakerPays;
+          
+          if (takerGets && takerPays) {
+            // Determine what was received and what was paid
+            let getsAmount = '0';
+            let getsCurrency = 'XRP';
+            let paysAmount = '0';
+            let paysCurrency = 'XRP';
+            
+            // Parse TakerGets (what the offer creator receives when someone takes the offer)
+            if (typeof takerGets === 'string') {
+              getsAmount = xrplClient.formatXRPAmount(takerGets);
+              getsCurrency = 'XRP';
+            } else if (typeof takerGets === 'object' && takerGets.value) {
+              getsAmount = takerGets.value;
+              getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
+            }
+            
+            // Parse TakerPays (what the offer creator pays when someone takes the offer)
+            if (typeof takerPays === 'string') {
+              paysAmount = xrplClient.formatXRPAmount(takerPays);
+              paysCurrency = 'XRP';
+            } else if (typeof takerPays === 'object' && takerPays.value) {
+              paysAmount = takerPays.value;
+              paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
+            }
+            
+            transactions.push({
+              id: transaction.hash || tx.hash,
+              type: 'exchange',
+              amount: `${paysAmount} ${paysCurrency} → ${getsAmount} ${getsCurrency}`,
+              address: 'DEX Trading',
+              time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
+              icon: ArrowLeftRight,
+              iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+              iconColor: 'text-blue-600 dark:text-blue-400',
+              amountColor: 'text-blue-600 dark:text-blue-400',
+            });
+          }
         }
       });
     }
@@ -124,10 +166,10 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.type === 'sent' ? 'Sent XRP' : 'Received XRP'}
+                        {transaction.type === 'sent' ? 'Sent' : transaction.type === 'received' ? 'Received' : 'DEX Trade'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {transaction.type === 'sent' ? 'To:' : 'From:'} {formatAddress(transaction.address)}
+                        {transaction.type === 'exchange' ? transaction.address : (transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
                       </p>
                     </div>
                   </div>
