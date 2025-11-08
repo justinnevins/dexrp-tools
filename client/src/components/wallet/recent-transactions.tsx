@@ -26,8 +26,14 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
         
         if (transaction?.TransactionType === 'Payment') {
           // Handle both XRP (string) and token (object) amounts
-          // Note: Amount field was renamed to DeliverMax in newer XRPL versions
-          const amountField = transaction.DeliverMax || transaction.Amount;
+          // For path payments, use delivered_amount from metadata instead of DeliverMax
+          let amountField = transaction.DeliverMax || transaction.Amount;
+          
+          // Check if this is a path payment (has delivered_amount in metadata)
+          if (tx.meta && tx.meta.delivered_amount) {
+            amountField = tx.meta.delivered_amount;
+          }
+          
           let amount = '0';
           let currency = 'XRP';
           
