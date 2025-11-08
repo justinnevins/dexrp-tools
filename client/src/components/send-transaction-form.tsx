@@ -149,22 +149,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     if (accountInfo && 'account_data' in accountInfo && accountInfo.account_data) {
       // Use real network data when available
       transactionSequence = accountInfo.account_data.Sequence || 1;
-      transactionLedger = accountInfo.ledger_current_index || 95943000; // Use realistic ledger number
+      // Check both possible ledger index fields (current or validated ledger)
+      transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       
       console.log('Using real XRPL network data:', {
         sequence: transactionSequence,
         currentLedger: transactionLedger,
         accountBalance: accountInfo.account_data.Balance
-      });
-    } else {
-      // Use realistic values that match the current network state
-      transactionSequence = 95943347; // Match the sequence we have
-      transactionLedger = 95943000; // Use realistic current ledger
-      
-      console.log('Using realistic transaction defaults:', {
-        sequence: transactionSequence,
-        currentLedger: transactionLedger,
-        note: 'Using realistic XRPL network values'
       });
     }
     

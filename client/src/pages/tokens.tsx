@@ -140,7 +140,8 @@ export default function Tokens() {
         }
 
         const sequence = accountInfo.account_data?.Sequence || 1;
-        const ledgerIndex = accountInfo.ledger_current_index || 95943000;
+        // Check both possible ledger index fields (current or validated ledger)
+        const ledgerIndex = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
 
         // For standard 3-letter codes, just use them as-is
         // The XRPL library will handle the encoding automatically
