@@ -10,6 +10,14 @@ export default function Transactions() {
   const { data: xrplTransactions, isLoading: xrplLoading } = useAccountTransactions(currentWallet?.address || null);
 
   const isLoading = dbLoading || xrplLoading;
+  const currentNetwork = xrplClient.getCurrentNetwork();
+  
+  const getXRPScanUrl = (hash: string) => {
+    const baseUrl = currentNetwork === 'mainnet' 
+      ? 'https://xrpscan.com' 
+      : 'https://testnet.xrpscan.com';
+    return `${baseUrl}/tx/${hash}`;
+  };
 
   // Combine and format transactions from both sources
   const formatTransactions = () => {
@@ -237,10 +245,10 @@ export default function Transactions() {
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.type === 'sent' ? 'Sent XRP' : 'Received XRP'}
+                        {transaction.type === 'sent' ? 'Sent' : transaction.type === 'received' ? 'Received' : 'DEX Trade'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {transaction.type === 'sent' ? 'To:' : 'From:'} {formatAddress(transaction.address)}
+                        {transaction.type === 'exchange' ? transaction.address : (transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
                       </p>
                     </div>
                   </div>
@@ -254,14 +262,20 @@ export default function Transactions() {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-xs mt-3 pt-3 border-t border-border">
                   <span className={`px-2 py-1 rounded-full ${getStatusColor(transaction.status)} bg-muted`}>
                     {transaction.status}
                   </span>
                   {transaction.hash && (
-                    <span className="text-muted-foreground font-mono">
-                      {transaction.hash.slice(0, 8)}...
-                    </span>
+                    <a 
+                      href={getXRPScanUrl(transaction.hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 font-mono text-xs break-all transition-colors"
+                      data-testid={`link-xrpscan-${transaction.hash}`}
+                    >
+                      {transaction.hash}
+                    </a>
                   )}
                 </div>
               </div>
