@@ -731,43 +731,56 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
               <FormField
                 control={form.control}
                 name="currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Currency</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        const [currency, issuer] = value.split('|');
-                        field.onChange(currency);
-                        form.setValue('issuer', issuer || '');
-                      }} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-currency">
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="XRP">XRP</SelectItem>
-                        {accountLines?.lines?.map((line: any) => {
-                          const displayCurrency = xrplClient.decodeCurrency(line.currency);
-                          return (
-                            <SelectItem 
-                              key={`${line.currency}-${line.account}`} 
-                              value={`${line.currency}|${line.account}`}
-                            >
-                              {displayCurrency}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Select XRP or a token you hold
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                render={({ field }) => {
+                  // Create a combined value for the select (currency|issuer or just XRP)
+                  const selectValue = field.value === 'XRP' 
+                    ? 'XRP' 
+                    : `${field.value}|${form.watch('issuer')}`;
+                  
+                  // Get display name for selected currency
+                  const displayValue = field.value ? xrplClient.decodeCurrency(field.value) : undefined;
+                  
+                  return (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select 
+                        onValueChange={(value) => {
+                          console.log('Currency selection changed:', value);
+                          const [currency, issuer] = value.split('|');
+                          field.onChange(currency);
+                          form.setValue('issuer', issuer || '');
+                        }} 
+                        value={selectValue}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-currency">
+                            <SelectValue placeholder="Select currency">
+                              {displayValue}
+                            </SelectValue>
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="XRP">XRP</SelectItem>
+                          {accountLines?.lines?.map((line: any) => {
+                            const displayCurrency = xrplClient.decodeCurrency(line.currency);
+                            return (
+                              <SelectItem 
+                                key={`${line.currency}-${line.account}`} 
+                                value={`${line.currency}|${line.account}`}
+                              >
+                                {displayCurrency}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Select XRP or a token you hold
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField
