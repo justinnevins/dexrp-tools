@@ -1,61 +1,19 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { xrplClient, type XRPLNetwork } from '@/lib/xrpl-client';
 
 export function useXRPL() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentNetwork, setCurrentNetwork] = useState<XRPLNetwork>(() => {
-    // Initialize with the actual network from storage or default to mainnet
-    return (localStorage.getItem('xrpl_target_network') as XRPLNetwork) || 'mainnet';
-  });
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    const connectToXRPL = async () => {
-      try {
-        await xrplClient.connect();
-        setIsConnected(true);
-        setCurrentNetwork(xrplClient.getCurrentNetwork());
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to connect to XRPL');
-        setIsConnected(false);
-      }
-    };
-
-    connectToXRPL();
-
-    return () => {
-      xrplClient.disconnect().catch(console.error);
-    };
-  }, []);
-
-  const switchNetwork = (network: XRPLNetwork) => {
-    if (network === currentNetwork) return;
-    
-    // Store network preference and reload immediately
-    localStorage.setItem('xrpl_target_network', network);
-    window.location.reload();
-  };
-
   return {
-    isConnected,
-    error,
-    currentNetwork,
-    switchNetwork,
     client: xrplClient
   };
 }
 
-export function useAccountInfo(address: string | null) {
-  const currentNetwork = xrplClient.getCurrentNetwork();
+export function useAccountInfo(address: string | null, network: XRPLNetwork) {
   return useQuery({
-    queryKey: ['accountInfo', address, currentNetwork],
+    queryKey: ['accountInfo', address, network],
     queryFn: async () => {
       if (!address) return null;
       try {
-        return await xrplClient.getAccountInfo(address);
+        return await xrplClient.getAccountInfo(address, network);
       } catch (error: any) {
         // Handle account not found error for new addresses
         if (error.data?.error === 'actNotFound') {
@@ -73,14 +31,13 @@ export function useAccountInfo(address: string | null) {
   });
 }
 
-export function useAccountTransactions(address: string | null, limit = 20) {
-  const currentNetwork = xrplClient.getCurrentNetwork();
+export function useAccountTransactions(address: string | null, network: XRPLNetwork, limit = 20) {
   return useQuery({
-    queryKey: ['accountTransactions', address, limit, currentNetwork],
+    queryKey: ['accountTransactions', address, network, limit],
     queryFn: async () => {
       if (!address) return null;
       try {
-        return await xrplClient.getAccountTransactions(address, limit);
+        return await xrplClient.getAccountTransactions(address, network, limit);
       } catch (error: any) {
         console.error('Error fetching transactions:', error);
         // Return empty result instead of throwing to prevent UI errors
@@ -94,14 +51,13 @@ export function useAccountTransactions(address: string | null, limit = 20) {
   });
 }
 
-export function useAccountLines(address: string | null) {
-  const currentNetwork = xrplClient.getCurrentNetwork();
+export function useAccountLines(address: string | null, network: XRPLNetwork) {
   return useQuery({
-    queryKey: ['accountLines', address, currentNetwork],
+    queryKey: ['accountLines', address, network],
     queryFn: async () => {
       if (!address) return null;
       try {
-        return await xrplClient.getAccountLines(address);
+        return await xrplClient.getAccountLines(address, network);
       } catch (error: any) {
         console.error('Error fetching account lines:', error);
         // Return empty result instead of throwing to prevent UI errors
@@ -115,14 +71,13 @@ export function useAccountLines(address: string | null) {
   });
 }
 
-export function useAccountOffers(address: string | null) {
-  const currentNetwork = xrplClient.getCurrentNetwork();
+export function useAccountOffers(address: string | null, network: XRPLNetwork) {
   return useQuery({
-    queryKey: ['accountOffers', address, currentNetwork],
+    queryKey: ['accountOffers', address, network],
     queryFn: async () => {
       if (!address) return null;
       try {
-        return await xrplClient.getAccountOffers(address);
+        return await xrplClient.getAccountOffers(address, network);
       } catch (error: any) {
         console.error('Error fetching account offers:', error);
         // Return empty result instead of throwing to prevent UI errors

@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
 import { fetchXRPPrice, formatPrice, type XRPPriceData } from '@/lib/xrp-price';
-import { useNetwork } from '@/contexts/network-context';
+import { useWallet } from '@/hooks/use-wallet';
 
 interface MobileAppLayoutProps {
   children: React.ReactNode;
@@ -14,7 +14,7 @@ interface MobileAppLayoutProps {
 export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const { theme, setTheme } = useTheme();
   const [location] = useLocation();
-  const { currentNetwork } = useNetwork();
+  const { currentWallet } = useWallet();
   const [xrpPrice, setXrpPrice] = useState<XRPPriceData | null>(null);
 
   const toggleTheme = () => {
@@ -23,7 +23,8 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
   // Fetch XRP price on mainnet only
   useEffect(() => {
-    if (currentNetwork !== 'mainnet') {
+    const network = currentWallet?.network ?? 'mainnet';
+    if (network !== 'mainnet') {
       setXrpPrice(null);
       return;
     }
@@ -42,7 +43,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     const interval = setInterval(updatePrice, 30000);
 
     return () => clearInterval(interval);
-  }, [currentNetwork]);
+  }, [currentWallet?.network]);
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -72,8 +73,10 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
                     <TrendingUp className="w-3 h-3" />
                     XRP {formatPrice(xrpPrice.price)}
                   </span>
+                ) : currentWallet ? (
+                  <span className="capitalize">{currentWallet.network}</span>
                 ) : (
-                  <span className="capitalize">{currentNetwork}</span>
+                  <span>XRPL</span>
                 )}
               </p>
             </div>

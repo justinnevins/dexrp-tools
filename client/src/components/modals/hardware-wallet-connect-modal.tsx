@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, QrCode, CheckCircle, Loader2, Camera } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Shield, QrCode, CheckCircle, Loader2, Camera, Globe } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/hardware-wallet';
@@ -27,6 +29,8 @@ const walletInfo = {
 export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletConnectModalProps) {
   const [availableWallets, setAvailableWallets] = useState<HardwareWalletType[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<HardwareWalletType | null>(null);
+  const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
+  const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
   const [showKeystoneScanner, setShowKeystoneScanner] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
@@ -43,13 +47,19 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const handleConnect = async (walletType: HardwareWalletType) => {
     setSelectedWallet(walletType);
     
-    // Show the Keystone 3 Pro account scanner
+    // Show network selection first
+    setShowNetworkSelection(true);
+  };
+
+  const handleNetworkConfirm = () => {
+    // After network is selected, show the scanner
+    setShowNetworkSelection(false);
     setShowKeystoneScanner(true);
   };
 
   const handleKeystoneAccountScan = async (address: string, publicKey: string) => {
     try {
-      console.log('Keystone 3 Pro account scanned:', { address, publicKey });
+      console.log('Keystone 3 Pro account scanned:', { address, publicKey, network: selectedNetwork });
       
       await connect('Keystone 3 Pro');
       
@@ -57,10 +67,13 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         address,
         publicKey,
         hardwareWalletType: 'Keystone 3 Pro',
+        network: selectedNetwork,
       });
       
       setShowKeystoneScanner(false);
+      setShowNetworkSelection(false);
       setSelectedWallet(null);
+      setSelectedNetwork('mainnet'); // Reset to default
       onClose();
     } catch (error: any) {
       console.error('Keystone 3 Pro connection failed:', error);
@@ -75,10 +88,12 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       await createWallet.mutateAsync({
         address,
         hardwareWalletType: 'Keystone 3 Pro',
+        network: selectedNetwork,
       });
       
       setShowKeystoneModal(false);
       setSelectedWallet(null);
+      setSelectedNetwork('mainnet'); // Reset to default
       onClose();
     } catch (error: any) {
       console.error('Keystone 3 Pro connection failed:', error);
@@ -207,6 +222,54 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         onClose={handleKeystoneClose}
         onConfirm={handleKeystoneConfirm}
       />
+      
+      {showNetworkSelection && (
+        <Dialog open={showNetworkSelection} onOpenChange={setShowNetworkSelection}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Globe className="w-5 h-5 text-primary" />
+                <span>Select Network</span>
+              </DialogTitle>
+              <DialogDescription>
+                Choose which XRPL network this account will use. You can add the same address on both networks separately.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-4">
+              <RadioGroup value={selectedNetwork} onValueChange={(value: 'mainnet' | 'testnet') => setSelectedNetwork(value)}>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="mainnet" id="mainnet" data-testid="radio-network-mainnet" />
+                  <Label htmlFor="mainnet" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Mainnet</div>
+                    <div className="text-sm text-muted-foreground">Production network with real XRP</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="testnet" id="testnet" data-testid="radio-network-testnet" />
+                  <Label htmlFor="testnet" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Testnet</div>
+                    <div className="text-sm text-muted-foreground">Test network for development</div>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              <div className="flex gap-2">
+                <Button onClick={handleNetworkConfirm} className="flex-1" data-testid="button-confirm-network">
+                  Continue
+                </Button>
+                <Button onClick={() => {
+                  setShowNetworkSelection(false);
+                  setSelectedWallet(null);
+                  setSelectedNetwork('mainnet'); // Reset to default on cancel
+                }} variant="outline" className="flex-1" data-testid="button-cancel-network">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
       
       {showKeystoneScanner && (
         <Dialog open={showKeystoneScanner} onOpenChange={setShowKeystoneScanner}>

@@ -5,12 +5,13 @@ import { z } from "zod";
 export const wallets = pgTable("wallets", {
   id: serial("id").primaryKey(),
   name: text("name"),
-  address: text("address").notNull().unique(),
+  address: text("address").notNull(),
   publicKey: text("publicKey"),
   balance: text("balance").notNull().default("0"),
   reservedBalance: text("reservedBalance").notNull().default("1"),
   isConnected: boolean("isConnected").notNull().default(false),
   hardwareWalletType: text("hardwareWalletType"),
+  network: text("network").notNull().default("mainnet"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
 

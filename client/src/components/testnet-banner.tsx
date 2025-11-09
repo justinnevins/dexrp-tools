@@ -1,10 +1,10 @@
 import { AlertTriangle } from 'lucide-react';
-import { useNetwork } from '@/contexts/network-context';
+import { useWallet } from '@/hooks/use-wallet';
 
 export function TestnetBanner() {
-  const { currentNetwork } = useNetwork();
+  const { currentWallet } = useWallet();
 
-  if (currentNetwork !== 'testnet') {
+  if (!currentWallet || currentWallet.network !== 'testnet') {
     return null;
   }
 

@@ -1,15 +1,25 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Wallet, Shield, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Wallet, Shield, Plus, Globe } from 'lucide-react';
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 
 export function EmptyWalletState() {
+  const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const { connect } = useHardwareWallet();
   const { createWallet } = useWallet();
+
+  const handleNetworkConfirm = () => {
+    setShowNetworkSelection(false);
+    setShowScanner(true);
+  };
 
   const handleAccountScan = async (address: string, publicKey: string) => {
     try {
@@ -19,9 +29,11 @@ export function EmptyWalletState() {
         address,
         publicKey,
         hardwareWalletType: 'Keystone 3 Pro',
+        network: selectedNetwork,
       });
       
       setShowScanner(false);
+      setSelectedNetwork('mainnet'); // Reset to default
     } catch (error: any) {
       console.error('Connection failed:', error);
       alert(`Connection failed: ${error.message}`);
@@ -60,7 +72,7 @@ export function EmptyWalletState() {
           </div>
           
           <Button 
-            onClick={() => setShowScanner(true)}
+            onClick={() => setShowNetworkSelection(true)}
             className="w-full"
             data-testid="add-account-button"
           >
@@ -70,11 +82,62 @@ export function EmptyWalletState() {
         </CardContent>
       </Card>
       
+      {showNetworkSelection && (
+        <Dialog open={showNetworkSelection} onOpenChange={setShowNetworkSelection}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center space-x-2">
+                <Globe className="w-5 h-5 text-primary" />
+                <span>Select Network</span>
+              </DialogTitle>
+              <DialogDescription>
+                Choose which XRPL network this account will use. You can add the same address on both networks separately.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-4">
+              <RadioGroup value={selectedNetwork} onValueChange={(value: 'mainnet' | 'testnet') => setSelectedNetwork(value)}>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="mainnet" id="mainnet-empty" data-testid="radio-network-mainnet-empty" />
+                  <Label htmlFor="mainnet-empty" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Mainnet</div>
+                    <div className="text-sm text-muted-foreground">Production network with real XRP</div>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-muted/50 cursor-pointer">
+                  <RadioGroupItem value="testnet" id="testnet-empty" data-testid="radio-network-testnet-empty" />
+                  <Label htmlFor="testnet-empty" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Testnet</div>
+                    <div className="text-sm text-muted-foreground">Test network for development</div>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              <div className="flex gap-2">
+                <Button onClick={handleNetworkConfirm} className="flex-1" data-testid="button-confirm-network-empty">
+                  Continue
+                </Button>
+                <Button onClick={() => {
+                  setShowNetworkSelection(false);
+                  setSelectedNetwork('mainnet'); // Reset to default on cancel
+                }} variant="outline" className="flex-1" data-testid="button-cancel-network-empty">
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      
       {showScanner && (
-        <KeystoneAccountScanner
-          onScan={handleAccountScan}
-          onClose={() => setShowScanner(false)}
-        />
+        <Dialog open={showScanner} onOpenChange={setShowScanner}>
+          <DialogContent className="sm:max-w-md">
+            <KeystoneAccountScanner
+              onScan={handleAccountScan}
+              onClose={() => setShowScanner(false)}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

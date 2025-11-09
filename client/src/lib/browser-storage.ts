@@ -56,15 +56,19 @@ class BrowserStorage {
     const counters = this.getCounters();
     const wallets = this.getAllWallets();
     
-    // Check if wallet with this address already exists
-    const existingWallet = wallets.find(w => w.address === insertWallet.address);
+    // Check if wallet with this address AND network combination already exists
+    const network = insertWallet.network || 'mainnet';
+    const existingWallet = wallets.find(w => 
+      w.address === insertWallet.address && w.network === network
+    );
     if (existingWallet) {
-      console.log('Wallet with this address already exists:', existingWallet);
-      throw new Error(`Wallet with address ${insertWallet.address} already exists`);
+      console.log('Wallet with this address and network already exists:', existingWallet);
+      throw new Error(`Account with address ${insertWallet.address} already exists on ${network}`);
     }
     
     // Generate a default name if not provided
-    const defaultName = `Account ${wallets.length + 1}`;
+    const networkLabel = network === 'mainnet' ? 'Mainnet' : 'Testnet';
+    const defaultName = `Account ${wallets.length + 1} (${networkLabel})`;
     
     const wallet: Wallet = {
       id: counters.walletId++,
@@ -74,6 +78,7 @@ class BrowserStorage {
       balance: insertWallet.balance || '0',
       reservedBalance: insertWallet.reservedBalance || '1',
       hardwareWalletType: insertWallet.hardwareWalletType || null,
+      network: network,
       isConnected: insertWallet.isConnected || false,
       createdAt: new Date()
     };
