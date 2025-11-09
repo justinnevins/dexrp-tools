@@ -14,14 +14,20 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasScannedRef = useRef<boolean>(false);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     startCamera();
     return () => {
       stopCamera();
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+      }
     };
   }, []);
 
@@ -51,6 +57,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
               setPermissionGranted(true);
               setError(null);
               console.log('Camera stream active and displaying');
+              startQRScanning();
               
               // Force a re-render to ensure video is visible
               setTimeout(() => {
@@ -84,7 +91,57 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
     }
   };
 
+  const startQRScanning = async () => {
+    try {
+      // Dynamic import of QR scanner
+      const QrScanner = (await import('qr-scanner')).default;
+      
+      if (videoRef.current) {
+        console.log('Starting QR scanner...');
+        setIsScanning(true);
+        
+        // Scan every 500ms
+        scanIntervalRef.current = setInterval(async () => {
+          if (videoRef.current && !hasScannedRef.current) {
+            try {
+              const result = await QrScanner.scanImage(videoRef.current, { returnDetailedScanResult: true });
+              
+              if (result && result.data) {
+                const qrData = result.data.trim();
+                console.log('QR code detected:', qrData);
+                
+                // Mark as scanned to prevent multiple scans
+                hasScannedRef.current = true;
+                
+                // Stop scanning
+                if (scanIntervalRef.current) {
+                  clearInterval(scanIntervalRef.current);
+                  scanIntervalRef.current = null;
+                }
+                
+                // Call the onScan callback
+                onScan(qrData);
+              }
+            } catch (err) {
+              // Ignore scan errors (no QR code in frame)
+            }
+          }
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Failed to initialize QR scanner:', error);
+      setError('Failed to initialize QR scanner');
+    }
+  };
+
   const stopCamera = () => {
+    setIsScanning(false);
+    
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -195,9 +252,9 @@ Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
                 {/* Scanning overlay */}
                 {isActive && (
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="border-2 border-white border-dashed w-48 h-48 rounded-lg flex items-center justify-center">
-                      <div className="text-white text-center text-sm">
-                        Position QR code here
+                    <div className="border-2 border-green-400 border-dashed w-48 h-48 rounded-lg flex items-center justify-center">
+                      <div className="text-green-400 text-center text-sm font-medium">
+                        {isScanning ? 'Scanning for QR code...' : 'Position QR code here'}
                       </div>
                     </div>
                   </div>
@@ -208,27 +265,12 @@ Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
               
               {isActive && (
                 <div className="text-center space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {isScanning ? 'Hold a QR code in front of the camera' : 'Initializing scanner...'}
+                  </p>
                   <Button onClick={manualEntry} variant="outline" className="w-full">
                     {title.includes('Signed Transaction') ? 'Enter Signed Data Manually' : 'Enter Address Manually'}
                   </Button>
-                  <Button 
-                    onClick={() => {
-                      console.log('Test button clicked');
-                      const testData = 'UR:BYTES/HDRFBGAEAECPLAAEAEAEDKAHRLZSQDCXCWAHSRLTDRHSFZAEAEAEAEBSFWFZISFZAEAEAEAEAEAEBNJKCLAXFZDWCAKPTDFLTOPRDTJYGAWNPMNSVTTEBWBWMULPWYFSIEPKCWTOHPAAIADEEECLJYFGDYFYAOCXKIWSSTWNJTLNTSHLCPYNDLGALPTSBYLRWECYFWWNOXCFTKBGLRZCTSPELNPFBEGWAOCXJYTEZTENTSGWNENTIONYYALRMYPKIEEMFNSRFXSAEMHYZTASATDLDWEYDMYTWMETLYBBKSMYUTPMISPKYNPFMHUEMUBYGMLEZTGOMKZOKIKPLSBBAXDNHSPKHPBZCAMSDKFSMKDNQDRNREWYQDNLVORPFXFESFVY';
-                      console.log('Calling onScan with test data...');
-                      onScan(testData);
-                    }}
-                    variant="default" 
-                    className="w-full"
-                  >
-                    Test With Your Keystone Data
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    {title.includes('Signed Transaction') 
-                      ? 'Camera feed is active. You can also copy/paste the signed transaction data manually.'
-                      : 'Camera feed is active. Use manual entry for now.'
-                    }
-                  </p>
                 </div>
               )}
             </div>
