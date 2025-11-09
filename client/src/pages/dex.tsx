@@ -423,12 +423,9 @@ export default function DEX() {
     setPriceError(null);
     try {
       // Build InFTF API URL format: XRP/{issuer}_{currency}
-      let currency = pair.quote.currency;
-      
-      // Convert hex currency codes to readable format for API
-      if (currency.length > 3) {
-        currency = xrplClient.decodeCurrency(currency);
-      }
+      // API accepts either 3-letter codes (USD, EUR) or 40-char HEX codes
+      // Do NOT decode hex codes that result in non-standard currency codes
+      const currency = pair.quote.currency;
       
       const counter = `${pair.quote.issuer}_${currency}`;
       const url = `https://xrpldata.inftf.org/v1/iou/exchange_rates/XRP/${counter}`;
@@ -437,7 +434,9 @@ export default function DEX() {
       const response = await fetch(url);
       
       if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        const errorText = await response.text();
+        console.error('InFTF API error:', { status: response.status, statusText: response.statusText, body: errorText });
+        throw new Error(`API error: ${response.status} - ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -448,12 +447,12 @@ export default function DEX() {
         setLastUpdate(new Date(data.timestamp));
       } else {
         setMarketPrice(null);
-        setPriceError('No exchange rate available');
+        setPriceError('No recent trades found');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch market price:', error);
       setMarketPrice(null);
-      setPriceError('Failed to load price data');
+      setPriceError(error.message || 'Failed to load price data');
     } finally {
       setIsLoadingPrice(false);
     }
