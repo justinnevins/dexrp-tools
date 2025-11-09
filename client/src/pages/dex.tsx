@@ -123,9 +123,10 @@ export default function DEX() {
 
   // Market data state
   const [marketPair, setMarketPair] = useState('XRP/USD');
-  const [orderBook, setOrderBook] = useState<any>(null);
+  const [marketPrice, setMarketPrice] = useState<number | null>(null);
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [priceError, setPriceError] = useState<string | null>(null);
 
   const { currentWallet } = useWallet();
   const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null);
@@ -419,19 +420,40 @@ export default function DEX() {
     if (!pair) return;
 
     setIsLoadingPrice(true);
+    setPriceError(null);
     try {
-      // Fetch order book - what we pay to get XRP (asks)
-      // XRP must be formatted as {currency: 'XRP'} for book_offers API
-      const takerGets = pair.base === 'XRP' ? { currency: 'XRP' } : { currency: pair.base };
-      const takerPays = pair.quote;
+      // Build InFTF API URL format: XRP/{issuer}_{currency}
+      let currency = pair.quote.currency;
+      
+      // Convert hex currency codes to readable format for API
+      if (currency.length > 3) {
+        currency = xrplClient.decodeCurrency(currency);
+      }
+      
+      const counter = `${pair.quote.issuer}_${currency}`;
+      const url = `https://xrpldata.inftf.org/v1/iou/exchange_rates/XRP/${counter}`;
+      
+      console.log('Fetching market price from InFTF:', { url, pair: marketPair });
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
 
-      console.log('Fetching order book for:', { takerPays, takerGets, network: currentNetwork });
-      const bookData = await xrplClient.getOrderBook(takerPays, takerGets, 5);
-      console.log('Order book response:', bookData);
-      setOrderBook(bookData);
-      setLastUpdate(new Date());
+      const data = await response.json();
+      console.log('InFTF price data:', data);
+
+      if (data.rate && data.rate > 0) {
+        setMarketPrice(data.rate);
+        setLastUpdate(new Date(data.timestamp));
+      } else {
+        setMarketPrice(null);
+        setPriceError('No exchange rate available');
+      }
     } catch (error) {
       console.error('Failed to fetch market price:', error);
+      setMarketPrice(null);
+      setPriceError('Failed to load price data');
     } finally {
       setIsLoadingPrice(false);
     }
@@ -453,49 +475,6 @@ export default function DEX() {
     return () => clearInterval(interval);
   }, [marketPair, currentNetwork]);
 
-  const getBestPrice = () => {
-    if (!orderBook?.offers || orderBook.offers.length === 0) {
-      return null;
-    }
-
-    const bestOffer = orderBook.offers[0];
-    const takerGets = typeof bestOffer.TakerGets === 'string' 
-      ? parseFloat(xrplClient.formatXRPAmount(bestOffer.TakerGets))
-      : parseFloat(bestOffer.TakerGets.value);
-    
-    const takerPays = typeof bestOffer.TakerPays === 'string'
-      ? parseFloat(xrplClient.formatXRPAmount(bestOffer.TakerPays))
-      : parseFloat(bestOffer.TakerPays.value);
-
-    // Price = what we pay / what we get
-    return takerPays / takerGets;
-  };
-
-  const getSpread = () => {
-    if (!orderBook?.offers || orderBook.offers.length < 2) {
-      return null;
-    }
-
-    const bestBid = orderBook.offers[0];
-    const secondBid = orderBook.offers[1];
-
-    const price1 = calculateOfferPrice(bestBid);
-    const price2 = calculateOfferPrice(secondBid);
-
-    return Math.abs(price2 - price1);
-  };
-
-  const calculateOfferPrice = (offer: any) => {
-    const takerGets = typeof offer.TakerGets === 'string'
-      ? parseFloat(xrplClient.formatXRPAmount(offer.TakerGets))
-      : parseFloat(offer.TakerGets.value);
-    
-    const takerPays = typeof offer.TakerPays === 'string'
-      ? parseFloat(xrplClient.formatXRPAmount(offer.TakerPays))
-      : parseFloat(offer.TakerPays.value);
-
-    return takerPays / takerGets;
-  };
 
   // Get available currencies (XRP + active trustlines + common tokens)
   const getAvailableCurrencies = () => {
@@ -662,11 +641,11 @@ export default function DEX() {
           </div>
         </CardHeader>
         <CardContent>
-          {getBestPrice() !== null ? (
+          {marketPrice !== null ? (
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold">
-                  {getBestPrice()?.toFixed(4)}
+                  {marketPrice.toFixed(4)}
                 </span>
                 <span className="text-sm text-muted-foreground">
                   {marketPair.split('/')[1]}
@@ -682,7 +661,7 @@ export default function DEX() {
             </div>
           ) : (
             <div className="text-sm text-muted-foreground">
-              {isLoadingPrice ? 'Loading market data...' : 'No offers available'}
+              {isLoadingPrice ? 'Loading market data...' : (priceError || 'No price data available')}
             </div>
           )}
         </CardContent>

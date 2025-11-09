@@ -5,67 +5,63 @@ export interface XRPPriceData {
   currency: string;
   issuer: string;
   timestamp: number;
+  ledgerIndex?: number;
+  txHash?: string;
+}
+
+interface InFTFExchangeRate {
+  rate: number;
+  ledger_index: number;
+  tx_hash: string;
+  timestamp: string;
 }
 
 /**
- * Fetches XRP price from the XRPL DEX using book_offers
- * Calculates volume-weighted average price from order book
+ * Fetches XRP price from InFTF XRPL Data API
+ * Uses actual executed trade rates for accuracy
  */
 export async function fetchXRPPrice(): Promise<XRPPriceData | null> {
   try {
-    // Ensure client is connected before making request
-    await xrplClient.connect();
+    const currentNetwork = xrplClient.getCurrentNetwork();
     
-    const client = xrplClient.getClient();
-    if (!client) {
-      throw new Error('XRPL client not connected');
+    let counter: string;
+    let currency: string;
+    let issuer: string;
+
+    if (currentNetwork === 'mainnet') {
+      counter = 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq_USD';
+      currency = 'USD';
+      issuer = 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq';
+    } else {
+      counter = 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV_RLUSD';
+      currency = 'RLUSD';
+      issuer = 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
     }
 
-    // Using a popular USD stablecoin on XRPL for price reference
-    // Bitstamp USD is one of the most liquid pairs
-    const response = await client.request({
-      command: 'book_offers',
-      taker_gets: { currency: 'XRP' },
-      taker_pays: {
-        currency: 'USD',
-        issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B' // Bitstamp USD
-      },
-      limit: 10,
-      ledger_index: 'validated'
-    });
+    const url = `https://xrpldata.inftf.org/v1/iou/exchange_rates/XRP/${counter}`;
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      throw new Error(`InFTF API error: ${response.status}`);
+    }
 
-    if (!response.result.offers || response.result.offers.length === 0) {
-      console.warn('No offers found for XRP/USD pair');
+    const data: InFTFExchangeRate = await response.json();
+
+    if (!data.rate || data.rate === 0) {
+      console.warn('No exchange rate found for XRP pair');
       return null;
     }
 
-    // Calculate volume-weighted average price
-    let totalXRP = 0;
-    let totalUSD = 0;
-
-    for (const offer of response.result.offers) {
-      const xrpAmount = typeof offer.TakerGets === 'string' 
-        ? parseFloat(offer.TakerGets) / 1000000 // Convert drops to XRP
-        : parseFloat(offer.TakerGets.value);
-      
-      const usdAmount = typeof offer.TakerPays === 'string'
-        ? parseFloat(offer.TakerPays) / 1000000
-        : parseFloat(offer.TakerPays.value);
-
-      totalXRP += xrpAmount;
-      totalUSD += usdAmount;
-    }
-
-    const averagePrice = totalXRP > 0 ? totalUSD / totalXRP : 0;
-
     return {
-      price: averagePrice,
-      currency: 'USD',
-      issuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B',
-      timestamp: Date.now()
+      price: data.rate,
+      currency,
+      issuer,
+      timestamp: new Date(data.timestamp).getTime(),
+      ledgerIndex: data.ledger_index,
+      txHash: data.tx_hash
     };
   } catch (error) {
-    console.error('Failed to fetch XRP price:', error);
+    console.error('Failed to fetch XRP price from InFTF API:', error);
     return null;
   }
 }
