@@ -382,7 +382,7 @@ export default function DEX() {
   };
 
   // Market pairs configuration - network aware
-  const marketPairs: Record<string, { base: any; quote: any; issuer?: string }> | null = (() => {
+  const marketPairs = (() => {
     if (currentNetwork === 'mainnet') {
       return {
         'XRP/USD': {
@@ -416,7 +416,7 @@ export default function DEX() {
 
   const fetchMarketPrice = async () => {
     if (!marketPairs) return;
-    const pair = marketPairs[marketPair];
+    const pair = (marketPairs as any)[marketPair];
     if (!pair) return;
 
     setIsLoadingPrice(true);
@@ -462,7 +462,7 @@ export default function DEX() {
   // Fetch market price on mount and every 15 seconds
   useEffect(() => {
     // Reset to default pair if current pair not available on network
-    if (marketPairs && !marketPairs[marketPair]) {
+    if (marketPairs && !(marketPairs as any)[marketPair]) {
       const firstPair = Object.keys(marketPairs)[0];
       if (firstPair) {
         setMarketPair(firstPair);
