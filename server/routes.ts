@@ -236,7 +236,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Only add Amount for Payment transactions
       if (transaction.TransactionType === 'Payment' && transaction.Amount) {
-        xrpTransaction.Amount = String(transaction.Amount);
+        // For tokens, Amount is an object {currency, value, issuer}
+        // For XRP, Amount is a string of drops
+        if (typeof transaction.Amount === 'object') {
+          xrpTransaction.Amount = transaction.Amount;
+        } else {
+          xrpTransaction.Amount = String(transaction.Amount);
+        }
       }
       
       console.log('Backend: Formatted transaction:', xrpTransaction);
