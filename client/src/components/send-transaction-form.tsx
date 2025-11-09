@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo, useAccountLines } from '@/hooks/use-xrpl';
+import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { SimpleQRScanner } from '@/components/simple-qr-scanner';
 import { encode } from 'ripple-binary-codec';
@@ -748,14 +749,17 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="XRP">XRP</SelectItem>
-                        {accountLines?.lines?.map((line: any) => (
-                          <SelectItem 
-                            key={`${line.currency}-${line.account}`} 
-                            value={`${line.currency}|${line.account}`}
-                          >
-                            {line.currency}
-                          </SelectItem>
-                        ))}
+                        {accountLines?.lines?.map((line: any) => {
+                          const displayCurrency = xrplClient.decodeCurrency(line.currency);
+                          return (
+                            <SelectItem 
+                              key={`${line.currency}-${line.account}`} 
+                              value={`${line.currency}|${line.account}`}
+                            >
+                              {displayCurrency}
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                     <FormDescription>
@@ -782,7 +786,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                           data-testid="input-amount"
                         />
                         <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground">
-                          {form.watch('currency') || 'XRP'}
+                          {form.watch('currency') ? xrplClient.decodeCurrency(form.watch('currency')) : 'XRP'}
                         </span>
                       </div>
                     </FormControl>
