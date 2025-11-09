@@ -131,12 +131,28 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     },
   });
 
-  const getAvailableBalance = () => {
+  const getAvailableBalance = (currency?: string, issuer?: string) => {
     if (!accountInfo || 'account_not_found' in accountInfo) return 0;
-    if ('account_data' in accountInfo && accountInfo.account_data?.Balance) {
-      const balanceInDrops = parseInt(accountInfo.account_data.Balance);
-      return (balanceInDrops / 1000000) - 20; // Reserve 20 XRP for account minimum
+    
+    // For XRP, return XRP balance
+    if (!currency || currency === 'XRP') {
+      if ('account_data' in accountInfo && accountInfo.account_data?.Balance) {
+        const balanceInDrops = parseInt(accountInfo.account_data.Balance);
+        return (balanceInDrops / 1000000) - 20; // Reserve 20 XRP for account minimum
+      }
+      return 0;
     }
+    
+    // For tokens, find the trustline balance
+    if (accountLines && accountLines.lines) {
+      const trustline = accountLines.lines.find((line: any) => 
+        line.currency === currency && line.account === issuer
+      );
+      if (trustline) {
+        return parseFloat(trustline.balance) || 0;
+      }
+    }
+    
     return 0;
   };
 
@@ -298,13 +314,14 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       return;
     }
 
-    const availableBalance = getAvailableBalance();
+    const availableBalance = getAvailableBalance(data.currency, data.issuer);
     const amount = parseFloat(data.amount);
     
     if (amount > availableBalance) {
+      const currencyName = data.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(data.currency);
       toast({
         title: "Insufficient Balance",
-        description: `You can send up to ${availableBalance.toFixed(6)} XRP`,
+        description: `You can send up to ${availableBalance.toFixed(6)} ${currencyName}`,
         variant: "destructive",
       });
       return;
@@ -804,7 +821,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                       </div>
                     </FormControl>
                     <FormDescription>
-                      {form.watch('currency') === 'XRP' && `Available: ${availableBalance.toFixed(6)} XRP`}
+                      {(() => {
+                        const currency = form.watch('currency');
+                        const issuer = form.watch('issuer');
+                        const balance = getAvailableBalance(currency, issuer);
+                        const displayCurrency = currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(currency);
+                        return balance > 0 ? `Available: ${balance.toFixed(6)} ${displayCurrency}` : '';
+                      })()}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
