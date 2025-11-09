@@ -16,6 +16,25 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 9, 2025 - Per-Wallet Network Configuration
+- **Refactored application for per-wallet network management**
+  - Each wallet now stores its own network (mainnet/testnet) instead of using global state
+  - Added `network` field to wallet schema with proper `XRPLNetwork` type
+  - Network selection UI added to wallet setup flow (both EmptyWalletState and HardwareWalletConnectModal)
+  - XRPLClient refactored from singleton to multiton pattern using `Map<network, Client>` for concurrent multi-network support
+- **Updated all XRPL data queries**
+  - All useAccount* hooks now accept network parameter: `useAccountInfo`, `useAccountTransactions`, `useAccountLines`, `useAccountOffers`
+  - Updated 9 components to pass `currentWallet.network` to XRPL hooks
+  - Fixed wallet-balance.tsx to use HardwareWalletConnectModal (with network selection) instead of KeystoneAccountScanner
+- **Removed global network state**
+  - Deleted NetworkProvider context and removed all global network dependencies
+  - Removed NetworkSettings component from Profile page
+  - TestnetBanner now derives network from current wallet
+- **Wallet creation now requires network selection**
+  - Users must choose mainnet or testnet before scanning QR code
+  - Prevents mixing wallets from different networks
+  - Each wallet connects to its designated network for all XRPL operations
+
 ### November 7, 2025 - DEX Trading Currency Selection Enhancement
 - **Replaced text inputs with dropdown selects for currency selection**
   - Currency selection now limited to XRP + active trustlines + common tokens

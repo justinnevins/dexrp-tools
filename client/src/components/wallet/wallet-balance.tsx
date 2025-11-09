@@ -7,8 +7,7 @@ import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { xrplClient } from '@/lib/xrpl-client';
 import { useLocation } from 'wouter';
 import { WalletSelector } from '@/components/wallet-selector';
-import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
-import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
+import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 
 interface WalletBalanceProps {
   onSendClick: () => void;
@@ -21,28 +20,10 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
   const [, setLocation] = useLocation();
-  const [showScanner, setShowScanner] = useState(false);
-  const { connect } = useHardwareWallet();
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const handleAddAccount = () => {
-    setShowScanner(true);
-  };
-
-  const handleAccountScan = async (address: string, publicKey: string) => {
-    try {
-      await connect('Keystone 3 Pro');
-      
-      await createWallet.mutateAsync({
-        address,
-        publicKey,
-        hardwareWalletType: 'Keystone 3 Pro',
-      });
-      
-      setShowScanner(false);
-    } catch (error: any) {
-      console.error('Connection failed:', error);
-      alert(`Connection failed: ${error.message}`);
-    }
+    setShowConnectModal(true);
   };
 
   // Handle account not found on XRPL network (new/unactivated addresses)
@@ -92,12 +73,10 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
         </div>
         </section>
         
-        {showScanner && (
-          <KeystoneAccountScanner
-            onScan={handleAccountScan}
-            onClose={() => setShowScanner(false)}
-          />
-        )}
+        <HardwareWalletConnectModal
+          isOpen={showConnectModal}
+          onClose={() => setShowConnectModal(false)}
+        />
       </>
     );
   }
@@ -171,12 +150,10 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
       </div>
       </section>
       
-      {showScanner && (
-        <KeystoneAccountScanner
-          onScan={handleAccountScan}
-          onClose={() => setShowScanner(false)}
-        />
-      )}
+      <HardwareWalletConnectModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+      />
     </>
   );
 }
