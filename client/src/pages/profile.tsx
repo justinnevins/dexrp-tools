@@ -1,9 +1,8 @@
 import { Shield, LogOut, Wallet, Check, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
-import { useXRPL, useAccountInfo } from '@/hooks/use-xrpl';
+import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
-import { NetworkSettings } from '@/components/network-settings';
 import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -11,11 +10,11 @@ import { browserStorage } from '@/lib/browser-storage';
 
 export default function Profile() {
   const { currentWallet, wallets, setCurrentWallet } = useWallet();
-  const { isConnected, currentNetwork, switchNetwork } = useXRPL();
+  const network = currentWallet?.network ?? 'mainnet';
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
   // Fetch real balance from XRPL
-  const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null);
+  const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
 
 
@@ -194,7 +193,7 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-6">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
         <Button
           onClick={handleRemoveAllAccounts}
           variant="outline"
@@ -204,15 +203,6 @@ export default function Profile() {
           <LogOut className="w-4 h-4 mr-2" />
           Remove All Accounts
         </Button>
-      </div>
-
-      {/* Network Settings Section */}
-      <div className="space-y-4">
-        <NetworkSettings
-          currentNetwork={currentNetwork}
-          onNetworkChange={switchNetwork}
-          isConnected={isConnected}
-        />
       </div>
     </div>
   );

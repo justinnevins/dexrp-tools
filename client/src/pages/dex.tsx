@@ -129,12 +129,13 @@ export default function DEX() {
   const [priceError, setPriceError] = useState<string | null>(null);
 
   const { currentWallet } = useWallet();
-  const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null);
-  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null);
-  const { data: accountLines } = useAccountLines(currentWallet?.address || null);
+  const network = currentWallet?.network ?? 'mainnet';
+  const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null, network);
+  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null, network);
+  const { data: accountLines } = useAccountLines(currentWallet?.address || null, network);
   const { toast } = useToast();
 
-  const currentNetwork = xrplClient.getCurrentNetwork();
+  const currentNetwork = network;
 
   const calculateFlags = () => {
     let flags = 0;

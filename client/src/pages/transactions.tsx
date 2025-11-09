@@ -6,11 +6,12 @@ import { xrplClient } from '@/lib/xrpl-client';
 
 export default function Transactions() {
   const { currentWallet } = useWallet();
+  const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTransactions, isLoading: dbLoading } = useTransactions(currentWallet?.id || null);
-  const { data: xrplTransactions, isLoading: xrplLoading } = useAccountTransactions(currentWallet?.address || null);
+  const { data: xrplTransactions, isLoading: xrplLoading } = useAccountTransactions(currentWallet?.address || null, network);
 
   const isLoading = dbLoading || xrplLoading;
-  const currentNetwork = xrplClient.getCurrentNetwork();
+  const currentNetwork = network;
   
   const getXRPScanUrl = (hash: string) => {
     const baseUrl = currentNetwork === 'mainnet' 

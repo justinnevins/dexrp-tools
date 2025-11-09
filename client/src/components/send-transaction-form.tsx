@@ -116,8 +116,9 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   
   const { toast } = useToast();
   const { currentWallet } = useWallet();
-  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null);
-  const { data: accountLines } = useAccountLines(currentWallet?.address || null);
+  const network = currentWallet?.network ?? 'mainnet';
+  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null, network);
+  const { data: accountLines } = useAccountLines(currentWallet?.address || null, network);
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),

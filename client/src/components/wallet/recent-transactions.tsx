@@ -11,8 +11,9 @@ interface RecentTransactionsProps {
 
 export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) {
   const { currentWallet } = useWallet();
+  const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTransactions } = useTransactions(currentWallet?.id || null);
-  const { data: xrplTransactions } = useAccountTransactions(currentWallet?.address || null, 10);
+  const { data: xrplTransactions } = useAccountTransactions(currentWallet?.address || null, network, 10);
 
   // Combine and format transactions from both sources
   const formatTransactions = () => {

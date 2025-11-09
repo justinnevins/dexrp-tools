@@ -17,7 +17,8 @@ interface WalletBalanceProps {
 
 export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
   const { currentWallet, createWallet } = useWallet();
-  const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null);
+  const network = currentWallet?.network ?? 'mainnet';
+  const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
   const [, setLocation] = useLocation();
   const [showScanner, setShowScanner] = useState(false);

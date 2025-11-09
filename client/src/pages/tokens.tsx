@@ -28,9 +28,10 @@ export default function Tokens() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentWallet } = useWallet();
+  const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTrustlines, isLoading: dbLoading } = useTrustlines(currentWallet?.id || null);
-  const { data: xrplLines, isLoading: xrplLoading } = useAccountLines(currentWallet?.address || null);
-  const { data: accountInfo, isLoading: accountLoading } = useAccountInfo(currentWallet?.address || null);
+  const { data: xrplLines, isLoading: xrplLoading } = useAccountLines(currentWallet?.address || null, network);
+  const { data: accountInfo, isLoading: accountLoading } = useAccountInfo(currentWallet?.address || null, network);
 
   const isLoading = dbLoading || xrplLoading || accountLoading;
 
@@ -133,7 +134,7 @@ export default function Tokens() {
         }
 
         // Fetch account info to get sequence number
-        const accountInfo = await xrplClient.getAccountInfo(currentWallet.address);
+        const accountInfo = await xrplClient.getAccountInfo(currentWallet.address, network);
         
         if (!accountInfo || !('account_data' in accountInfo)) {
           throw new Error('Failed to fetch account information');
@@ -413,7 +414,7 @@ export default function Tokens() {
           walletId={removeTrustlineData.walletId}
           onSuccess={handleRemoveTrustlineSuccess}
           transactionType="TrustSet"
-          network={xrplClient.getCurrentNetwork()}
+          network={network}
         />
       )}
     </div>

@@ -61,9 +61,10 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const [isCreating, setIsCreating] = useState(false);
 
   const { currentWallet } = useWallet();
+  const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTrustlines } = useTrustlines(currentWallet?.id || null);
-  const { data: xrplLines } = useAccountLines(currentWallet?.address || null);
-  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null);
+  const { data: xrplLines } = useAccountLines(currentWallet?.address || null, network);
+  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null, network);
   const { toast } = useToast();
 
   // Combine trustlines from database and XRPL
@@ -405,7 +406,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         unsignedTransaction={unsignedTransaction}
         transactionType="TrustSet"
         walletId={currentWallet?.id || 0}
-        network={xrplClient.getCurrentNetwork()}
+        network={network}
       />
     </>
   );
