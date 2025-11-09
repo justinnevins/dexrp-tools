@@ -129,17 +129,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await client.connect();
       console.log(`Connected to XRPL ${network}`);
       
-      // Submit the signed transaction blob with timeout
-      console.log('Calling submitAndWait...');
-      const submitPromise = client.submitAndWait(txBlob);
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Transaction submission timed out after 60 seconds')), 60000)
-      );
+      // Submit the signed transaction blob
+      console.log('Calling submit...');
+      const submitResult = await client.submit(txBlob);
+      console.log('Transaction submitted:', JSON.stringify(submitResult, null, 2));
       
-      const submitResult = await Promise.race([submitPromise, timeoutPromise]);
-      console.log('Transaction submitted successfully:', JSON.stringify(submitResult, null, 2));
+      // Check submission result
+      if (submitResult.result.engine_result !== 'tesSUCCESS' && 
+          !submitResult.result.engine_result.startsWith('ter') &&
+          !submitResult.result.engine_result.startsWith('tec')) {
+        // If result code doesn't start with ter (retry) or tec (claim fee only), it failed
+        console.error('Transaction submission failed with result:', submitResult.result.engine_result);
+        console.error('Result message:', submitResult.result.engine_result_message);
+        throw new Error(`Transaction failed: ${submitResult.result.engine_result_message || submitResult.result.engine_result}`);
+      }
+      
+      console.log('Transaction submitted successfully with result:', submitResult.result.engine_result);
       
       // Store the transaction in the database
+      // Note: submit() doesn't wait for validation, so we mark as pending
       const transaction = await storage.createTransaction({
         walletId,
         type: transactionData.type,
@@ -148,8 +156,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fromAddress: transactionData.fromAddress,
         toAddress: transactionData.toAddress,
         destinationTag: transactionData.destinationTag,
-        status: (submitResult as any).result.meta.TransactionResult === 'tesSUCCESS' ? 'completed' : 'failed',
-        txHash: (submitResult as any).result.hash
+        status: submitResult.result.engine_result === 'tesSUCCESS' ? 'completed' : 'pending',
+        txHash: submitResult.result.tx_json?.hash || txHash
       });
       
       console.log('Transaction stored in database:', transaction);
@@ -161,10 +169,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         transaction,
         networkResult: {
-          hash: (submitResult as any).result.hash,
-          status: (submitResult as any).result.meta.TransactionResult,
-          validated: (submitResult as any).result.validated,
-          ledgerIndex: (submitResult as any).result.ledger_index
+          hash: submitResult.result.tx_json?.hash || txHash,
+          status: submitResult.result.engine_result,
+          message: submitResult.result.engine_result_message,
+          validated: false // submit() doesn't wait for validation
         }
       });
     } catch (error) {
