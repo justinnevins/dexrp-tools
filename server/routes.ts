@@ -110,6 +110,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Submit signed transaction to XRPL network
   app.post("/api/transactions/submit", async (req, res) => {
+    let client: any = null;
     try {
       const { walletId, txBlob, txHash, transactionData, network = 'testnet' } = req.body;
       
@@ -122,47 +123,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? 'wss://xrplcluster.com'
         : 'wss://s.altnet.rippletest.net:51233';
       
-      const client = new xrpl.Client(endpoint);
+      client = new xrpl.Client(endpoint);
       
+      console.log('Connecting to XRPL...');
       await client.connect();
       console.log(`Connected to XRPL ${network}`);
       
-      try {
-        // Submit the signed transaction blob
-        const submitResult = await client.submitAndWait(txBlob);
-        console.log('Transaction submitted:', submitResult);
-        
-        // Store the transaction in the database
-        const transaction = await storage.createTransaction({
-          walletId,
-          type: transactionData.type,
-          amount: transactionData.amount,
-          currency: 'XRP',
-          fromAddress: transactionData.fromAddress,
-          toAddress: transactionData.toAddress,
-          destinationTag: transactionData.destinationTag,
-          status: submitResult.result.meta.TransactionResult === 'tesSUCCESS' ? 'completed' : 'failed',
-          txHash: submitResult.result.hash
-        });
-        
-        await client.disconnect();
-        
-        res.status(201).json({
-          success: true,
-          transaction,
-          networkResult: {
-            hash: submitResult.result.hash,
-            status: submitResult.result.meta.TransactionResult,
-            validated: submitResult.result.validated,
-            ledgerIndex: submitResult.result.ledger_index
-          }
-        });
-      } finally {
-        await client.disconnect();
-      }
+      // Submit the signed transaction blob with timeout
+      console.log('Calling submitAndWait...');
+      const submitPromise = client.submitAndWait(txBlob);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Transaction submission timed out after 60 seconds')), 60000)
+      );
+      
+      const submitResult = await Promise.race([submitPromise, timeoutPromise]);
+      console.log('Transaction submitted successfully:', JSON.stringify(submitResult, null, 2));
+      
+      // Store the transaction in the database
+      const transaction = await storage.createTransaction({
+        walletId,
+        type: transactionData.type,
+        amount: transactionData.amount,
+        currency: 'XRP',
+        fromAddress: transactionData.fromAddress,
+        toAddress: transactionData.toAddress,
+        destinationTag: transactionData.destinationTag,
+        status: (submitResult as any).result.meta.TransactionResult === 'tesSUCCESS' ? 'completed' : 'failed',
+        txHash: (submitResult as any).result.hash
+      });
+      
+      console.log('Transaction stored in database:', transaction);
+      
+      await client.disconnect();
+      console.log('Disconnected from XRPL');
+      
+      res.status(201).json({
+        success: true,
+        transaction,
+        networkResult: {
+          hash: (submitResult as any).result.hash,
+          status: (submitResult as any).result.meta.TransactionResult,
+          validated: (submitResult as any).result.validated,
+          ledgerIndex: (submitResult as any).result.ledger_index
+        }
+      });
     } catch (error) {
       console.error('Transaction submission failed:', error);
+      console.error('Error type:', error instanceof Error ? error.constructor.name : typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : String(error));
       console.error('Request body:', req.body);
+      
+      // Make sure to disconnect client if there was an error
+      if (client) {
+        try {
+          await client.disconnect();
+          console.log('Disconnected from XRPL after error');
+        } catch (disconnectError) {
+          console.error('Error disconnecting:', disconnectError);
+        }
+      }
+      
       res.status(500).json({ 
         error: "Failed to submit transaction to network",
         details: error instanceof Error ? error.message : 'Unknown error'

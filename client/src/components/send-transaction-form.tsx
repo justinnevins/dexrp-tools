@@ -632,6 +632,12 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         throw new Error('Invalid signed transaction QR code format. Please ensure you scanned the signed transaction from your Keystone device.');
       }
 
+      // Get current network from localStorage
+      const network = localStorage.getItem('xrpl-network') || 'testnet';
+      
+      console.log('Submitting transaction to network:', network);
+      console.log('Transaction blob:', signedTransaction.txBlob);
+      
       // Submit signed transaction to XRPL network
       const response = await fetch('/api/transactions/submit', {
         method: 'POST',
@@ -642,6 +648,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           walletId: currentWallet.id,
           txBlob: signedTransaction.txBlob || signedTransaction.signedTransaction,
           txHash: signedTransaction.txHash || signedTransaction.hash,
+          network: network,
           transactionData: {
             type: 'sent',
             amount: pendingTransactionData.amount,
