@@ -1,5 +1,7 @@
-import { Shield, LogOut, Wallet, Check, Trash2 } from 'lucide-react';
+import { Shield, LogOut, Wallet, Check, Trash2, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
@@ -7,12 +9,32 @@ import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
+import type { Wallet as WalletType } from '@shared/schema';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function Profile() {
-  const { currentWallet, wallets, setCurrentWallet } = useWallet();
+  const { currentWallet, wallets, setCurrentWallet, updateWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editNetwork, setEditNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
@@ -76,6 +98,41 @@ export default function Profile() {
       title: "Account Removed",
       description: "The account has been removed from your list.",
     });
+  };
+
+  const handleEditWallet = (wallet: WalletType) => {
+    setEditingWallet(wallet);
+    setEditName(wallet.name || '');
+    setEditNetwork(wallet.network);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveWalletEdit = async () => {
+    if (!editingWallet) return;
+    
+    try {
+      await updateWallet.mutateAsync({
+        id: editingWallet.id,
+        updates: {
+          name: editName || undefined,
+          network: editNetwork,
+        },
+      });
+      
+      toast({
+        title: "Account Updated",
+        description: "Account settings have been updated successfully",
+      });
+      
+      setEditDialogOpen(false);
+      setEditingWallet(null);
+    } catch (error) {
+      toast({
+        title: "Update Failed",
+        description: error instanceof Error ? error.message : "Failed to update account",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRemoveAllAccounts = async () => {
@@ -171,6 +228,14 @@ export default function Profile() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => handleEditWallet(wallet)}
+                    variant="ghost"
+                    size="sm"
+                    data-testid={`edit-wallet-${wallet.id}`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
                   {currentWallet?.id !== wallet.id && (
                     <Button
                       onClick={() => setCurrentWallet(wallet)}
@@ -211,6 +276,55 @@ export default function Profile() {
           Remove All Accounts
         </Button>
       </div>
+
+      {/* Edit Wallet Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Account</DialogTitle>
+            <DialogDescription>
+              Change the account name or switch between mainnet and testnet networks.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="wallet-name">Account Name</Label>
+              <Input
+                id="wallet-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="My Account"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="wallet-network">Network</Label>
+              <Select value={editNetwork} onValueChange={(value: 'mainnet' | 'testnet') => setEditNetwork(value)}>
+                <SelectTrigger id="wallet-network">
+                  <SelectValue placeholder="Select network" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mainnet">Mainnet</SelectItem>
+                  <SelectItem value="testnet">Testnet</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Changing the network will reload the account data for the selected network.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveWalletEdit} disabled={updateWallet.isPending}>
+              {updateWallet.isPending ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

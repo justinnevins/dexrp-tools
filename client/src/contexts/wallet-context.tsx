@@ -15,8 +15,12 @@ interface WalletContextType {
     mutateAsync: (data: { address: string; hardwareWalletType?: string; publicKey?: string }) => Promise<Wallet>;
     isPending: boolean;
   };
+  updateWallet: {
+    mutateAsync: (data: { id: number; updates: Partial<Wallet> }) => Promise<Wallet | null>;
+    isPending: boolean;
+  };
   updateWalletBalance: {
-    mutateAsync: (data: { id: number; balance: string; reservedBalance: string }) => Promise<Wallet | undefined>;
+    mutateAsync: (data: { id: number; balance: string; reservedBalance: string }) => Promise<Wallet | null>;
     isPending: boolean;
   };
 }
@@ -77,6 +81,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const updateWallet = useMutation({
+    mutationFn: async ({ id, updates }: { id: number; updates: Partial<Wallet> }) => {
+      const wallet = browserStorage.updateWallet(id, updates);
+      return wallet;
+    },
+    onSuccess: (updatedWallet) => {
+      queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+      // If network was changed, invalidate all XRPL data queries
+      if (updatedWallet && currentWallet?.id === updatedWallet.id) {
+        setCurrentWalletState(updatedWallet);
+        queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
+        queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
+        queryClient.invalidateQueries({ queryKey: ['accountLines'] });
+        queryClient.invalidateQueries({ queryKey: ['accountOffers'] });
+      }
+    },
+  });
+
   const updateWalletBalance = useMutation({
     mutationFn: async ({ id, balance, reservedBalance }: { id: number; balance: string; reservedBalance: string }) => {
       const wallet = browserStorage.updateWallet(id, { balance, reservedBalance });
@@ -100,6 +122,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         createWallet: {
           mutateAsync: createWallet.mutateAsync,
           isPending: createWallet.isPending,
+        },
+        updateWallet: {
+          mutateAsync: updateWallet.mutateAsync,
+          isPending: updateWallet.isPending,
         },
         updateWalletBalance: {
           mutateAsync: updateWalletBalance.mutateAsync,

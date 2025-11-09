@@ -39,7 +39,46 @@ class BrowserStorage {
 
   // Wallet operations
   getAllWallets(): Wallet[] {
-    return this.getStoredData<Wallet>(this.STORAGE_KEYS.WALLETS);
+    const wallets = this.getStoredData<Wallet>(this.STORAGE_KEYS.WALLETS);
+    
+    // Migration: Add network field to legacy wallets that don't have one
+    // Check if migration has already been done
+    const migrationCompleted = localStorage.getItem('xrpl_wallet_network_migration_v1');
+    
+    if (!migrationCompleted) {
+      const legacyWallets = wallets.filter(w => !w.network);
+      
+      if (legacyWallets.length > 0) {
+        // Try to infer network from old global setting as a hint
+        const legacyNetwork = localStorage.getItem('xrpl-network') as 'mainnet' | 'testnet' | null;
+        const inferredNetwork = legacyNetwork || 'mainnet';
+        
+        console.warn(`Found ${legacyWallets.length} legacy wallet(s) without network field. Inferring network as '${inferredNetwork}' from old global setting.`);
+        console.warn('If this is incorrect, please edit each wallet to set the correct network from the Profile page.');
+        
+        const migratedWallets = wallets.map(wallet => {
+          if (!wallet.network) {
+            console.log(`Migrating wallet ${wallet.id} (${wallet.address}) to ${inferredNetwork}`);
+            return {
+              ...wallet,
+              network: inferredNetwork
+            };
+          }
+          return wallet;
+        });
+        
+        this.saveData(this.STORAGE_KEYS.WALLETS, migratedWallets);
+        localStorage.setItem('xrpl_wallet_network_migration_v1', 'completed');
+        console.log('Legacy wallet migration completed');
+        
+        return migratedWallets;
+      } else {
+        // No legacy wallets, mark migration as complete
+        localStorage.setItem('xrpl_wallet_network_migration_v1', 'completed');
+      }
+    }
+    
+    return wallets;
   }
 
   getWallet(id: number): Wallet | undefined {
@@ -78,7 +117,7 @@ class BrowserStorage {
       balance: insertWallet.balance || '0',
       reservedBalance: insertWallet.reservedBalance || '1',
       hardwareWalletType: insertWallet.hardwareWalletType || null,
-      network: network,
+      network: network as 'mainnet' | 'testnet',
       isConnected: insertWallet.isConnected || false,
       createdAt: new Date()
     };
@@ -91,15 +130,37 @@ class BrowserStorage {
     return wallet;
   }
 
-  updateWallet(id: number, updates: Partial<Wallet>): Wallet | undefined {
+  updateWallet(id: number, updates: Partial<Wallet>): Wallet | null {
     const wallets = this.getAllWallets();
     const index = wallets.findIndex(w => w.id === id);
     
-    if (index === -1) return undefined;
+    if (index === -1) return null;
     
-    wallets[index] = { ...wallets[index], ...updates };
+    const currentWallet = wallets[index];
+    
+    // If network is being changed, check for duplicate address/network combination
+    if (updates.network && updates.network !== currentWallet.network) {
+      const duplicateExists = wallets.some(w => 
+        w.id !== id && 
+        w.address === currentWallet.address && 
+        w.network === updates.network
+      );
+      
+      if (duplicateExists) {
+        throw new Error(`An account with address ${currentWallet.address} already exists on ${updates.network}`);
+      }
+    }
+    
+    // Merge updates with existing wallet
+    wallets[index] = {
+      ...wallets[index],
+      ...updates,
+      id: wallets[index].id, // Ensure id cannot be changed
+      address: wallets[index].address, // Ensure address cannot be changed
+    };
+    
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
-    
+    console.log('Wallet updated successfully:', wallets[index]);
     return wallets[index];
   }
 

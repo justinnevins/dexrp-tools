@@ -16,6 +16,21 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 9, 2025 - Wallet Editing and Network Management Fixes
+- **Added wallet edit functionality**
+  - Users can now edit wallet name and network (mainnet/testnet) from Profile page
+  - Edit button added to each wallet card with intuitive dialog interface
+  - Network changes automatically invalidate and reload all XRPL data queries
+  - Added `updateWallet` mutation to wallet context for flexible wallet updates
+- **Fixed network-related bugs**
+  - Send transaction flow now uses `currentWallet.network` instead of deprecated localStorage
+  - XRP price service updated to accept network parameter in `fetchXRPPrice(network)`
+  - Mobile app layout passes wallet network to price fetching logic
+- **Enhanced UI with network badges**
+  - Wallet selector dropdown now displays Mainnet/Testnet badges for each account
+  - Profile page wallet cards show color-coded network badges (green for Mainnet, orange for Testnet)
+  - Visual consistency across all wallet displays
+
 ### November 9, 2025 - Per-Wallet Network Configuration
 - **Refactored application for per-wallet network management**
   - Each wallet now stores its own network (mainnet/testnet) instead of using global state
