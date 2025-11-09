@@ -62,8 +62,17 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
               className="flex items-center justify-between cursor-pointer"
               data-testid={`wallet-option-${wallet.id}`}
             >
-              <div className="flex flex-col">
-                <span className="font-medium">{getWalletName(wallet, index)}</span>
+              <div className="flex flex-col flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{getWalletName(wallet, index)}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded ${
+                    wallet.network === 'mainnet' 
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                      : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                  }`}>
+                    {wallet.network === 'mainnet' ? 'Mainnet' : 'Testnet'}
+                  </span>
+                </div>
                 <span className="text-xs text-muted-foreground">
                   {formatAddress(wallet.address)}
                 </span>

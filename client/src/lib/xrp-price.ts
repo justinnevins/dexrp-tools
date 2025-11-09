@@ -20,9 +20,9 @@ interface InFTFExchangeRate {
  * Fetches XRP price from InFTF XRPL Data API
  * Uses actual executed trade rates for accuracy
  */
-export async function fetchXRPPrice(): Promise<XRPPriceData | null> {
+export async function fetchXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet'): Promise<XRPPriceData | null> {
   try {
-    const currentNetwork = xrplClient.getCurrentNetwork();
+    const currentNetwork = network;
     
     let counter: string;
     let currency: string;

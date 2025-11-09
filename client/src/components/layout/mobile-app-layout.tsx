@@ -30,7 +30,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     }
 
     const updatePrice = async () => {
-      const price = await fetchXRPPrice();
+      const price = await fetchXRPPrice(network);
       if (price) {
         setXrpPrice(price);
       }

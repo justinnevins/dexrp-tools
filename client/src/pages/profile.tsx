@@ -144,13 +144,20 @@ export default function Profile() {
                     <Wallet className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="font-medium">{wallet.name || `Account ${index + 1}`}</h3>
                       {currentWallet?.id === wallet.id && (
                         <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">
                           Active
                         </span>
                       )}
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        wallet.network === 'mainnet' 
+                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                          : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                      }`}>
+                        {wallet.network === 'mainnet' ? 'Mainnet' : 'Testnet'}
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {formatAddress(wallet.address)}
