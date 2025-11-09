@@ -9,11 +9,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
-import { useAccountInfo } from '@/hooks/use-xrpl';
+import { useAccountInfo, useAccountLines } from '@/hooks/use-xrpl';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
+import { SimpleQRScanner } from '@/components/simple-qr-scanner';
 import { encode } from 'ripple-binary-codec';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
 
@@ -21,8 +23,10 @@ const transactionSchema = z.object({
   destination: z.string().min(1, 'Destination address is required').regex(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/, 'Invalid XRP address format'),
   amount: z.string().min(1, 'Amount is required').refine((val) => {
     const num = parseFloat(val);
-    return !isNaN(num) && num > 0 && num <= 100000000;
-  }, 'Amount must be a valid positive number up to 100,000,000 XRP'),
+    return !isNaN(num) && num > 0;
+  }, 'Amount must be a valid positive number'),
+  currency: z.string().min(1, 'Currency is required'),
+  issuer: z.string().optional(),
   destinationTag: z.string().optional(),
   memo: z.string().max(1000, 'Memo cannot exceed 1000 characters').optional(),
 });
@@ -102,6 +106,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
+  const [showAddressScanner, setShowAddressScanner] = useState(false);
   const [keystoneUR, setKeystoneUR] = useState<{ type: string; cbor: string } | null>(null);
   const [currentStep, setCurrentStep] = useState<'form' | 'qr-display' | 'signing' | 'submitting' | 'complete'>('form');
   const [pendingTransactionData, setPendingTransactionData] = useState<TransactionFormData | null>(null);
@@ -111,12 +116,15 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const { toast } = useToast();
   const { currentWallet } = useWallet();
   const { data: accountInfo } = useAccountInfo(currentWallet?.address || null);
+  const { data: accountLines } = useAccountLines(currentWallet?.address || null);
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       destination: '',
       amount: '',
+      currency: 'XRP',
+      issuer: '',
       destinationTag: '',
       memo: '',
     },
@@ -131,13 +139,54 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     return 0;
   };
 
+  const handleAddressQRScan = (scannedAddress: string) => {
+    console.log('Scanned address:', scannedAddress);
+    
+    // Extract XRP address from QR code data
+    // QR codes might contain formats like: ripple:rAddress or just rAddress
+    let address = scannedAddress.trim();
+    
+    if (address.toLowerCase().startsWith('ripple:')) {
+      address = address.substring(7);
+    }
+    
+    // Extract just the address if there are additional parameters
+    const addressMatch = address.match(/^(r[1-9A-HJ-NP-Za-km-z]{25,34})/);
+    if (addressMatch) {
+      address = addressMatch[1];
+    }
+    
+    form.setValue('destination', address);
+    setShowAddressScanner(false);
+    
+    toast({
+      title: "Address Scanned",
+      description: `Destination set to ${address.substring(0, 8)}...${address.substring(address.length - 6)}`,
+    });
+  };
+
   const createTransactionQR = async (txData: TransactionFormData) => {
     if (!currentWallet || !accountInfo || 'account_not_found' in accountInfo) {
       throw new Error('Wallet or account information not available');
     }
 
-    // Convert XRP to drops
-    const amountInDrops = (parseFloat(txData.amount) * 1000000).toString();
+    // Create amount field based on currency type
+    let amount: string | { currency: string; value: string; issuer: string };
+    
+    if (txData.currency === 'XRP') {
+      // XRP amount in drops (string)
+      amount = (parseFloat(txData.amount) * 1000000).toString();
+    } else {
+      // Token amount (object with currency, value, issuer)
+      if (!txData.issuer) {
+        throw new Error('Issuer is required for token payments');
+      }
+      amount = {
+        currency: txData.currency,
+        value: txData.amount,
+        issuer: txData.issuer
+      };
+    }
     
     // Get current sequence number
     const sequence = ('account_data' in accountInfo && accountInfo.account_data?.Sequence) || 1;
@@ -159,10 +208,10 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       });
     }
     
-    // Create XRP transaction for Keystone 3 Pro using actual form data
+    // Create transaction for Keystone 3 Pro using actual form data
     const xrpTransaction = {
       Account: currentWallet.address,
-      Amount: amountInDrops,
+      Amount: amount,
       Destination: txData.destination,
       Fee: "12",
       Flags: 2147483648,
@@ -197,7 +246,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Create proper transaction JSON template with actual form data
       const transactionTemplate = {
         Account: currentWallet.address,
-        Amount: Math.floor(parseFloat(txData.amount) * 1000000).toString(), // Convert XRP to drops
+        Amount: amount,
         Destination: txData.destination,
         Fee: "12",
         Flags: 2147483648,
@@ -595,7 +644,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       
       toast({
         title: "Transaction Sent",
-        description: `Successfully sent ${pendingTransactionData.amount} XRP to ${pendingTransactionData.destination}`,
+        description: `Successfully sent ${pendingTransactionData.amount} ${pendingTransactionData.currency} to ${pendingTransactionData.destination}`,
       });
 
       // Reset form and state
@@ -637,10 +686,10 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Send className="w-5 h-5" />
-            <span>Send XRP</span>
+            <span>Send Payment</span>
           </CardTitle>
           <CardDescription>
-            Send XRP using your Keystone 3 Pro hardware wallet
+            Send XRP or tokens using your Keystone 3 Pro hardware wallet
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -652,14 +701,65 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Destination Address</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
-                        {...field} 
-                      />
-                    </FormControl>
+                    <div className="flex space-x-2">
+                      <FormControl>
+                        <Input 
+                          placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" 
+                          {...field}
+                          data-testid="input-destination"
+                        />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setShowAddressScanner(true)}
+                        data-testid="button-scan-address"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </Button>
+                    </div>
                     <FormDescription>
                       The XRP address to send funds to
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select 
+                      onValueChange={(value) => {
+                        const [currency, issuer] = value.split('|');
+                        field.onChange(currency);
+                        form.setValue('issuer', issuer || '');
+                      }} 
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-currency">
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="XRP">XRP</SelectItem>
+                        {accountLines?.lines?.map((line: any) => (
+                          <SelectItem 
+                            key={`${line.currency}-${line.account}`} 
+                            value={`${line.currency}|${line.account}`}
+                          >
+                            {line.currency}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Select XRP or a token you hold
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -671,17 +771,23 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                 name="amount"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Amount (XRP)</FormLabel>
+                    <FormLabel>Amount</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.000001"
-                        placeholder="0.000000" 
-                        {...field} 
-                      />
+                      <div className="relative">
+                        <Input 
+                          type="number" 
+                          step="0.000001"
+                          placeholder="0.000000" 
+                          {...field}
+                          data-testid="input-amount"
+                        />
+                        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground">
+                          {form.watch('currency') || 'XRP'}
+                        </span>
+                      </div>
                     </FormControl>
                     <FormDescription>
-                      Available balance: {availableBalance.toFixed(6)} XRP
+                      {form.watch('currency') === 'XRP' && `Available: ${availableBalance.toFixed(6)} XRP`}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -867,6 +973,16 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           onClose={() => setShowSignedQRScanner(false)}
           title="Scan Signed Transaction"
           description="Scan the signed transaction QR code from your Keystone 3 Pro device"
+        />
+      )}
+
+      {/* QR Scanner for Destination Address */}
+      {showAddressScanner && (
+        <SimpleQRScanner
+          onScan={handleAddressQRScan}
+          onClose={() => setShowAddressScanner(false)}
+          title="Scan Destination Address"
+          description="Scan the QR code containing the destination XRP address"
         />
       )}
     </>
