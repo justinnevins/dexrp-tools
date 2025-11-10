@@ -299,7 +299,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const bcur = await import('@ngraveio/bc-ur');
+      const { URDecoder } = await import('@ngraveio/bc-ur');
       
       const { ur: urString } = req.body;
       
@@ -308,17 +308,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Parse the UR string - format is "ur:type/cbor_hex"
-      const urParts = urString.toLowerCase().split('/');
-      if (urParts.length < 2) {
-        throw new Error('Invalid UR format');
+      // Use URDecoder to parse the UR string
+      const decoder = new URDecoder();
+      decoder.receivePart(urString);
+      
+      if (!decoder.isComplete()) {
+        throw new Error('UR decoding incomplete - this should not happen for single-part URs');
       }
       
-      const type = urParts[0].replace('ur:', '');
-      const cborHex = urParts[1];
-      
-      // Create UR object from the parsed parts
-      const decodedUR = new bcur.UR(Buffer.from(cborHex, 'hex'), type);
+      const decodedUR = decoder.resultUR();
       
       console.log('Backend: Decoded UR type:', decodedUR.type);
       console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
@@ -331,8 +329,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Return the signature data
       res.json({
-        signature: signature.signature || signature,
-        requestId: signature.requestId || crypto.randomUUID()
+        signature: typeof signature === 'string' ? signature : signature.signature,
+        requestId: typeof signature === 'object' ? signature.requestId : crypto.randomUUID()
       });
     } catch (error: any) {
       console.error('Backend: Keystone decode signature error:', error);
