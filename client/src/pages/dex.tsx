@@ -27,6 +27,8 @@ import { queryClient } from '@/lib/queryClient';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
 import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
 
+const OWNER_RESERVE_XRP = 0.2;
+
 // Common XRPL tokens with mainnet/testnet issuers
 interface CommonToken {
   name: string;
@@ -385,21 +387,26 @@ export default function DEX() {
   };
 
   // Get available balance for TakerGets (what you're giving)
+  // When creating a DEX offer with XRP, we need to reserve an additional 0.2 XRP
+  // because the new offer will increase OwnerCount by 1
   const getTakerGetsAvailableBalance = () => {
     if (takerGetsCurrency === 'XRP') {
       const balanceInfo = calculateAvailableBalance(accountInfo);
-      return balanceInfo.availableMinusFees;
+      // Subtract the additional reserve needed for the new offer
+      return Math.max(0, balanceInfo.availableMinusFees - OWNER_RESERVE_XRP);
     } else if (takerGetsCurrency && takerGetsIssuer) {
       return getTokenBalance(accountLines, takerGetsCurrency, takerGetsIssuer);
     }
     return 0;
   };
 
-  // Get available balance for TakerPays (what you're receiving) - this is just for display/max calculation
-  // In reality, you don't need to own what you're buying, but max doesn't apply here
+  // Get available balance for TakerPays (what you're receiving)
+  // Note: You don't need to own what you're buying, so max is less relevant here
+  // However, showing the balance can help users understand exchange rates
   const getTakerPaysAvailableBalance = () => {
     if (takerPaysCurrency === 'XRP') {
       const balanceInfo = calculateAvailableBalance(accountInfo);
+      // No need to subtract OWNER_RESERVE here since we're receiving, not giving
       return balanceInfo.availableMinusFees;
     } else if (takerPaysCurrency && takerPaysIssuer) {
       return getTokenBalance(accountLines, takerPaysCurrency, takerPaysIssuer);
