@@ -19,6 +19,8 @@ import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { SimpleQRScanner } from '@/components/simple-qr-scanner';
 import { encode } from 'ripple-binary-codec';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
+import { AmountPresetButtons } from '@/components/amount-preset-buttons';
+import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
 
 const transactionSchema = z.object({
   destination: z.string().min(1, 'Destination address is required').regex(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/, 'Invalid XRP address format'),
@@ -134,25 +136,15 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   });
 
   const getAvailableBalance = (currency?: string, issuer?: string) => {
-    if (!accountInfo || 'account_not_found' in accountInfo) return 0;
-    
-    // For XRP, return XRP balance
+    // For XRP, use dynamic reserve calculation
     if (!currency || currency === 'XRP') {
-      if ('account_data' in accountInfo && accountInfo.account_data?.Balance) {
-        const balanceInDrops = parseInt(accountInfo.account_data.Balance);
-        return (balanceInDrops / 1000000) - 20; // Reserve 20 XRP for account minimum
-      }
-      return 0;
+      const balanceInfo = calculateAvailableBalance(accountInfo);
+      return balanceInfo.availableMinusFees;
     }
     
-    // For tokens, find the trustline balance
-    if (accountLines && accountLines.lines) {
-      const trustline = accountLines.lines.find((line: any) => 
-        line.currency === currency && line.account === issuer
-      );
-      if (trustline) {
-        return parseFloat(trustline.balance) || 0;
-      }
+    // For tokens, get trustline balance
+    if (currency && issuer) {
+      return getTokenBalance(accountLines, currency, issuer);
     }
     
     return 0;
@@ -831,6 +823,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                         </span>
                       </div>
                     </FormControl>
+                    <div className="mt-2">
+                      <AmountPresetButtons
+                        availableAmount={getAvailableBalance(form.watch('currency'), form.watch('issuer'))}
+                        onSelect={(amount) => form.setValue('amount', amount)}
+                        disabled={isLoading}
+                      />
+                    </div>
                     <FormDescription>
                       {(() => {
                         const currency = form.watch('currency');
