@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { queryClient } from '@/lib/queryClient';
+import { AmountPresetButtons } from '@/components/amount-preset-buttons';
+import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
 
 // Common XRPL tokens with mainnet/testnet issuers
 interface CommonToken {
@@ -382,6 +384,29 @@ export default function DEX() {
     return '0.000000';
   };
 
+  // Get available balance for TakerGets (what you're giving)
+  const getTakerGetsAvailableBalance = () => {
+    if (takerGetsCurrency === 'XRP') {
+      const balanceInfo = calculateAvailableBalance(accountInfo);
+      return balanceInfo.availableMinusFees;
+    } else if (takerGetsCurrency && takerGetsIssuer) {
+      return getTokenBalance(accountLines, takerGetsCurrency, takerGetsIssuer);
+    }
+    return 0;
+  };
+
+  // Get available balance for TakerPays (what you're receiving) - this is just for display/max calculation
+  // In reality, you don't need to own what you're buying, but max doesn't apply here
+  const getTakerPaysAvailableBalance = () => {
+    if (takerPaysCurrency === 'XRP') {
+      const balanceInfo = calculateAvailableBalance(accountInfo);
+      return balanceInfo.availableMinusFees;
+    } else if (takerPaysCurrency && takerPaysIssuer) {
+      return getTokenBalance(accountLines, takerPaysCurrency, takerPaysIssuer);
+    }
+    return 0;
+  };
+
   // Market pairs configuration - network aware
   const marketPairs = (() => {
     if (currentNetwork === 'mainnet') {
@@ -708,6 +733,10 @@ export default function DEX() {
                     </SelectContent>
                   </Select>
                 </div>
+                <AmountPresetButtons
+                  availableAmount={getTakerGetsAvailableBalance()}
+                  onSelect={(amount) => setTakerGetsAmount(amount)}
+                />
                 {takerGetsCurrency !== 'XRP' && takerGetsIssuer && (
                   <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
                     Issuer: {takerGetsIssuer}
@@ -747,6 +776,10 @@ export default function DEX() {
                     </SelectContent>
                   </Select>
                 </div>
+                <AmountPresetButtons
+                  availableAmount={getTakerPaysAvailableBalance()}
+                  onSelect={(amount) => setTakerPaysAmount(amount)}
+                />
                 {takerPaysCurrency !== 'XRP' && takerPaysIssuer && (
                   <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
                     Issuer: {takerPaysIssuer}
