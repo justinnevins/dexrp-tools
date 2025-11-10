@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -113,6 +113,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [pendingTransactionData, setPendingTransactionData] = useState<TransactionFormData | null>(null);
   const [pendingUnsignedTx, setPendingUnsignedTx] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const processingSignatureRef = useRef(false);
   
   const { toast } = useToast();
   const { currentWallet } = useWallet();
@@ -383,14 +384,15 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       return;
     }
 
-    // Prevent duplicate processing
-    if (currentStep === 'submitting' || isSubmitting) {
-      console.log('Already processing a signed transaction, ignoring...');
+    // Prevent duplicate processing using ref for immediate feedback
+    if (processingSignatureRef.current) {
+      console.log('Already processing a signed transaction (ref check), ignoring...');
       return;
     }
 
     try {
-      console.log('Setting step to submitting and closing scanner...');
+      console.log('Setting processing flag and closing scanner...');
+      processingSignatureRef.current = true;
       setCurrentStep('submitting');
       setIsSubmitting(true);
       setShowSignedQRScanner(false);
@@ -693,6 +695,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       setCurrentStep('signing');
     } finally {
       setIsSubmitting(false);
+      processingSignatureRef.current = false;
     }
   };
 
