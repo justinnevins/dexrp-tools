@@ -166,9 +166,19 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                     }
                   } else {
                     // Single-part UR (no sequence numbers)
-                    console.log('Single-part UR detected');
-                    stopCamera();
-                    onScan(qrData);
+                    if (!hasSubmittedRef.current) {
+                      console.log('Single-part UR detected');
+                      hasSubmittedRef.current = true;
+                      
+                      // Stop scanning immediately
+                      if (scanIntervalRef.current) {
+                        clearInterval(scanIntervalRef.current);
+                        scanIntervalRef.current = null;
+                      }
+                      
+                      stopCamera();
+                      onScan(qrData);
+                    }
                     return;
                   }
                 }
