@@ -16,6 +16,26 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### November 10, 2025 - Percentage-Based Amount Selection for Payments and DEX Offers
+- **Added quick amount selection buttons (25%, 50%, 75%, Max)**
+  - Created centralized `xrp-account.ts` utility for XRP reserve calculations
+    - Base reserve: 1 XRP + 0.2 XRP per owned object (OwnerCount)
+    - Calculates available balance accounting for reserves and transaction fees
+    - Provides `getTokenBalance()` helper for trustline balances
+  - Built reusable `AmountPresetButtons` component with percentage buttons
+  - Integrated preset buttons into send transaction form
+  - Integrated preset buttons into DEX offer creation (TakerGets and TakerPays)
+- **DEX-specific reserve handling**
+  - Max button for DEX TakerGets (what you give) reserves additional 0.2 XRP
+  - Creating a new offer increases OwnerCount by 1, requiring extra reserve
+  - Prevents `tecINSUF_RESERVE` errors when creating offers near reserve threshold
+  - Token balances use full trustline balance for Max
+- **Smart Max calculations**
+  - XRP: subtracts base reserve (1 XRP), OwnerCount reserves (0.2 XRP each), and transaction fee (12 drops)
+  - DEX XRP offers: additionally reserves 0.2 XRP for the new offer object
+  - Tokens: uses full available trustline balance
+  - All calculations clamp to zero for safety
+
 ### November 9, 2025 - Wallet Editing and Network Management Fixes
 - **Added wallet edit functionality**
   - Users can now edit wallet name and network (mainnet/testnet) from Profile page
