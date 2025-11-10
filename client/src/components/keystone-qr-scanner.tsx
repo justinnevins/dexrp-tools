@@ -40,9 +40,8 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          focusMode: 'continuous'
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       });
 
@@ -96,18 +95,14 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
         // Initialize URDecoder for multi-part QR codes
         decoderRef.current = new URDecoder();
         
-        // Scan every 100ms for faster QR detection
+        // Scan every 200ms
         scanIntervalRef.current = setInterval(async () => {
           if (videoRef.current && canvasRef.current) {
             try {
-              const result = await QrScanner.scanImage(videoRef.current, { 
-                returnDetailedScanResult: true,
-                alsoTryWithoutScanRegion: true,
-                maxScansPerSecond: 10
-              });
+              const result = await QrScanner.scanImage(videoRef.current);
               
-              if (result && result.data) {
-                const qrData = result.data.trim();
+              if (result) {
+                const qrData = (typeof result === 'string' ? result : (result as any).data || result).trim();
                 
                 // Check if it's a Keystone UR format
                 if (qrData.toUpperCase().startsWith('UR:')) {
@@ -192,7 +187,7 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
               // No QR code found, continue scanning
             }
           }
-        }, 100);
+        }, 200);
       }
     } catch (error) {
       console.error('QR Scanner initialization failed:', error);
