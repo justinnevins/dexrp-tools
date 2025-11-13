@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Check, Trash2, Edit2 } from 'lucide-react';
+import { Shield, LogOut, Wallet, Check, Trash2, Edit2, Server } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
+import { xrplClient } from '@/lib/xrpl-client';
 import type { Wallet as WalletType } from '@shared/schema';
 import {
   Dialog,
@@ -35,8 +36,17 @@ export default function Profile() {
   const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
   const [editName, setEditName] = useState('');
   const [editNetwork, setEditNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
+  const [customMainnetNode, setCustomMainnetNode] = useState('');
+  const [customTestnetNode, setCustomTestnetNode] = useState('');
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
+
+  // Load custom node settings on mount
+  useEffect(() => {
+    const settings = browserStorage.getSettings();
+    setCustomMainnetNode(settings.customMainnetNode || '');
+    setCustomTestnetNode(settings.customTestnetNode || '');
+  }, []);
 
 
 
@@ -173,6 +183,41 @@ export default function Profile() {
     }
   };
 
+  const handleSaveCustomNodes = () => {
+    // Validate URLs (basic validation)
+    const isValidUrl = (url: string) => {
+      if (!url) return true; // Empty is okay (will use default)
+      return url.startsWith('ws://') || url.startsWith('wss://');
+    };
+
+    if (!isValidUrl(customMainnetNode)) {
+      toast({
+        title: "Invalid Mainnet Node URL",
+        description: "Node URL must start with ws:// or wss://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isValidUrl(customTestnetNode)) {
+      toast({
+        title: "Invalid Testnet Node URL",
+        description: "Node URL must start with ws:// or wss://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Update XRPL client with custom endpoints
+    xrplClient.setCustomEndpoint('mainnet', customMainnetNode || null);
+    xrplClient.setCustomEndpoint('testnet', customTestnetNode || null);
+
+    toast({
+      title: "Network Settings Saved",
+      description: "Custom node URLs have been updated successfully"
+    });
+  };
+
 
 
 
@@ -262,6 +307,63 @@ export default function Profile() {
           ) : (
             <p className="text-center text-muted-foreground py-4">No accounts added</p>
           )}
+        </div>
+      </div>
+
+      {/* Network Settings */}
+      <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Server className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-lg font-semibold">Network Settings</h2>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Configure custom XRPL validator/node endpoints. Leave empty to use default nodes.
+        </p>
+        
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="mainnet-node">
+              Mainnet Node URL
+              <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+            </Label>
+            <Input
+              id="mainnet-node"
+              type="text"
+              placeholder="wss://xrplcluster.com"
+              value={customMainnetNode}
+              onChange={(e) => setCustomMainnetNode(e.target.value)}
+              data-testid="input-mainnet-node"
+            />
+            <p className="text-xs text-muted-foreground">
+              Default: {xrplClient.getEndpoint('mainnet')}
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="testnet-node">
+              Testnet Node URL
+              <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+            </Label>
+            <Input
+              id="testnet-node"
+              type="text"
+              placeholder="wss://s.altnet.rippletest.net:51233"
+              value={customTestnetNode}
+              onChange={(e) => setCustomTestnetNode(e.target.value)}
+              data-testid="input-testnet-node"
+            />
+            <p className="text-xs text-muted-foreground">
+              Default: {xrplClient.getEndpoint('testnet')}
+            </p>
+          </div>
+          
+          <Button
+            onClick={handleSaveCustomNodes}
+            className="w-full"
+            data-testid="button-save-nodes"
+          >
+            Save Network Settings
+          </Button>
         </div>
       </div>
 
