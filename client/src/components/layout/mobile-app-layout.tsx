@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Home, ArrowLeftRight, Coins, User, TrendingUp, LineChart } from 'lucide-react';
+import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
@@ -50,7 +50,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     { path: '/transactions', label: 'History', icon: ArrowLeftRight },
     { path: '/dex', label: 'DEX', icon: LineChart },
     { path: '/tokens', label: 'Tokens', icon: Coins },
-    { path: '/profile', label: 'Settings', icon: User },
+    { path: '/profile', label: 'Settings', icon: Settings },
   ];
 
   return (
