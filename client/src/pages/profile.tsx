@@ -179,7 +179,7 @@ export default function Profile() {
 
   return (
     <div className="px-4 py-6">
-      <h1 className="text-2xl font-bold mb-6">Profile & Settings</h1>
+      <h1 className="text-2xl font-bold mb-6">Accounts & Settings</h1>
 
       {/* XRPL Accounts */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">

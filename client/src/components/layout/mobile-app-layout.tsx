@@ -50,7 +50,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     { path: '/transactions', label: 'History', icon: ArrowLeftRight },
     { path: '/dex', label: 'DEX', icon: LineChart },
     { path: '/tokens', label: 'Tokens', icon: Coins },
-    { path: '/profile', label: 'Profile', icon: User },
+    { path: '/profile', label: 'Settings', icon: User },
   ];
 
   return (
