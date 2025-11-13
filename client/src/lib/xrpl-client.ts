@@ -1,4 +1,5 @@
 import { Client, Wallet as XRPLWallet } from 'xrpl';
+import { browserStorage } from './browser-storage';
 
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
@@ -11,15 +12,37 @@ interface ClientState {
 class XRPLClient {
   private clients: Map<XRPLNetwork, ClientState> = new Map();
 
-  private networkEndpoints = {
+  private defaultEndpoints = {
     mainnet: 'wss://xrplcluster.com',
     testnet: 'wss://s.altnet.rippletest.net:51233'
   };
 
+  private customEndpoints: {
+    mainnet?: string;
+    testnet?: string;
+  } = {};
+
   constructor() {
+    // Load custom endpoints from storage
+    this.loadCustomEndpoints();
+    
     // Initialize client states for both networks
     this.initializeClientState('mainnet');
     this.initializeClientState('testnet');
+  }
+
+  private loadCustomEndpoints(): void {
+    const settings = browserStorage.getSettings();
+    if (settings.customMainnetNode) {
+      this.customEndpoints.mainnet = settings.customMainnetNode;
+    }
+    if (settings.customTestnetNode) {
+      this.customEndpoints.testnet = settings.customTestnetNode;
+    }
+  }
+
+  private getNetworkEndpoint(network: XRPLNetwork): string {
+    return this.customEndpoints[network] || this.defaultEndpoints[network];
   }
 
   private initializeClientState(network: XRPLNetwork): void {
@@ -33,7 +56,7 @@ class XRPLClient {
     }
     
     this.clients.set(network, {
-      client: new Client(this.networkEndpoints[network]),
+      client: new Client(this.getNetworkEndpoint(network)),
       isConnected: false,
       connectionPromise: null
     });
@@ -48,7 +71,36 @@ class XRPLClient {
   }
 
   getEndpoint(network: XRPLNetwork): string {
-    return this.networkEndpoints[network];
+    return this.getNetworkEndpoint(network);
+  }
+
+  setCustomEndpoint(network: XRPLNetwork, endpoint: string | null): void {
+    // Update in-memory custom endpoints
+    if (endpoint && endpoint.trim()) {
+      this.customEndpoints[network] = endpoint.trim();
+    } else {
+      delete this.customEndpoints[network];
+    }
+
+    // Save to storage
+    const settings = browserStorage.getSettings();
+    if (network === 'mainnet') {
+      if (endpoint && endpoint.trim()) {
+        settings.customMainnetNode = endpoint.trim();
+      } else {
+        delete settings.customMainnetNode;
+      }
+    } else {
+      if (endpoint && endpoint.trim()) {
+        settings.customTestnetNode = endpoint.trim();
+      } else {
+        delete settings.customTestnetNode;
+      }
+    }
+    browserStorage.saveSettings(settings);
+
+    // Reinitialize the client with the new endpoint
+    this.initializeClientState(network);
   }
 
   async connect(network: XRPLNetwork): Promise<void> {
@@ -109,7 +161,7 @@ class XRPLClient {
     const state = this.clients.get(network);
     return {
       network,
-      endpoint: this.networkEndpoints[network],
+      endpoint: this.getNetworkEndpoint(network),
       isConnected: state?.isConnected || false
     };
   }
