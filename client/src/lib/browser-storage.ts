@@ -7,12 +7,18 @@ import type {
   InsertTrustline
 } from "@shared/schema";
 
+export interface XRPLSettings {
+  customMainnetNode?: string;
+  customTestnetNode?: string;
+}
+
 class BrowserStorage {
   private readonly STORAGE_KEYS = {
     WALLETS: 'xrpl_wallets',
     TRANSACTIONS: 'xrpl_transactions',
     TRUSTLINES: 'xrpl_trustlines',
-    COUNTERS: 'xrpl_counters'
+    COUNTERS: 'xrpl_counters',
+    SETTINGS: 'xrpl_settings'
   };
 
   private getCounters() {
@@ -307,6 +313,16 @@ class BrowserStorage {
     if (data.trustlines) {
       this.saveData(this.STORAGE_KEYS.TRUSTLINES, data.trustlines);
     }
+  }
+
+  // Settings operations
+  getSettings(): XRPLSettings {
+    const stored = localStorage.getItem(this.STORAGE_KEYS.SETTINGS);
+    return stored ? JSON.parse(stored) : {};
+  }
+
+  saveSettings(settings: XRPLSettings): void {
+    localStorage.setItem(this.STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
   }
 }
 
