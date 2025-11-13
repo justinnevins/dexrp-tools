@@ -187,13 +187,14 @@ export default function Profile() {
     // Validate URLs (basic validation)
     const isValidUrl = (url: string) => {
       if (!url) return true; // Empty is okay (will use default)
-      return url.startsWith('ws://') || url.startsWith('wss://');
+      return url.startsWith('ws://') || url.startsWith('wss://') || 
+             url.startsWith('http://') || url.startsWith('https://');
     };
 
     if (!isValidUrl(customMainnetNode)) {
       toast({
         title: "Invalid Mainnet Node URL",
-        description: "Node URL must start with ws:// or wss://",
+        description: "Node URL must start with http://, https://, ws://, or wss://",
         variant: "destructive"
       });
       return;
@@ -202,7 +203,7 @@ export default function Profile() {
     if (!isValidUrl(customTestnetNode)) {
       toast({
         title: "Invalid Testnet Node URL",
-        description: "Node URL must start with ws:// or wss://",
+        description: "Node URL must start with http://, https://, ws://, or wss://",
         variant: "destructive"
       });
       return;
@@ -317,7 +318,7 @@ export default function Profile() {
           <h2 className="text-lg font-semibold">Network Settings</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
-          Configure custom XRPL validator/node endpoints. Leave empty to use default nodes.
+          Configure custom XRPL node endpoints (JSON-RPC or WebSocket). Supports custom ports. Leave empty to use defaults.
         </p>
         
         <div className="space-y-4">
@@ -329,11 +330,14 @@ export default function Profile() {
             <Input
               id="mainnet-node"
               type="text"
-              placeholder="wss://xrplcluster.com"
+              placeholder="https://s1.ripple.com:51234"
               value={customMainnetNode}
               onChange={(e) => setCustomMainnetNode(e.target.value)}
               data-testid="input-mainnet-node"
             />
+            <p className="text-xs text-muted-foreground">
+              Examples: https://s1.ripple.com:51234 or wss://xrplcluster.com
+            </p>
             <p className="text-xs text-muted-foreground">
               Default: {xrplClient.getEndpoint('mainnet')}
             </p>
@@ -347,11 +351,14 @@ export default function Profile() {
             <Input
               id="testnet-node"
               type="text"
-              placeholder="wss://s.altnet.rippletest.net:51233"
+              placeholder="https://s.altnet.rippletest.net:51234"
               value={customTestnetNode}
               onChange={(e) => setCustomTestnetNode(e.target.value)}
               data-testid="input-testnet-node"
             />
+            <p className="text-xs text-muted-foreground">
+              Examples: https://s.altnet.rippletest.net:51234 or wss://s.altnet.rippletest.net:51233
+            </p>
             <p className="text-xs text-muted-foreground">
               Default: {xrplClient.getEndpoint('testnet')}
             </p>
