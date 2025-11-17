@@ -158,9 +158,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Submitting transaction to XRPL network:', network);
       console.log('Transaction blob:', txBlob);
       
-      // Connect to XRPL and submit the transaction
-      const xrpl = await import('xrpl');
-      
       // Use custom endpoint if provided, otherwise use defaults
       const xrplEndpoint = endpoint || (network === 'mainnet' 
         ? 'wss://xrplcluster.com'
@@ -168,15 +165,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Using XRPL endpoint:', xrplEndpoint);
       
-      client = new xrpl.Client(xrplEndpoint);
+      let submitResult: any;
       
-      console.log('Connecting to XRPL...');
-      await client.connect();
-      console.log(`Connected to XRPL ${network} at ${xrplEndpoint}`);
-      
-      // Submit the signed transaction blob
-      console.log('Calling submit...');
-      const submitResult = await client.submit(txBlob);
+      // Check if endpoint is WebSocket or HTTP/HTTPS
+      if (xrplEndpoint.startsWith('ws://') || xrplEndpoint.startsWith('wss://')) {
+        // WebSocket endpoint - use xrpl.Client
+        const xrpl = await import('xrpl');
+        client = new xrpl.Client(xrplEndpoint);
+        
+        console.log('Connecting to XRPL via WebSocket...');
+        await client.connect();
+        console.log(`Connected to XRPL ${network} at ${xrplEndpoint}`);
+        
+        // Submit the signed transaction blob
+        console.log('Calling submit...');
+        submitResult = await client.submit(txBlob);
+      } else if (xrplEndpoint.startsWith('http://') || xrplEndpoint.startsWith('https://')) {
+        // JSON-RPC endpoint - use direct HTTP request
+        console.log('Submitting via JSON-RPC...');
+        
+        const response = await fetch(xrplEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            method: 'submit',
+            params: [{
+              tx_blob: txBlob
+            }]
+          })
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`JSON-RPC request failed: ${response.status} ${response.statusText}\n${errorText}`);
+        }
+        
+        submitResult = await response.json();
+      } else {
+        throw new Error(`Unsupported endpoint protocol: ${xrplEndpoint}`);
+      }
       console.log('Transaction submitted:', JSON.stringify(submitResult, null, 2));
       
       // Check submission result
