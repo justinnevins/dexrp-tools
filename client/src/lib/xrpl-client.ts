@@ -3,10 +3,106 @@ import { browserStorage } from './browser-storage';
 
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
+interface XRPLConnector {
+  connect(): Promise<void>;
+  disconnect(): Promise<void>;
+  request(params: any): Promise<any>;
+  isConnected(): boolean;
+}
+
+class WebSocketConnector implements XRPLConnector {
+  private client: Client;
+  private connected: boolean = false;
+
+  constructor(endpoint: string) {
+    this.client = new Client(endpoint);
+  }
+
+  async connect(): Promise<void> {
+    if (!this.connected) {
+      await this.client.connect();
+      this.connected = true;
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (this.connected) {
+      await this.client.disconnect();
+      this.connected = false;
+    }
+  }
+
+  async request(params: any): Promise<any> {
+    return this.client.request(params);
+  }
+
+  isConnected(): boolean {
+    return this.connected && this.client.isConnected();
+  }
+}
+
+class JsonRpcConnector implements XRPLConnector {
+  private endpoint: string;
+  private connected: boolean = false;
+  private requestId: number = 1;
+
+  constructor(endpoint: string) {
+    this.endpoint = endpoint.endsWith('/') ? endpoint : endpoint + '/';
+  }
+
+  async connect(): Promise<void> {
+    try {
+      const response = await this.request({ command: 'server_info' });
+      this.connected = !!response;
+    } catch (error) {
+      console.error('JSON-RPC connection test failed:', error);
+      throw error;
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    this.connected = false;
+  }
+
+  async request(params: any): Promise<any> {
+    const payload = {
+      method: params.command,
+      params: [params],
+      id: this.requestId++,
+      jsonrpc: '2.0'
+    };
+
+    const response = await fetch(this.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.error) {
+      throw data.error;
+    }
+
+    return { result: data.result };
+  }
+
+  isConnected(): boolean {
+    return this.connected;
+  }
+}
+
 interface ClientState {
-  client: Client;
+  connector: XRPLConnector;
   isConnected: boolean;
   connectionPromise: Promise<void> | null;
+  endpoint: string;
 }
 
 class XRPLClient {
@@ -45,20 +141,34 @@ class XRPLClient {
     return this.customEndpoints[network] || this.defaultEndpoints[network];
   }
 
+  private createConnector(endpoint: string): XRPLConnector {
+    const protocol = endpoint.split('://')[0].toLowerCase();
+    
+    if (protocol === 'http' || protocol === 'https') {
+      return new JsonRpcConnector(endpoint);
+    } else if (protocol === 'ws' || protocol === 'wss') {
+      return new WebSocketConnector(endpoint);
+    } else {
+      throw new Error(`Unsupported protocol: ${protocol}`);
+    }
+  }
+
   private initializeClientState(network: XRPLNetwork): void {
     const existingState = this.clients.get(network);
     if (existingState) {
       try {
-        existingState.client.disconnect();
+        existingState.connector.disconnect();
       } catch (error) {
         // Ignore errors during cleanup
       }
     }
     
+    const endpoint = this.getNetworkEndpoint(network);
     this.clients.set(network, {
-      client: new Client(this.getNetworkEndpoint(network)),
+      connector: this.createConnector(endpoint),
       isConnected: false,
-      connectionPromise: null
+      connectionPromise: null,
+      endpoint
     });
   }
 
@@ -67,7 +177,10 @@ class XRPLClient {
     if (!state) {
       throw new Error(`Client not initialized for network: ${network}`);
     }
-    return state.client;
+    if (state.connector instanceof WebSocketConnector) {
+      return (state.connector as any).client;
+    }
+    throw new Error('Client only available for WebSocket connections');
   }
 
   getEndpoint(network: XRPLNetwork): string {
@@ -128,7 +241,7 @@ class XRPLClient {
     }
 
     try {
-      await state.client.connect();
+      await state.connector.connect();
       state.isConnected = true;
     } catch (error) {
       console.error(`Failed to connect to XRPL ${network}:`, error);
@@ -147,7 +260,7 @@ class XRPLClient {
 
     try {
       if (state.isConnected) {
-        await state.client.disconnect();
+        await state.connector.disconnect();
       }
     } catch (error) {
       console.error(`Error during disconnect from ${network}:`, error);
@@ -168,17 +281,20 @@ class XRPLClient {
 
   async getAccountInfo(address: string, network: XRPLNetwork) {
     await this.connect(network);
-    const client = this.getClient(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
     
     try {
-      const response = await client.request({
+      const response = await state.connector.request({
         command: 'account_info',
         account: address,
         ledger_index: 'validated'
       });
       return response.result;
     } catch (error: any) {
-      if (error.data?.error === 'actNotFound') {
+      if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return {
           account_not_found: true,
           address,
@@ -192,10 +308,13 @@ class XRPLClient {
 
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
     await this.connect(network);
-    const client = this.getClient(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
     
     try {
-      const response = await client.request({
+      const response = await state.connector.request({
         command: 'account_tx',
         account: address,
         limit,
@@ -205,7 +324,7 @@ class XRPLClient {
       return response.result;
     } catch (error: any) {
       // Handle account not found error (account not activated)
-      if (error.data?.error === 'actNotFound') {
+      if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return { transactions: [], account: address, marker: undefined };
       }
       
@@ -216,10 +335,13 @@ class XRPLClient {
 
   async getAccountLines(address: string, network: XRPLNetwork) {
     await this.connect(network);
-    const client = this.getClient(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
     
     try {
-      const response = await client.request({
+      const response = await state.connector.request({
         command: 'account_lines',
         account: address,
         ledger_index: 'validated'
@@ -227,7 +349,7 @@ class XRPLClient {
       return response.result;
     } catch (error: any) {
       // Handle account not found error (account not activated)
-      if (error.data?.error === 'actNotFound') {
+      if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return { lines: [], account: address, marker: undefined };
       }
       
@@ -237,7 +359,7 @@ class XRPLClient {
       if (error.name === 'DisconnectedError' || error.message?.includes('disconnected')) {
         console.log('Retrying account lines fetch after disconnection...');
         await this.connect(network);
-        const response = await client.request({
+        const response = await state.connector.request({
           command: 'account_lines',
           account: address,
           ledger_index: 'validated'
@@ -251,10 +373,13 @@ class XRPLClient {
 
   async getAccountOffers(address: string, network: XRPLNetwork) {
     await this.connect(network);
-    const client = this.getClient(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
     
     try {
-      const response = await client.request({
+      const response = await state.connector.request({
         command: 'account_offers',
         account: address,
         ledger_index: 'validated'
@@ -262,7 +387,7 @@ class XRPLClient {
       return response.result;
     } catch (error: any) {
       // Handle account not found error
-      if (error.data?.error === 'actNotFound') {
+      if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return { offers: [], account: address };
       }
       console.error('Error fetching account offers:', error);
@@ -272,10 +397,13 @@ class XRPLClient {
 
   async getOrderBook(takerPays: any, takerGets: any, network: XRPLNetwork, limit = 10) {
     await this.connect(network);
-    const client = this.getClient(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
     
     try {
-      const response = await client.request({
+      const response = await state.connector.request({
         command: 'book_offers',
         taker_pays: takerPays,
         taker_gets: takerGets,
