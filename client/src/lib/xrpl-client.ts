@@ -143,6 +143,11 @@ class XRPLClient {
     testnet?: string;
   } = {};
 
+  private fullHistoryEndpoints: {
+    mainnet?: string;
+    testnet?: string;
+  } = {};
+
   constructor() {
     // Load custom endpoints from storage
     this.loadCustomEndpoints();
@@ -154,11 +159,29 @@ class XRPLClient {
 
   private loadCustomEndpoints(): void {
     const settings = browserStorage.getSettings();
+    
+    // Reset custom endpoints
     if (settings.customMainnetNode) {
       this.customEndpoints.mainnet = settings.customMainnetNode;
+    } else {
+      delete this.customEndpoints.mainnet;
     }
     if (settings.customTestnetNode) {
       this.customEndpoints.testnet = settings.customTestnetNode;
+    } else {
+      delete this.customEndpoints.testnet;
+    }
+    
+    // Reset full history endpoints
+    if (settings.fullHistoryMainnetNode) {
+      this.fullHistoryEndpoints.mainnet = settings.fullHistoryMainnetNode;
+    } else {
+      delete this.fullHistoryEndpoints.mainnet;
+    }
+    if (settings.fullHistoryTestnetNode) {
+      this.fullHistoryEndpoints.testnet = settings.fullHistoryTestnetNode;
+    } else {
+      delete this.fullHistoryEndpoints.testnet;
     }
   }
 
@@ -239,6 +262,11 @@ class XRPLClient {
 
     // Reinitialize the client with the new endpoint
     this.initializeClientState(network);
+  }
+
+  reloadFullHistoryEndpoints(): void {
+    // Reload full history endpoints from storage
+    this.loadCustomEndpoints();
   }
 
   async connect(network: XRPLNetwork): Promise<void> {
@@ -332,14 +360,41 @@ class XRPLClient {
   }
 
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
-    await this.connect(network);
-    const state = this.clients.get(network);
-    if (!state) {
-      throw new Error(`Client not initialized for network: ${network}`);
+    // Check if there's a full history endpoint configured for this network
+    const fullHistoryEndpoint = this.fullHistoryEndpoints[network];
+    
+    let connector: XRPLConnector;
+    
+    if (fullHistoryEndpoint) {
+      // Use full history endpoint for transaction queries
+      console.log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
+      connector = this.createConnector(fullHistoryEndpoint);
+      
+      // Connect to the full history server
+      try {
+        await connector.connect();
+      } catch (error) {
+        console.warn(`Failed to connect to full history server, falling back to regular endpoint:`, error);
+        // Fall back to regular endpoint if full history server fails
+        await this.connect(network);
+        const state = this.clients.get(network);
+        if (!state) {
+          throw new Error(`Client not initialized for network: ${network}`);
+        }
+        connector = state.connector;
+      }
+    } else {
+      // Use regular endpoint
+      await this.connect(network);
+      const state = this.clients.get(network);
+      if (!state) {
+        throw new Error(`Client not initialized for network: ${network}`);
+      }
+      connector = state.connector;
     }
     
     try {
-      const response = await state.connector.request({
+      const response = await connector.request({
         command: 'account_tx',
         account: address,
         limit,

@@ -38,6 +38,8 @@ export default function Profile() {
   const [editNetwork, setEditNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [customMainnetNode, setCustomMainnetNode] = useState('');
   const [customTestnetNode, setCustomTestnetNode] = useState('');
+  const [fullHistoryMainnetNode, setFullHistoryMainnetNode] = useState('');
+  const [fullHistoryTestnetNode, setFullHistoryTestnetNode] = useState('');
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
@@ -46,6 +48,8 @@ export default function Profile() {
     const settings = browserStorage.getSettings();
     setCustomMainnetNode(settings.customMainnetNode || '');
     setCustomTestnetNode(settings.customTestnetNode || '');
+    setFullHistoryMainnetNode(settings.fullHistoryMainnetNode || '');
+    setFullHistoryTestnetNode(settings.fullHistoryTestnetNode || '');
   }, []);
 
 
@@ -209,13 +213,49 @@ export default function Profile() {
       return;
     }
 
-    // Update XRPL client with custom endpoints
+    if (!isValidUrl(fullHistoryMainnetNode)) {
+      toast({
+        title: "Invalid Full History Mainnet URL",
+        description: "Node URL must start with http://, https://, ws://, or wss://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isValidUrl(fullHistoryTestnetNode)) {
+      toast({
+        title: "Invalid Full History Testnet URL",
+        description: "Node URL must start with http://, https://, ws://, or wss://",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Update XRPL client with custom endpoints (this saves to storage)
     xrplClient.setCustomEndpoint('mainnet', customMainnetNode || null);
     xrplClient.setCustomEndpoint('testnet', customTestnetNode || null);
 
+    // Save full history endpoints to storage AFTER setCustomEndpoint
+    // This ensures the full history fields are not overwritten
+    const settings = browserStorage.getSettings();
+    if (fullHistoryMainnetNode) {
+      settings.fullHistoryMainnetNode = fullHistoryMainnetNode.trim();
+    } else {
+      delete settings.fullHistoryMainnetNode;
+    }
+    if (fullHistoryTestnetNode) {
+      settings.fullHistoryTestnetNode = fullHistoryTestnetNode.trim();
+    } else {
+      delete settings.fullHistoryTestnetNode;
+    }
+    browserStorage.saveSettings(settings);
+
+    // Reload full history endpoints in memory
+    xrplClient.reloadFullHistoryEndpoints();
+
     toast({
       title: "Network Settings Saved",
-      description: "Custom node URLs have been updated successfully"
+      description: "Custom node URLs and full history servers have been updated successfully"
     });
   };
 
@@ -362,6 +402,51 @@ export default function Profile() {
             <p className="text-xs text-muted-foreground">
               Default: {xrplClient.getEndpoint('testnet')}
             </p>
+          </div>
+
+          <div className="border-t border-border pt-4 mt-4">
+            <h3 className="text-sm font-medium mb-3">Full History Servers (Optional)</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Specify separate servers for transaction history queries. Useful if your custom node has limited history.
+            </p>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="full-history-mainnet-node">
+                  Mainnet Full History Server
+                  <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+                </Label>
+                <Input
+                  id="full-history-mainnet-node"
+                  type="text"
+                  placeholder="https://s1.ripple.com:51234"
+                  value={fullHistoryMainnetNode}
+                  onChange={(e) => setFullHistoryMainnetNode(e.target.value)}
+                  data-testid="input-full-history-mainnet-node"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for transaction history queries on Mainnet
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="full-history-testnet-node">
+                  Testnet Full History Server
+                  <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+                </Label>
+                <Input
+                  id="full-history-testnet-node"
+                  type="text"
+                  placeholder="https://s.altnet.rippletest.net:51234"
+                  value={fullHistoryTestnetNode}
+                  onChange={(e) => setFullHistoryTestnetNode(e.target.value)}
+                  data-testid="input-full-history-testnet-node"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used for transaction history queries on Testnet
+                </p>
+              </div>
+            </div>
           </div>
           
           <Button

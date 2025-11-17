@@ -10,6 +10,8 @@ import type {
 export interface XRPLSettings {
   customMainnetNode?: string;
   customTestnetNode?: string;
+  fullHistoryMainnetNode?: string;
+  fullHistoryTestnetNode?: string;
 }
 
 class BrowserStorage {
