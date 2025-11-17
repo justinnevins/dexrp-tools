@@ -2,211 +2,77 @@
 
 ## Overview
 
-This is a mobile-first XRP Ledger (XRPL) software wallet application built with React and Express. The application focuses exclusively on integrating with the Keystone 3 Pro air-gapped hardware wallet using QR code-based transaction signing. The wallet provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and transactions while maintaining the security benefits of hardware wallet integration.
+This is a mobile-first XRP Ledger (XRPL) software wallet application built with React and Express. Its primary purpose is to integrate exclusively with the Keystone 3 Pro air-gapped hardware wallet using QR code-based transaction signing. The application provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and transactions, emphasizing security through hardware wallet integration.
 
-The application follows a simplified, streamlined design philosophy with core functionality consolidated into dedicated pages:
-- **Home**: Wallet balance overview with Send/Receive actions and recent transaction history
-- **Transactions**: Complete transaction history and filtering
-- **Tokens**: Comprehensive trustline/token management (view, add, remove)
-- **Profile**: Account settings and preferences
+Key capabilities include:
+- **Wallet Management**: Overview of balances, send/receive functionality, and transaction history.
+- **Token Management**: Comprehensive trustline and token management (view, add, remove).
+- **Profile Management**: Account settings and preferences.
+- **DEX Trading**: Functionality for creating DEX offers with enhanced currency selection.
+
+The project aims to deliver a streamlined, mobile-optimized experience for XRPL users seeking enhanced security through hardware wallet integration.
 
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-## Recent Changes
-
-### November 10, 2025 - Percentage-Based Amount Selection for Payments and DEX Offers
-- **Added quick amount selection buttons (25%, 50%, 75%, Max)**
-  - Created centralized `xrp-account.ts` utility for XRP reserve calculations
-    - Base reserve: 1 XRP + 0.2 XRP per owned object (OwnerCount)
-    - Calculates available balance accounting for reserves and transaction fees
-    - Provides `getTokenBalance()` helper for trustline balances
-  - Built reusable `AmountPresetButtons` component with percentage buttons
-  - Integrated preset buttons into send transaction form
-  - Integrated preset buttons into DEX offer creation (TakerGets and TakerPays)
-- **DEX-specific reserve handling**
-  - Max button for DEX TakerGets (what you give) reserves additional 0.2 XRP
-  - Creating a new offer increases OwnerCount by 1, requiring extra reserve
-  - Prevents `tecINSUF_RESERVE` errors when creating offers near reserve threshold
-  - Token balances use full trustline balance for Max
-- **Smart Max calculations**
-  - XRP: subtracts base reserve (1 XRP), OwnerCount reserves (0.2 XRP each), and transaction fee (12 drops)
-  - DEX XRP offers: additionally reserves 0.2 XRP for the new offer object
-  - Tokens: uses full available trustline balance
-  - All calculations clamp to zero for safety
-
-### November 9, 2025 - Wallet Editing and Network Management Fixes
-- **Added wallet edit functionality**
-  - Users can now edit wallet name and network (mainnet/testnet) from Profile page
-  - Edit button added to each wallet card with intuitive dialog interface
-  - Network changes automatically invalidate and reload all XRPL data queries
-  - Added `updateWallet` mutation to wallet context for flexible wallet updates
-- **Fixed network-related bugs**
-  - Send transaction flow now uses `currentWallet.network` instead of deprecated localStorage
-  - XRP price service updated to accept network parameter in `fetchXRPPrice(network)`
-  - Mobile app layout passes wallet network to price fetching logic
-- **Enhanced UI with network badges**
-  - Wallet selector dropdown now displays Mainnet/Testnet badges for each account
-  - Profile page wallet cards show color-coded network badges (green for Mainnet, orange for Testnet)
-  - Visual consistency across all wallet displays
-
-### November 9, 2025 - Per-Wallet Network Configuration
-- **Refactored application for per-wallet network management**
-  - Each wallet now stores its own network (mainnet/testnet) instead of using global state
-  - Added `network` field to wallet schema with proper `XRPLNetwork` type
-  - Network selection UI added to wallet setup flow (both EmptyWalletState and HardwareWalletConnectModal)
-  - XRPLClient refactored from singleton to multiton pattern using `Map<network, Client>` for concurrent multi-network support
-- **Updated all XRPL data queries**
-  - All useAccount* hooks now accept network parameter: `useAccountInfo`, `useAccountTransactions`, `useAccountLines`, `useAccountOffers`
-  - Updated 9 components to pass `currentWallet.network` to XRPL hooks
-  - Fixed wallet-balance.tsx to use HardwareWalletConnectModal (with network selection) instead of KeystoneAccountScanner
-- **Removed global network state**
-  - Deleted NetworkProvider context and removed all global network dependencies
-  - Removed NetworkSettings component from Profile page
-  - TestnetBanner now derives network from current wallet
-- **Wallet creation now requires network selection**
-  - Users must choose mainnet or testnet before scanning QR code
-  - Prevents mixing wallets from different networks
-  - Each wallet connects to its designated network for all XRPL operations
-
-### November 7, 2025 - DEX Trading Currency Selection Enhancement
-- **Replaced text inputs with dropdown selects for currency selection**
-  - Currency selection now limited to XRP + active trustlines + common tokens
-  - Added prepopulated list of top 10 common XRPL tokens (Mainnet/Testnet specific)
-  - Common tokens include: RLUSD, USDC, Bitstamp USD/BTC/ETH, GateHub EUR/USD/GBP, SOLO, CSC
-  - Testnet only shows RLUSD and USDC (other tokens not available on testnet)
-  - Issuer addresses automatically populated based on selected currency
-  - Displays issuer address in read-only format below selection
-- **Trading account indicator**
-  - Added prominent card showing trading account address and XRP balance
-  - Copy-to-clipboard functionality for account address
-  - Helps users confirm which account they're trading with
-- **Live market price display**
-  - Real-time pricing from XRPL order books
-  - Auto-refresh every 15 seconds
-  - Trading pair selection (XRP/USD, XRP/RLUSD)
-  - Manual refresh option
-  - Shows order book depth and last update time
-
-### October 29, 2025 - Hardware Wallet Signing for Trustlines
-- **Implemented QR code signing workflow for trustline creation**
-  - Created reusable `KeystoneTransactionSigner` component for both Payment and TrustSet transactions
-  - Updated trustline modal to require hardware wallet signing instead of direct API calls
-  - Trustlines now follow the same secure signing flow as payment transactions:
-    1. Create TrustSet transaction with currency, issuer, and limit
-    2. Encode transaction as QR code using Keystone SDK
-    3. User scans with Keystone 3 Pro device
-    4. User signs transaction offline on hardware wallet
-    5. User scans signed transaction QR back into app
-    6. App submits signed transaction to XRPL network
-  - Added hardware wallet requirement notice in trustline creation form
-  - Properly invalidates account lines cache after successful trustline creation
-- **Multi-part QR code scanning support**
-  - Keystone devices display large transaction signatures as multiple cycling QR codes
-  - Updated `KeystoneQRScanner` to use URDecoder for accumulating all QR parts
-  - Scanner detects multi-part URs (e.g., `/52-2/` format) and collects all parts
-  - Real-time progress indicator shows parts collected (e.g., "Scanning parts: 25/52")
-  - Visual progress bar displays completion percentage
-  - Only processes signature once all parts are received and reconstructed
-  - Scan interval reduced to 300ms for faster multi-part collection
-  - Fixed backend to parse complete UR strings using `UR.fromString()`
-
-### October 29, 2025 - Terminology Update (Wallet → Account)
-- Updated all user-facing terminology from "wallet" to "account" to clarify that Keystone 3 Pro is the hardware wallet and the app manages XRPL accounts
-- Updated prompts, alerts, and UI text in QR scanners, modals, and forms
-- Removed restriction on deleting the last account - now allows removing all accounts which clears all data and redirects to setup
-- Renamed "Disconnect Wallet" to "Remove All Accounts" with clearer messaging
-
-### October 29, 2025 - UI Simplification and Feature Consolidation
-- Removed Quick Actions section from home page for cleaner interface
-- Consolidated all trustline/token management into the Tokens page
-  - Added "Add Token" button functionality to open trustline modal
-  - Added delete/remove functionality for trustlines with confirmation dialog
-  - Centralized token operations in one location for better UX
-- Removed escrow functionality (postponed as advanced feature for future implementation)
-  - Removed escrow table from database schema
-  - Removed escrow-related API routes and storage methods
-  - Removed escrow UI components and references
-- Fixed transaction history display issues
-  - Properly handling XRPL API's `tx_json` field structure
-  - Supporting both `Amount` and `DeliverMax` fields for payment amounts
-  - Added retry logic and connection management for reliable data fetching
-
 ## System Architecture
 
 ### Frontend Architecture
 
-**Framework & UI**: React with TypeScript, using Vite as the build tool. The UI is built with shadcn/ui components (Radix UI primitives) and styled with Tailwind CSS using a "new-york" theme preset.
-
-**State Management**: TanStack Query (React Query) for server state management, with custom hooks for wallet operations and XRPL interactions. Local browser storage is used as the primary data persistence layer instead of relying on a backend database.
-
-**Routing**: Wouter is used for client-side routing, providing a lightweight alternative to React Router.
-
-**Mobile-First Design**: The application uses a mobile app layout with bottom navigation, optimized for mobile devices with a maximum width constraint (max-w-md). The design includes simulated status bars and mobile-specific UI patterns.
-
-**Data Storage Strategy**: Browser localStorage is the primary storage mechanism through the `BrowserStorage` class, which manages wallets, transactions, and trustlines entirely client-side. This approach was chosen to eliminate backend database dependencies while maintaining data persistence across sessions.
+**Framework & UI**: React with TypeScript, Vite for bundling. UI components are built using shadcn/ui (Radix UI primitives) and styled with Tailwind CSS, following a "new-york" theme.
+**State Management**: TanStack Query for server state management and custom hooks for XRPL interactions.
+**Routing**: Wouter for client-side routing.
+**Mobile-First Design**: Optimized for mobile devices with a dedicated mobile app layout, bottom navigation, and a maximum width constraint.
+**Data Storage**: Client-side persistence using browser localStorage for wallets, transactions, and trustlines, eliminating backend database dependencies.
 
 ### Backend Architecture
 
-**Server Framework**: Express.js with TypeScript, serving both API endpoints and the Vite development middleware.
-
-**API Design**: RESTful API endpoints for wallet management (`/api/wallets`), transactions, and trustlines. The backend provides CRUD operations but defers to client-side storage for actual data persistence.
-
-**Storage Layer**: The backend includes both an in-memory storage implementation (`MemStorage`) and database schema definitions using Drizzle ORM, but the application primarily uses browser-based storage for simplicity and offline capability.
-
-**Development Setup**: Vite middleware integration for hot module replacement during development, with custom error overlay handling via Replit's runtime error modal plugin.
+**Server Framework**: Express.js with TypeScript, serving API endpoints and Vite development middleware.
+**API Design**: RESTful API for wallet, transaction, and trustline management.
+**Storage Layer**: Includes in-memory storage and Drizzle ORM schema definitions, though the primary data storage is client-side.
 
 ### Hardware Wallet Integration
 
-**Keystone 3 Pro (Exclusive Support)**: QR code-based air-gapped communication using the `@keystonehq/keystone-sdk` and `@ngraveio/bc-ur` for encoding/decoding UR (Uniform Resources) formatted data. The wallet displays unsigned transactions as QR codes, which users scan with their Keystone 3 Pro device, sign offline, and scan the resulting signed transaction QR code back into the application.
-
-**Camera Integration**: Multiple QR scanner implementations using the `qr-scanner` library and native `getUserMedia` API for camera access. Different scanner components handle various use cases (account setup, transaction signing, address scanning).
-
-**Transaction Flow**: 
-1. User creates transaction in UI
-2. Transaction is encoded and displayed as QR code
-3. User scans QR with Keystone 3 Pro hardware wallet
-4. Keystone 3 Pro signs transaction offline (air-gapped)
-5. User scans signed transaction QR back into app
-6. App submits signed transaction to XRPL
+**Keystone 3 Pro (Exclusive)**: Utilizes QR code-based air-gapped communication via `@keystonehq/keystone-sdk` and `@ngraveio/bc-ur`. Unsigned transactions are displayed as QR codes, scanned by the Keystone 3 Pro, signed offline, and the signed transaction QR is scanned back into the app for submission to the XRPL.
+**Camera Integration**: `qr-scanner` library and `getUserMedia` API for QR code scanning, supporting multi-part QR codes for large transaction signatures.
 
 ### XRPL Integration
 
-**Client Library**: Using `xrpl` JavaScript library for blockchain interactions through WebSocket connections.
+**Client Library**: `xrpl` JavaScript library for all blockchain interactions.
+**Network Support**: Per-wallet configuration for both Mainnet and Testnet.
+**Connection Management**: Custom `XRPLClient` with a protocol-aware connector abstraction supports both WebSocket (ws/wss) and JSON-RPC (http/https) endpoints, automatically detecting the protocol from the URL and managing connection states.
+**Data Fetching**: Real-time account information, transaction history, and trustline data are fetched directly from XRPL nodes to ensure authenticity.
+**Transaction Encoding**: `ripple-binary-codec` for encoding transactions into XRPL's binary format for hardware wallet signing.
 
-**Network Support**: Dual network support (Mainnet and Testnet) with user-selectable switching. Network preference is persisted in localStorage.
+### System Design Choices
 
-**Connection Management**: Custom `XRPLClient` class manages WebSocket connections, handles reconnection logic, and provides network switching capabilities. The client maintains connection state and handles network endpoint configuration.
+- **Per-Wallet Network Configuration**: Each wallet stores its own network setting (Mainnet/Testnet), allowing for concurrent multi-network support without global state.
+- **Streamlined UI**: Consolidated token management and removed redundant features (e.g., Quick Actions, Escrow functionality) to simplify the user experience.
+- **Percentage-Based Amount Selection**: Implemented quick amount selection (25%, 50%, 75%, Max) for payments and DEX offers, with smart calculations accounting for XRPL reserves and fees.
+- **Custom XRPL Node Support**: Users can configure custom WebSocket or JSON-RPC endpoints for XRPL interactions.
 
-**Data Fetching**: Real-time account information, transaction history, and trustline data is fetched directly from XRPL nodes rather than relying on backend storage. This ensures data authenticity and reduces backend complexity.
-
-**Transaction Encoding**: Uses `ripple-binary-codec` for encoding transactions into the binary format required by XRPL, particularly for hardware wallet signing workflows.
-
-### External Dependencies
+## External Dependencies
 
 **XRPL Network Endpoints**:
-- Mainnet: `wss://xrplcluster.com`
-- Testnet: `wss://s.altnet.rippletest.net:51233`
+- Mainnet: `wss://xrplcluster.com` (WebSocket), `https://s1.ripple.com:51234` (JSON-RPC)
+- Testnet: `wss://s.altnet.rippletest.net:51233` (WebSocket), `https://s.altnet.rippletest.net:51234` (JSON-RPC)
+- Custom Endpoints: User-configurable for both WebSocket and JSON-RPC protocols.
 
 **Hardware Wallet SDKs**:
-- `@keystonehq/keystone-sdk` - Keystone 3 Pro integration
-- `@keystonehq/bc-ur-registry` - UR format encoding/decoding
-- `@ngraveio/bc-ur` - Alternative BC-UR implementation
-- `cbor-web` - CBOR encoding for QR data payloads
+- `@keystonehq/keystone-sdk`
+- `@keystonehq/bc-ur-registry`
+- `@ngraveio/bc-ur`
+- `cbor-web`
 
-**Pricing Data**: CoinGecko API for XRP/USD price conversions (with fallback to $0.50 if API fails).
+**Pricing Data**: CoinGecko API for XRP/USD price (with fallback).
 
-**Database** (Optional): PostgreSQL via Neon serverless (`@neondatabase/serverless`) with Drizzle ORM for schema management, though the current implementation primarily uses browser storage.
+**Database** (Optional): PostgreSQL via Neon serverless (`@neondatabase/serverless`) with Drizzle ORM (primarily for schema definition, current implementation uses browser storage).
 
-**UI Components**: Comprehensive Radix UI component library for accessible, unstyled primitives (dialogs, dropdowns, tooltips, etc.) styled with Tailwind CSS.
+**UI Components**: Radix UI (via shadcn/ui) for accessible components.
 
 **QR Code Libraries**:
-- `qrcode` - QR code generation for displaying data
-- `qr-scanner` - Camera-based QR code scanning
+- `qrcode` (generation)
+- `qr-scanner` (scanning)
 
-**Development Tools**:
-- TypeScript for type safety
-- Vite for fast development and optimized builds
-- ESBuild for server bundling
-- Drizzle Kit for database migrations (when using PostgreSQL)
+**Development Tools**: TypeScript, Vite, ESBuild, Drizzle Kit.

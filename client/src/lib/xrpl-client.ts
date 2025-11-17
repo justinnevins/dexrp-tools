@@ -55,7 +55,12 @@ class JsonRpcConnector implements XRPLConnector {
     console.log(`Testing JSON-RPC connection to: ${this.endpoint}`);
     try {
       const response = await this.request({ command: 'server_info' });
-      this.connected = !!response;
+      
+      if (!response || !response.result || !response.result.info) {
+        throw new Error('Invalid server_info response from JSON-RPC endpoint');
+      }
+      
+      this.connected = true;
       console.log(`JSON-RPC connection successful to: ${this.endpoint}`);
     } catch (error) {
       console.error(`JSON-RPC connection test failed for ${this.endpoint}:`, error);
