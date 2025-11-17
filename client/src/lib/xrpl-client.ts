@@ -48,49 +48,65 @@ class JsonRpcConnector implements XRPLConnector {
 
   constructor(endpoint: string) {
     this.endpoint = endpoint.endsWith('/') ? endpoint : endpoint + '/';
+    console.log(`Created JSON-RPC connector for endpoint: ${this.endpoint}`);
   }
 
   async connect(): Promise<void> {
+    console.log(`Testing JSON-RPC connection to: ${this.endpoint}`);
     try {
       const response = await this.request({ command: 'server_info' });
       this.connected = !!response;
+      console.log(`JSON-RPC connection successful to: ${this.endpoint}`);
     } catch (error) {
-      console.error('JSON-RPC connection test failed:', error);
+      console.error(`JSON-RPC connection test failed for ${this.endpoint}:`, error);
+      console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      this.connected = false;
       throw error;
     }
   }
 
   async disconnect(): Promise<void> {
     this.connected = false;
+    return Promise.resolve();
   }
 
   async request(params: any): Promise<any> {
-    const payload = {
-      method: params.command,
-      params: [params],
-      id: this.requestId++,
-      jsonrpc: '2.0'
-    };
+    try {
+      const payload = {
+        method: params.command,
+        params: [params],
+        id: this.requestId++,
+        jsonrpc: '2.0'
+      };
 
-    const response = await fetch(this.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload)
-    });
+      const response = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error) {
+        const errorObj: any = new Error(data.error.message || 'JSON-RPC error');
+        errorObj.data = data.error;
+        throw errorObj;
+      }
+
+      return { result: data.result };
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error(`JSON-RPC request failed: ${String(error)}`);
     }
-
-    const data = await response.json();
-    
-    if (data.error) {
-      throw data.error;
-    }
-
-    return { result: data.result };
   }
 
   isConnected(): boolean {
