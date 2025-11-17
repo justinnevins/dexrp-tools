@@ -5,6 +5,47 @@ import { insertWalletSchema, insertTransactionSchema, insertTrustlineSchema } fr
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // XRPL JSON-RPC Proxy
+  app.post("/api/xrpl-proxy", async (req, res) => {
+    try {
+      const { endpoint, payload } = req.body;
+      
+      if (!endpoint || !payload) {
+        return res.status(400).json({ error: "Missing endpoint or payload" });
+      }
+      
+      // Validate endpoint format
+      if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+        return res.status(400).json({ error: "Invalid endpoint protocol" });
+      }
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return res.status(response.status).json({ 
+          error: `HTTP ${response.status}: ${response.statusText}`,
+          details: errorText
+        });
+      }
+      
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error('XRPL Proxy error:', error);
+      res.status(500).json({ 
+        error: 'Failed to proxy request',
+        message: error.message 
+      });
+    }
+  });
+
   // Wallet routes
   app.get("/api/wallets", async (req, res) => {
     try {

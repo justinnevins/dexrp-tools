@@ -84,17 +84,21 @@ class JsonRpcConnector implements XRPLConnector {
         jsonrpc: '2.0'
       };
 
-      const response = await fetch(this.endpoint, {
+      // Use backend proxy to avoid CORS issues
+      const response = await fetch('/api/xrpl-proxy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          endpoint: this.endpoint,
+          payload: payload
+        })
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
