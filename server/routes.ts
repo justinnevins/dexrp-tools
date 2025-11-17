@@ -236,8 +236,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Transaction stored in database:', transaction);
       
-      await client.disconnect();
-      console.log('Disconnected from XRPL');
+      // Disconnect WebSocket client if it was used
+      if (client) {
+        await client.disconnect();
+        console.log('Disconnected from XRPL');
+      }
       
       res.status(201).json({
         success: true,
