@@ -369,9 +369,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Backend: Signature keys:', Object.keys(signature));
       
       // Return the signature data
+      const parsedSignature: any = signature;
       res.json({
-        signature: typeof signature === 'string' ? signature : signature.signature,
-        requestId: typeof signature === 'object' ? signature.requestId : crypto.randomUUID()
+        signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
+        requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
       });
     } catch (error: any) {
       console.error('Backend: Keystone decode signature error:', error);

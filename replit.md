@@ -41,7 +41,7 @@ Preferred communication style: Simple, everyday language.
 
 **Client Library**: `xrpl` JavaScript library for all blockchain interactions.
 **Network Support**: Per-wallet configuration for both Mainnet and Testnet.
-**Connection Management**: Custom `XRPLClient` with a protocol-aware connector abstraction supports both WebSocket (ws/wss) and JSON-RPC (http/https) endpoints, automatically detecting the protocol from the URL and managing connection states.
+**Connection Management**: Custom `XRPLClient` with a protocol-aware connector abstraction supports both WebSocket (ws/wss) and JSON-RPC (http/https) endpoints, automatically detecting the protocol from the URL and managing connection states. JSON-RPC requests are routed through a backend proxy (`/api/xrpl-proxy`) to bypass browser CORS restrictions, enabling seamless connection to custom nodes.
 **Data Fetching**: Real-time account information, transaction history, and trustline data are fetched directly from XRPL nodes to ensure authenticity.
 **Transaction Encoding**: `ripple-binary-codec` for encoding transactions into XRPL's binary format for hardware wallet signing.
 
