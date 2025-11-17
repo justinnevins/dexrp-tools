@@ -51,7 +51,7 @@ Preferred communication style: Simple, everyday language.
 - **Streamlined UI**: Consolidated token management and removed redundant features (e.g., Quick Actions, Escrow functionality) to simplify the user experience.
 - **Percentage-Based Amount Selection**: Implemented quick amount selection (25%, 50%, 75%, Max) for payments and DEX offers, with smart calculations accounting for XRPL reserves and fees.
 - **Custom XRPL Node Support**: Users can configure custom WebSocket or JSON-RPC endpoints for XRPL interactions.
-- **Full History Server Configuration**: Separate endpoint configuration for transaction history queries. When a full history server is configured, `getAccountTransactions` uses it instead of the primary node, allowing users to query full transaction history even when using custom nodes with limited history. Falls back gracefully to the primary endpoint if the full history server fails.
+- **Full History Server Configuration**: Separate endpoint configuration for transaction history queries. By default, `getAccountTransactions` uses dedicated full-history servers (https://s1.ripple.com:51234 for Mainnet, https://s.altnet.rippletest.net:51234 for Testnet) to ensure complete transaction history. Users can optionally configure custom full-history servers. Falls back gracefully to the primary endpoint if the full history server fails.
 
 ## External Dependencies
 

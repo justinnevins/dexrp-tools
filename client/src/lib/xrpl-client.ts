@@ -138,6 +138,11 @@ class XRPLClient {
     testnet: 'wss://s.altnet.rippletest.net:51233'
   };
 
+  private defaultFullHistoryEndpoints = {
+    mainnet: 'https://s1.ripple.com:51234',
+    testnet: 'https://s.altnet.rippletest.net:51234'
+  };
+
   private customEndpoints: {
     mainnet?: string;
     testnet?: string;
@@ -360,31 +365,22 @@ class XRPLClient {
   }
 
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
-    // Check if there's a full history endpoint configured for this network
-    const fullHistoryEndpoint = this.fullHistoryEndpoints[network];
+    // Determine which full history endpoint to use
+    // Priority: custom full history endpoint > default full history endpoint
+    const fullHistoryEndpoint = this.fullHistoryEndpoints[network] || this.defaultFullHistoryEndpoints[network];
     
     let connector: XRPLConnector;
     
-    if (fullHistoryEndpoint) {
-      // Use full history endpoint for transaction queries
-      console.log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
-      connector = this.createConnector(fullHistoryEndpoint);
-      
-      // Connect to the full history server
-      try {
-        await connector.connect();
-      } catch (error) {
-        console.warn(`Failed to connect to full history server, falling back to regular endpoint:`, error);
-        // Fall back to regular endpoint if full history server fails
-        await this.connect(network);
-        const state = this.clients.get(network);
-        if (!state) {
-          throw new Error(`Client not initialized for network: ${network}`);
-        }
-        connector = state.connector;
-      }
-    } else {
-      // Use regular endpoint
+    // Always use a full history endpoint for transaction queries
+    console.log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
+    connector = this.createConnector(fullHistoryEndpoint);
+    
+    // Connect to the full history server
+    try {
+      await connector.connect();
+    } catch (error) {
+      console.warn(`Failed to connect to full history server, falling back to regular endpoint:`, error);
+      // Fall back to regular endpoint if full history server fails
       await this.connect(network);
       const state = this.clients.get(network);
       if (!state) {

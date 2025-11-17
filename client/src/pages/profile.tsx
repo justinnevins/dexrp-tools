@@ -407,7 +407,7 @@ export default function Profile() {
           <div className="border-t border-border pt-4 mt-4">
             <h3 className="text-sm font-medium mb-3">Full History Servers (Optional)</h3>
             <p className="text-xs text-muted-foreground mb-4">
-              Specify separate servers for transaction history queries. Useful if your custom node has limited history.
+              Separate servers are used for transaction history queries. Leave blank to use default full history servers.
             </p>
             
             <div className="space-y-4">
@@ -425,7 +425,7 @@ export default function Profile() {
                   data-testid="input-full-history-mainnet-node"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Used for transaction history queries on Mainnet
+                  Default: https://s1.ripple.com:51234
                 </p>
               </div>
               
@@ -443,7 +443,7 @@ export default function Profile() {
                   data-testid="input-full-history-testnet-node"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Used for transaction history queries on Testnet
+                  Default: https://s.altnet.rippletest.net:51234
                 </p>
               </div>
             </div>
