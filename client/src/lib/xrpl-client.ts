@@ -209,11 +209,11 @@ class XRPLClient {
   private initializeClientState(network: XRPLNetwork): void {
     const existingState = this.clients.get(network);
     if (existingState) {
-      try {
-        existingState.connector.disconnect();
-      } catch (error) {
-        // Ignore errors during cleanup
-      }
+      // Ensure proper cleanup by handling disconnect promise
+      // Using .catch to handle async errors without changing method signature
+      existingState.connector.disconnect().catch((error) => {
+        console.debug(`Cleanup error during client reinitialization for ${network}:`, error);
+      });
     }
     
     const endpoint = this.getNetworkEndpoint(network);
@@ -369,17 +369,21 @@ class XRPLClient {
     // Priority: custom full history endpoint > default full history endpoint
     const fullHistoryEndpoint = this.fullHistoryEndpoints[network] || this.defaultFullHistoryEndpoints[network];
     
-    let connector: XRPLConnector;
+    let connector: XRPLConnector | null = null;
+    let usingTemporaryConnector = false;
     
     // Always use a full history endpoint for transaction queries
     console.log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
-    connector = this.createConnector(fullHistoryEndpoint);
     
-    // Connect to the full history server
     try {
+      connector = this.createConnector(fullHistoryEndpoint);
+      usingTemporaryConnector = true;
+      
+      // Connect to the full history server
       await connector.connect();
     } catch (error) {
       console.warn(`Failed to connect to full history server, falling back to regular endpoint:`, error);
+      
       // Fall back to regular endpoint if full history server fails
       await this.connect(network);
       const state = this.clients.get(network);
@@ -387,9 +391,14 @@ class XRPLClient {
         throw new Error(`Client not initialized for network: ${network}`);
       }
       connector = state.connector;
+      usingTemporaryConnector = false;
     }
     
     try {
+      if (!connector) {
+        throw new Error('No connector available for transaction query');
+      }
+      
       const response = await connector.request({
         command: 'account_tx',
         account: address,
@@ -406,6 +415,16 @@ class XRPLClient {
       
       console.error('Error fetching transactions:', error);
       throw error;
+    } finally {
+      // Clean up temporary connector if we created one
+      if (usingTemporaryConnector && connector) {
+        try {
+          await connector.disconnect();
+          console.log('Disconnected temporary full history server connector');
+        } catch (error) {
+          console.debug('Error disconnecting temporary connector:', error);
+        }
+      }
     }
   }
 
