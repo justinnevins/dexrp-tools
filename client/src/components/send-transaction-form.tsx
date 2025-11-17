@@ -630,7 +630,11 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Get current network from wallet
       const submissionNetwork = currentWallet?.network || 'mainnet';
       
+      // Get the custom endpoint configured for this network
+      const customEndpoint = xrplClient.getEndpoint(submissionNetwork);
+      
       console.log('Submitting transaction to network:', submissionNetwork);
+      console.log('Using XRPL endpoint:', customEndpoint);
       console.log('Transaction blob:', signedTransaction.txBlob);
       
       // Submit signed transaction to XRPL network
@@ -644,6 +648,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           txBlob: signedTransaction.txBlob || signedTransaction.signedTransaction,
           txHash: signedTransaction.txHash || signedTransaction.hash,
           network: submissionNetwork,
+          endpoint: customEndpoint,
           transactionData: {
             type: 'sent',
             amount: pendingTransactionData.amount,

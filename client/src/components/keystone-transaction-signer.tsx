@@ -6,6 +6,7 @@ import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { useToast } from '@/hooks/use-toast';
 import { decode as cborDecode } from 'cbor-web';
+import { xrplClient } from '@/lib/xrpl-client';
 
 interface KeystoneTransactionSignerProps {
   isOpen: boolean;
@@ -132,6 +133,10 @@ export function KeystoneTransactionSigner({
       console.log('Submitting signed transaction to XRPL...');
       console.log('Transaction blob:', signedTransaction.txBlob);
 
+      // Get the custom endpoint configured for this network
+      const customEndpoint = xrplClient.getEndpoint(network);
+      console.log('Using XRPL endpoint:', customEndpoint);
+
       // Prepare transaction data based on type
       const transactionData = transactionType === 'Payment' 
         ? {
@@ -161,7 +166,8 @@ export function KeystoneTransactionSigner({
           txBlob: signedTransaction.txBlob,
           txHash: signedTransaction.txHash || null,
           transactionData,
-          network
+          network,
+          endpoint: customEndpoint
         })
       });
 
