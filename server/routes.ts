@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const { URDecoder } = await import('@ngraveio/bc-ur');
+      const cbor = await import('cbor-web');
       
       const { ur: urString } = req.body;
       
@@ -385,34 +385,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Normalize UR string to uppercase (URDecoder expects uppercase)
-      const normalizedUR = urString.toUpperCase();
-      console.log('Backend: Normalized UR:', normalizedUR.substring(0, 50) + '...');
-      
-      // Use URDecoder to parse the UR string
-      const decoder = new URDecoder();
-      decoder.receivePart(normalizedUR);
-      
-      if (!decoder.isComplete()) {
-        throw new Error('UR decoding incomplete - this should not happen for single-part URs');
+      // Parse the UR to extract type and payload
+      const urMatch = urString.match(/^ur:([^/]+)\/(.+)$/i);
+      if (!urMatch) {
+        throw new Error('Invalid UR format');
       }
       
-      const decodedUR = decoder.resultUR();
+      const urType = urMatch[1].toLowerCase();
+      const urPayload = urMatch[2];
       
-      console.log('Backend: Decoded UR type:', decodedUR.type);
-      console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
+      console.log('Backend: UR type:', urType);
+      console.log('Backend: UR payload (first 50 chars):', urPayload.substring(0, 50));
       
-      // Parse the XRP signature using the decoded UR
-      const signature = keystoneSDK.xrp.parseSignature(decodedUR);
+      // Detect encoding: hex (numbers/letters) vs Bytewords (specific word list)
+      const isHexEncoded = /^[0-9a-fA-F]+$/.test(urPayload);
+      console.log('Backend: Encoding detected:', isHexEncoded ? 'hex' : 'bytewords');
       
-      console.log('Backend: Parsed signature object:', JSON.stringify(signature, null, 2));
-      console.log('Backend: Signature keys:', Object.keys(signature));
+      let signature: string;
+      
+      if (isHexEncoded) {
+        // Hex-encoded UR: decode hex -> CBOR -> extract signed transaction blob
+        console.log('Backend: Processing hex-encoded UR');
+        const cborBuffer = Buffer.from(urPayload, 'hex');
+        console.log('Backend: CBOR buffer length:', cborBuffer.length);
+        
+        // Decode CBOR - the result IS the signed transaction blob (as a Buffer)
+        const signedTxBlob = cbor.decodeFirstSync(cborBuffer);
+        console.log('Backend: Decoded CBOR type:', typeof signedTxBlob);
+        console.log('Backend: Is Buffer:', Buffer.isBuffer(signedTxBlob));
+        
+        if (Buffer.isBuffer(signedTxBlob)) {
+          // The signed transaction blob - convert to uppercase hex string
+          signature = signedTxBlob.toString('hex').toUpperCase();
+          console.log('Backend: Extracted signature (first 100 chars):', signature.substring(0, 100));
+        } else {
+          throw new Error('Expected Buffer from CBOR decode, got: ' + typeof signedTxBlob);
+        }
+      } else {
+        // Bytewords-encoded UR: use standard URDecoder + SDK
+        console.log('Backend: Processing Bytewords-encoded UR');
+        const { URDecoder } = await import('@ngraveio/bc-ur');
+        const decoder = new URDecoder();
+        decoder.receivePart(urString.toUpperCase());
+        
+        if (!decoder.isComplete()) {
+          throw new Error('UR decoding incomplete');
+        }
+        
+        const decodedUR = decoder.resultUR();
+        console.log('Backend: Decoded UR type:', decodedUR.type);
+        console.log('Backend: CBOR length:', decodedUR.cbor.length);
+        
+        // Parse signature using Keystone SDK
+        const parsedSig = keystoneSDK.xrp.parseSignature(decodedUR);
+        console.log('Backend: Parsed signature:', parsedSig);
+        
+        signature = typeof parsedSig === 'string' ? parsedSig : (parsedSig as any).signature;
+      }
       
       // Return the signature data
-      const parsedSignature: any = signature;
       res.json({
-        signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
-        requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
+        signature: signature,
+        requestId: crypto.randomUUID()
       });
     } catch (error: any) {
       console.error('Backend: Keystone decode signature error:', error);
