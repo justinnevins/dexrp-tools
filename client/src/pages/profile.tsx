@@ -80,7 +80,7 @@ export default function Profile() {
     return "0";
   };
 
-  const handleRemoveAccount = (walletId: number) => {
+  const handleRemoveAccount = async (walletId: number) => {
     if (!currentWallet) return;
     
     const allWallets = wallets.data || [];
@@ -105,8 +105,9 @@ export default function Profile() {
       }
     }
     
-    // Invalidate queries to refresh the UI
-    queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+    // Clear mutation cache and invalidate queries to fully refresh
+    queryClient.resetQueries({ queryKey: ['browser-wallets'] });
+    await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     
     toast({
       title: "Account Removed",
