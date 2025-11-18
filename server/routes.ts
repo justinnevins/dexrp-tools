@@ -406,18 +406,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Step 1: Use URDecoder to parse the UR string
-      // URDecoder handles both hex-like encodings (ur:bytes/58d2...) and Bytewords natively
-      // DO NOT uppercase or manually parse the UR string
-      const decoder = new URDecoder();
-      decoder.receivePart(urString);
+      // Step 1: Check if this is a single-part or multi-part UR
+      // Single-part: ur:bytes/<payload>
+      // Multi-part: ur:bytes/<seqNum>-<seqLen>/<payload>
+      const isSinglePart = !urString.match(/ur:[^/]+\/\d+-\d+\//);
       
-      if (!decoder.isComplete()) {
-        throw new Error('UR decoding incomplete');
+      let decodedUR;
+      
+      if (isSinglePart) {
+        // For single-part URs, manually parse if it's hex-encoded
+        // TrustSet transactions come as: ur:bytes/58ca1200... (lowercase hex)
+        // Payment/OfferCreate come as: ur:bytes/HDRFBGAE... (Bytewords)
+        console.log('Backend: Decoding single-part UR');
+        
+        // Extract type and payload from ur:type/payload format
+        const match = urString.match(/^ur:([^/]+)\/(.+)$/);
+        if (!match) {
+          throw new Error('Invalid UR format');
+        }
+        
+        const [, type, payload] = match;
+        
+        // Check if payload is hex (only contains 0-9, a-f)
+        const isHex = /^[0-9a-f]+$/i.test(payload);
+        
+        if (isHex) {
+          // Hex-encoded UR - manually decode
+          console.log('Backend: Detected hex-encoded UR (minimal encoding)');
+          decodedUR = {
+            type: Buffer.from(type),
+            cbor: Buffer.from(payload, 'hex')
+          };
+        } else {
+          // Bytewords-encoded UR - use URDecoder
+          console.log('Backend: Detected Bytewords-encoded UR');
+          const decoder = new URDecoder();
+          decoder.receivePart(urString);
+          
+          if (!decoder.isComplete()) {
+            throw new Error('UR decoding incomplete');
+          }
+          
+          decodedUR = decoder.resultUR();
+        }
+      } else {
+        // For multi-part URs, use URDecoder (existing flow for large transactions)
+        console.log('Backend: Decoding multi-part UR');
+        const decoder = new URDecoder();
+        decoder.receivePart(urString);
+        
+        if (!decoder.isComplete()) {
+          throw new Error('UR decoding incomplete - multi-part UR requires all fragments');
+        }
+        
+        decodedUR = decoder.resultUR();
       }
       
       // Step 2: Extract decoded UR components
-      const decodedUR = decoder.resultUR();
       
       console.log('Backend: Decoded UR type (buffer):', decodedUR.type);
       console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
