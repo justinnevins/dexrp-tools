@@ -373,6 +373,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  /**
+   * Decode XRP transaction signature from Keystone hardware wallet QR code
+   * 
+   * CRITICAL: This endpoint handles the decoding of signed transactions from Keystone.
+   * The Keystone device returns UR strings like "ur:bytes/58d2..." which appear to be
+   * hex-encoded but are actually valid Bytewords encoding.
+   * 
+   * CORRECT APPROACH (current implementation):
+   * 1. Use URDecoder to parse the full UR string (handles both hex-like and Bytewords)
+   * 2. Extract type (Buffer) and cbor (Uint8Array) from decoded result
+   * 3. Convert to format Keystone SDK expects: new UR(Buffer.from(cborHex, 'hex'), typeString)
+   * 4. Pass to keystoneSDK.xrp.parseSignature()
+   * 
+   * FAILED APPROACHES (do not use):
+   * - Manual regex parsing of UR string and treating payload as hex
+   * - Uppercasing the UR string before decoding
+   * - Direct CBOR parsing without URDecoder
+   * - Creating UR objects with raw type strings
+   * 
+   * Reference: https://dev.keyst.one/docs/integration-tutorial-advanced/xrp
+   */
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
@@ -385,7 +406,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Use URDecoder to parse the UR string - it handles both hex and Bytewords encoding
+      // Step 1: Use URDecoder to parse the UR string
+      // URDecoder handles both hex-like encodings (ur:bytes/58d2...) and Bytewords natively
+      // DO NOT uppercase or manually parse the UR string
       const decoder = new URDecoder();
       decoder.receivePart(urString);
       
@@ -393,26 +416,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error('UR decoding incomplete');
       }
       
+      // Step 2: Extract decoded UR components
       const decodedUR = decoder.resultUR();
       
       console.log('Backend: Decoded UR type (buffer):', decodedUR.type);
       console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
       
-      // The decodedUR has type as Buffer and cbor as Uint8Array
-      // Convert to the format Keystone SDK expects: new UR(Buffer.from(cbor, "hex"), type)
-      // We need to convert cbor buffer to hex string, then back to buffer for UR constructor
+      // Step 3: Convert to Keystone SDK format
+      // decodedUR.type is a Buffer, decodedUR.cbor is a Uint8Array
+      // Keystone SDK expects: new UR(Buffer.from(cbor, "hex"), type)
       const cborHex = Buffer.from(decodedUR.cbor).toString('hex');
-      const typeString = decodedUR.type.toString(); // Convert Buffer to string
+      const typeString = decodedUR.type.toString();
       
       console.log('Backend: Type string:', typeString);
       console.log('Backend: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
       
-      // Create UR object exactly as Keystone docs show: new UR(Buffer.from(cbor, "hex"), type)
+      // Step 4: Create UR object per Keystone documentation
       const ur = new UR(Buffer.from(cborHex, 'hex'), typeString);
       
       console.log('Backend: Created UR object for parseSignature');
       
-      // Parse the XRP signature using the UR object
+      // Step 5: Parse the XRP signature using Keystone SDK
       const signature = keystoneSDK.xrp.parseSignature(ur);
       
       console.log('Backend: Parsed signature:', signature);

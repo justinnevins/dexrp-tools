@@ -35,7 +35,32 @@ Preferred communication style: Simple, everyday language.
 ### Hardware Wallet Integration
 
 **Keystone 3 Pro (Exclusive)**: Utilizes QR code-based air-gapped communication via `@keystonehq/keystone-sdk` and `@ngraveio/bc-ur`. Unsigned transactions are displayed as QR codes, scanned by the Keystone 3 Pro, signed offline, and the signed transaction QR is scanned back into the app for submission to the XRPL.
+
 **Camera Integration**: `qr-scanner` library and `getUserMedia` API for QR code scanning, supporting multi-part QR codes for large transaction signatures.
+
+**Critical Implementation Detail - Signature Decoding**: 
+
+The Keystone device returns signed transactions as UR (Uniform Resource) strings in the format `ur:bytes/<encoded_data>`. The `<encoded_data>` portion appears to be hexadecimal but is actually valid Bytewords encoding that URDecoder can parse natively. 
+
+**Correct decoding flow** (`/api/keystone/xrp/decode-signature` endpoint):
+1. Use `URDecoder` from `@ngraveio/bc-ur` to parse the raw UR string
+   - `decoder.receivePart(urString)` handles both hex-like and Bytewords-encoded URs
+   - DO NOT manually parse, uppercase, or attempt to detect encoding type
+2. Extract the decoded result with `decoder.resultUR()`
+   - Returns `type` (as Buffer) and `cbor` (as Uint8Array)
+3. Reconstruct a UR object for Keystone SDK:
+   - Convert cbor to hex: `Buffer.from(decodedUR.cbor).toString('hex')`
+   - Convert type to string: `decodedUR.type.toString()`
+   - Create UR: `new UR(Buffer.from(cborHex, 'hex'), typeString)`
+4. Parse signature: `keystoneSDK.xrp.parseSignature(ur)`
+
+**Why this works**: URDecoder internally handles the UR format parsing and encoding detection. The Keystone SDK's `parseSignature()` method expects a UR object constructed from hex-encoded CBOR and a type string. The intermediate step of using URDecoder ensures proper decoding of the Keystone device's output format, regardless of how the data appears visually.
+
+**Previous failed approaches**:
+- Treating `ur:bytes/58d2...` as hex and manually decoding: Failed because URDecoder expects the full UR string
+- Uppercasing the UR string: Broke hex-like encodings that are actually Bytewords
+- Manual CBOR parsing without URDecoder: Missed the UR format structure
+- Attempting to construct UR objects with raw type strings: Type validation failed
 
 ### XRPL Integration
 
