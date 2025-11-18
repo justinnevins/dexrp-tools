@@ -385,9 +385,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
+      // Normalize UR string to uppercase (URDecoder expects uppercase)
+      const normalizedUR = urString.toUpperCase();
+      console.log('Backend: Normalized UR:', normalizedUR.substring(0, 50) + '...');
+      
       // Use URDecoder to parse the UR string
       const decoder = new URDecoder();
-      decoder.receivePart(urString);
+      decoder.receivePart(normalizedUR);
       
       if (!decoder.isComplete()) {
         throw new Error('UR decoding incomplete - this should not happen for single-part URs');
