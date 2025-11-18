@@ -12,7 +12,7 @@ interface WalletContextType {
     error: Error | null;
   };
   createWallet: {
-    mutateAsync: (data: { address: string; hardwareWalletType?: string; publicKey?: string; network?: 'mainnet' | 'testnet' }) => Promise<Wallet>;
+    mutateAsync: (data: { address: string; hardwareWalletType?: string; publicKey?: string; network?: 'mainnet' | 'testnet'; name?: string }) => Promise<Wallet>;
     isPending: boolean;
   };
   updateWallet: {
@@ -64,12 +64,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const createWallet = useMutation({
-    mutationFn: async (walletData: { address: string; hardwareWalletType?: string; publicKey?: string; network?: 'mainnet' | 'testnet' }) => {
+    mutationFn: async (walletData: { address: string; hardwareWalletType?: string; publicKey?: string; network?: 'mainnet' | 'testnet'; name?: string }) => {
       const wallet = browserStorage.createWallet({
         address: walletData.address,
         publicKey: walletData.publicKey,
         hardwareWalletType: walletData.hardwareWalletType,
         network: walletData.network,
+        name: walletData.name,
         balance: '0',
         reservedBalance: '20',
         isConnected: false

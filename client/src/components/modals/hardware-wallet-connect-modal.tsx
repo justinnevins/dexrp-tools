@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Shield, QrCode, CheckCircle, Loader2, Camera, Globe } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
@@ -30,6 +31,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [availableWallets, setAvailableWallets] = useState<HardwareWalletType[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<HardwareWalletType | null>(null);
   const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
+  const [walletName, setWalletName] = useState('');
   const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
   const [showKeystoneScanner, setShowKeystoneScanner] = useState(false);
@@ -44,6 +46,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       setAvailableWallets(['Keystone 3 Pro']);
       setSelectedWallet(null);
       setSelectedNetwork('mainnet');
+      setWalletName('');
       setShowNetworkSelection(false);
       setShowKeystoneScanner(false);
       setShowKeystoneModal(false);
@@ -66,7 +69,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
 
   const handleKeystoneAccountScan = async (address: string, publicKey: string) => {
     try {
-      console.log('Keystone 3 Pro account scanned:', { address, publicKey, network: selectedNetwork });
+      console.log('Keystone 3 Pro account scanned:', { address, publicKey, network: selectedNetwork, name: walletName });
       
       await connect('Keystone 3 Pro');
       
@@ -75,12 +78,14 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         publicKey,
         hardwareWalletType: 'Keystone 3 Pro',
         network: selectedNetwork,
+        name: walletName || undefined,
       });
       
       setShowKeystoneScanner(false);
       setShowNetworkSelection(false);
       setSelectedWallet(null);
       setSelectedNetwork('mainnet'); // Reset to default
+      setWalletName('');
       onClose();
     } catch (error: any) {
       console.error('Keystone 3 Pro connection failed:', error);
@@ -97,11 +102,13 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         address,
         hardwareWalletType: 'Keystone 3 Pro',
         network: selectedNetwork,
+        name: walletName || undefined,
       });
       
       setShowKeystoneModal(false);
       setSelectedWallet(null);
       setSelectedNetwork('mainnet'); // Reset to default
+      setWalletName('');
       onClose();
     } catch (error: any) {
       console.error('Keystone 3 Pro connection failed:', error);
@@ -246,6 +253,20 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
             </DialogHeader>
 
             <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="wallet-name">Account Name (Optional)</Label>
+                <Input
+                  id="wallet-name"
+                  placeholder="e.g., My Main Account"
+                  value={walletName}
+                  onChange={(e) => setWalletName(e.target.value)}
+                  data-testid="input-wallet-name"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank for auto-generated name
+                </p>
+              </div>
+
               <RadioGroup value={selectedNetwork} onValueChange={(value: 'mainnet' | 'testnet') => setSelectedNetwork(value)}>
                 <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="mainnet" id="mainnet" data-testid="radio-network-mainnet" />
