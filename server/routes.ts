@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const { UR } = await import('@ngraveio/bc-ur');
+      const { URDecoder, UR } = await import('@ngraveio/bc-ur');
       
       const { ur: urString } = req.body;
       
@@ -385,25 +385,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Parse UR string format: ur:<type>/<cbor_hex>
-      // According to Keystone docs: new UR(Buffer.from(cbor, "hex"), type)
-      const urMatch = urString.match(/^ur:([^/]+)\/(.+)$/i);
-      if (!urMatch) {
-        throw new Error('Invalid UR format - expected ur:<type>/<cbor>');
+      // Use URDecoder to parse the UR string - it handles both hex and Bytewords encoding
+      const decoder = new URDecoder();
+      decoder.receivePart(urString);
+      
+      if (!decoder.isComplete()) {
+        throw new Error('UR decoding incomplete');
       }
       
-      const type = urMatch[1].toLowerCase(); // e.g., "bytes" or "xrp-signature"
-      const cborHex = urMatch[2]; // The CBOR payload as hex string
+      const decodedUR = decoder.resultUR();
       
-      console.log('Backend: UR type:', type);
-      console.log('Backend: CBOR hex length:', cborHex.length);
+      console.log('Backend: Decoded UR type (buffer):', decodedUR.type);
+      console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
+      
+      // The decodedUR has type as Buffer and cbor as Uint8Array
+      // Convert to the format Keystone SDK expects: new UR(Buffer.from(cbor, "hex"), type)
+      // We need to convert cbor buffer to hex string, then back to buffer for UR constructor
+      const cborHex = Buffer.from(decodedUR.cbor).toString('hex');
+      const typeString = decodedUR.type.toString(); // Convert Buffer to string
+      
+      console.log('Backend: Type string:', typeString);
       console.log('Backend: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
       
-      // Create UR object as per Keystone documentation
-      // new UR(Buffer.from(cbor, "hex"), type)
-      const ur = new UR(Buffer.from(cborHex, 'hex'), type);
+      // Create UR object exactly as Keystone docs show: new UR(Buffer.from(cbor, "hex"), type)
+      const ur = new UR(Buffer.from(cborHex, 'hex'), typeString);
       
-      console.log('Backend: Created UR object');
+      console.log('Backend: Created UR object for parseSignature');
       
       // Parse the XRP signature using the UR object
       const signature = keystoneSDK.xrp.parseSignature(ur);
