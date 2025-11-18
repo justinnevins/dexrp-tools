@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const cbor = await import('cbor');
+      const cbor = await import('cbor-web');
       
       const { ur: urString } = req.body;
       
