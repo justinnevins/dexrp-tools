@@ -409,8 +409,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const cborData = Buffer.from(urPayload, 'hex');
         console.log('Backend: CBOR data length:', cborData.length);
         
-        // Decode CBOR to get the signature object
-        const decoded = cbor.decode(cborData);
+        // Decode CBOR to get the signature object using cbor-web API
+        const decoded = cbor.decodeFirstSync(cborData);
         console.log('Backend: Decoded CBOR:', decoded);
         
         // The signature should be in the decoded data
