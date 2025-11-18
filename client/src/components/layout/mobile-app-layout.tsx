@@ -4,6 +4,7 @@ import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
+import { AccountSwitcher } from '@/components/account-switcher';
 import { fetchXRPPrice, formatPrice, type XRPPriceData } from '@/lib/xrp-price';
 import { useWallet } from '@/hooks/use-wallet';
 
@@ -59,29 +60,18 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       <TestnetBanner />
 
       {/* App Header */}
-      <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-              <Coins className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold">XRPL Wallet</h1>
-              <p className="text-xs text-muted-foreground">
-                {xrpPrice ? (
-                  <span className="flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    XRP {formatPrice(xrpPrice.price)}
-                  </span>
-                ) : currentWallet ? (
-                  <span className="capitalize">{currentWallet.network}</span>
-                ) : (
-                  <span>XRPL</span>
-                )}
-              </p>
-            </div>
+      <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <AccountSwitcher />
           </div>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-2">
+            {xrpPrice && (
+              <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
+                <TrendingUp className="w-3 h-3" />
+                <span>{formatPrice(xrpPrice.price)}</span>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
