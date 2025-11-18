@@ -16,7 +16,7 @@ interface KeystoneTransactionSignerProps {
   unsignedTransaction: any;
   transactionType: 'Payment' | 'TrustSet' | 'OfferCreate' | 'OfferCancel';
   walletId: number;
-  network?: 'mainnet' | 'testnet';
+  network: 'mainnet' | 'testnet'; // Required to ensure correct custom endpoint
 }
 
 type SigningStep = 'qr-display' | 'signing' | 'submitting' | 'complete';
@@ -29,7 +29,7 @@ export function KeystoneTransactionSigner({
   unsignedTransaction,
   transactionType,
   walletId,
-  network = 'testnet'
+  network
 }: KeystoneTransactionSignerProps) {
   const [currentStep, setCurrentStep] = useState<SigningStep>('qr-display');
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
@@ -135,7 +135,8 @@ export function KeystoneTransactionSigner({
 
       // Get the custom endpoint configured for this network
       const customEndpoint = xrplClient.getEndpoint(network);
-      console.log('Using XRPL endpoint:', customEndpoint);
+      console.log(`🌐 Transaction will be submitted to: ${customEndpoint} (${network})`);
+      console.log(`Transaction type: ${transactionType}`);
 
       // Prepare transaction data based on type
       const transactionData = transactionType === 'Payment' 

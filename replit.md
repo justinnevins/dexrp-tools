@@ -77,6 +77,7 @@ The Keystone device returns signed transactions as UR (Uniform Resource) strings
 - **Percentage-Based Amount Selection**: Implemented quick amount selection (25%, 50%, 75%, Max) for payments and DEX offers, with smart calculations accounting for XRPL reserves and fees.
 - **Custom XRPL Node Support**: Users can configure custom WebSocket or JSON-RPC endpoints for XRPL interactions.
 - **Full History Server Configuration**: Separate endpoint configuration for transaction history queries. By default, `getAccountTransactions` uses dedicated full-history servers (https://s1.ripple.com:51234 for Mainnet, https://s.altnet.rippletest.net:51234 for Testnet) to ensure complete transaction history. Users can optionally configure custom full-history servers. Falls back gracefully to the primary endpoint if the full history server fails.
+- **Transaction Submission Through Custom Validators**: All transactions (Payment, TrustSet, OfferCreate, OfferCancel) are submitted through the user-configured custom endpoint when set. The `KeystoneTransactionSigner` component requires the network prop to ensure the correct network's custom endpoint is used for every transaction submission.
 
 ## External Dependencies
 
