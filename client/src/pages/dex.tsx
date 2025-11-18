@@ -895,11 +895,11 @@ export default function DEX() {
                       </div>
                       <div className="text-sm space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">You give:</span>
+                          <span className="text-muted-foreground">Pay:</span>
                           <span className="font-mono">{formatAmount(offer.taker_gets)}</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">You get:</span>
+                          <span className="text-muted-foreground">to Receive:</span>
                           <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
                         </div>
                         {offer.expiration && (
