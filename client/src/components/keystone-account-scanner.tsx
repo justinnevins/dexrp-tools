@@ -330,7 +330,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
           <p><strong>Step 2:</strong> Select "XRP Toolkit"</p>
           <p><strong>Step 3:</strong> Select the account/address from the list to display the account QR code</p>
           <p><strong>Step 4:</strong> Scan that QR code with the camera below</p>
-          <p className="text-xs mt-2 text-amber-600">Note: The QR code must be from your Keystone device, not a simple address</p>
+          <p className="text-xs mt-2 text-amber-600">Note: You must follow these instructions exactly. The simple account address QR code will not work.</p>
         </div>
 
         {error && (
