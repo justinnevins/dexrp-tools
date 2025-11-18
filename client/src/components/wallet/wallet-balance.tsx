@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
@@ -6,8 +5,6 @@ import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { xrplClient } from '@/lib/xrpl-client';
 import { useLocation } from 'wouter';
-import { WalletSelector } from '@/components/wallet-selector';
-import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 
 interface WalletBalanceProps {
   onSendClick: () => void;
@@ -15,42 +12,32 @@ interface WalletBalanceProps {
 }
 
 export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
-  const { currentWallet, createWallet } = useWallet();
+  const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
   const [, setLocation] = useLocation();
-  const [showConnectModal, setShowConnectModal] = useState(false);
-
-  const handleAddAccount = () => {
-    setShowConnectModal(true);
-  };
 
   // Handle account not found on XRPL network (new/unactivated addresses)
   if (accountInfo && 'account_not_found' in accountInfo) {
     return (
-      <>
-        <section className="px-4 py-6 xrpl-gradient text-white">
-          <div className="mb-4">
-            <WalletSelector onAddAccount={handleAddAccount} />
+      <section className="px-4 py-6 xrpl-gradient text-white">
+        <div className="text-center mb-6">
+          <h1 className="text-sm font-medium text-white/80 mb-1">
+            Hardware Wallet Connected
+          </h1>
+          <div className="mb-2">
+            <span className="text-3xl font-bold">0.000000</span>
+            <span className="text-lg ml-1">XRP</span>
           </div>
-          
-          <div className="text-center mb-6">
-            <h1 className="text-sm font-medium text-white/80 mb-1">
-              Hardware Wallet Connected
-            </h1>
-            <div className="mb-2">
-              <span className="text-3xl font-bold">0.000000</span>
-              <span className="text-lg ml-1">XRP</span>
-            </div>
-            <p className="text-xs text-white/70">
-              Account not activated on XRPL network
-            </p>
-            <p className="text-xs text-white/60 mt-1">
-              Receive at least 1 XRP to activate this address
-            </p>
-          </div>
-        
+          <p className="text-xs text-white/70">
+            Account not activated on XRPL network
+          </p>
+          <p className="text-xs text-white/60 mt-1">
+            Receive at least 1 XRP to activate this address
+          </p>
+        </div>
+      
         <div className="flex space-x-3">
           <Button 
             variant="secondary" 
@@ -71,13 +58,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
             Receive
           </Button>
         </div>
-        </section>
-        
-        <HardwareWalletConnectModal
-          isOpen={showConnectModal}
-          onClose={() => setShowConnectModal(false)}
-        />
-      </>
+      </section>
     );
   }
 
@@ -106,17 +87,12 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const usdValue = xrpPrice ? (parseFloat(balance) * xrpPrice).toFixed(2) : '0.00';
 
   return (
-    <>
-      <section className="px-4 py-6 xrpl-gradient text-white">
-        <div className="mb-4">
-          <WalletSelector onAddAccount={handleAddAccount} />
-        </div>
-        
-        <div className="text-center mb-6">
-          <p className="text-sm opacity-90 mb-2">Total Balance</p>
-          <h2 className="text-3xl font-bold mb-1">{balance} XRP</h2>
-          <p className="text-sm opacity-75">≈ ${usdValue} USD</p>
-        </div>
+    <section className="px-4 py-6 xrpl-gradient text-white">
+      <div className="text-center mb-6">
+        <p className="text-sm opacity-90 mb-2">Total Balance</p>
+        <h2 className="text-3xl font-bold mb-1">{balance} XRP</h2>
+        <p className="text-sm opacity-75">≈ ${usdValue} USD</p>
+      </div>
       
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 text-center">
@@ -148,12 +124,6 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
           Receive
         </Button>
       </div>
-      </section>
-      
-      <HardwareWalletConnectModal
-        isOpen={showConnectModal}
-        onClose={() => setShowConnectModal(false)}
-      />
-    </>
+    </section>
   );
 }

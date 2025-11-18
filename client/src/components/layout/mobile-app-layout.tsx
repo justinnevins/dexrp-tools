@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart } from 'lucide-react';
+import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart, Plus } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
 import { AccountSwitcher } from '@/components/account-switcher';
+import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 import { fetchXRPPrice, formatPrice, type XRPPriceData } from '@/lib/xrp-price';
 import { useWallet } from '@/hooks/use-wallet';
 
@@ -17,6 +18,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const [location] = useLocation();
   const { currentWallet } = useWallet();
   const [xrpPrice, setXrpPrice] = useState<XRPPriceData | null>(null);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
@@ -61,17 +63,20 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
       {/* App Header */}
       <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex-1 min-w-0">
             <AccountSwitcher />
           </div>
           <div className="flex items-center gap-2">
-            {xrpPrice && (
-              <div className="hidden sm:flex items-center gap-1 text-xs text-muted-foreground">
-                <TrendingUp className="w-3 h-3" />
-                <span>{formatPrice(xrpPrice.price)}</span>
-              </div>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConnectModal(true)}
+              className="p-2"
+              data-testid="add-account-header-button"
+            >
+              <Plus className="w-4 h-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -119,6 +124,12 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
           })}
         </div>
       </nav>
+
+      {/* Hardware Wallet Connect Modal */}
+      <HardwareWalletConnectModal
+        isOpen={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+      />
     </div>
   );
 }
