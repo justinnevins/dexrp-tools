@@ -79,41 +79,15 @@ export default function Transactions() {
           });
         } else if (transaction?.TransactionType === 'OfferCreate' || transaction?.TransactionType === 'OfferCancel') {
           // Handle DEX offer transactions
-          const takerGets = transaction.TakerGets;
-          const takerPays = transaction.TakerPays;
-          
-          if (takerGets && takerPays) {
-            // Determine what was received and what was paid
-            let getsAmount = '0';
-            let getsCurrency = 'XRP';
-            let paysAmount = '0';
-            let paysCurrency = 'XRP';
-            
-            // Parse TakerGets (what taker gets = what YOU pay as offer creator)
-            if (typeof takerGets === 'string') {
-              getsAmount = xrplClient.formatXRPAmount(takerGets);
-              getsCurrency = 'XRP';
-            } else if (typeof takerGets === 'object' && takerGets.value) {
-              getsAmount = takerGets.value;
-              getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
-            }
-            
-            // Parse TakerPays (what taker pays = what YOU receive as offer creator)
-            if (typeof takerPays === 'string') {
-              paysAmount = xrplClient.formatXRPAmount(takerPays);
-              paysCurrency = 'XRP';
-            } else if (typeof takerPays === 'object' && takerPays.value) {
-              paysAmount = takerPays.value;
-              paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
-            }
-            
+          if (transaction.TransactionType === 'OfferCancel') {
+            // OfferCancel only has OfferSequence, not TakerGets/TakerPays
             transactions.push({
               id: transaction.hash || tx.hash,
               type: 'exchange',
-              transactionType: transaction.TransactionType, // Store OfferCreate or OfferCancel
-              amount: `Paid ${getsAmount} ${getsCurrency} • Received ${paysAmount} ${paysCurrency}`,
-              paidAmount: `${getsAmount} ${getsCurrency}`,
-              receivedAmount: `${paysAmount} ${paysCurrency}`,
+              transactionType: transaction.TransactionType,
+              amount: `Offer #${transaction.OfferSequence || 'Unknown'}`,
+              paidAmount: '',
+              receivedAmount: '',
               address: 'DEX Trading',
               time: new Date((transaction.date || 0) * 1000 + 946684800000),
               hash: transaction.hash || tx.hash,
@@ -123,6 +97,53 @@ export default function Transactions() {
               iconColor: 'text-blue-600 dark:text-blue-400',
               amountColor: 'text-blue-600 dark:text-blue-400',
             });
+          } else {
+            // OfferCreate has TakerGets/TakerPays
+            const takerGets = transaction.TakerGets;
+            const takerPays = transaction.TakerPays;
+            
+            if (takerGets && takerPays) {
+              // Determine what was received and what was paid
+              let getsAmount = '0';
+              let getsCurrency = 'XRP';
+              let paysAmount = '0';
+              let paysCurrency = 'XRP';
+              
+              // Parse TakerGets (what taker gets = what YOU pay as offer creator)
+              if (typeof takerGets === 'string') {
+                getsAmount = xrplClient.formatXRPAmount(takerGets);
+                getsCurrency = 'XRP';
+              } else if (typeof takerGets === 'object' && takerGets.value) {
+                getsAmount = takerGets.value;
+                getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
+              }
+              
+              // Parse TakerPays (what taker pays = what YOU receive as offer creator)
+              if (typeof takerPays === 'string') {
+                paysAmount = xrplClient.formatXRPAmount(takerPays);
+                paysCurrency = 'XRP';
+              } else if (typeof takerPays === 'object' && takerPays.value) {
+                paysAmount = takerPays.value;
+                paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
+              }
+              
+              transactions.push({
+                id: transaction.hash || tx.hash,
+                type: 'exchange',
+                transactionType: transaction.TransactionType, // Store OfferCreate or OfferCancel
+                amount: `Paid ${getsAmount} ${getsCurrency} • Received ${paysAmount} ${paysCurrency}`,
+                paidAmount: `${getsAmount} ${getsCurrency}`,
+                receivedAmount: `${paysAmount} ${paysCurrency}`,
+                address: 'DEX Trading',
+                time: new Date((transaction.date || 0) * 1000 + 946684800000),
+                hash: transaction.hash || tx.hash,
+                status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+                icon: ArrowLeftRight,
+                iconBg: 'bg-blue-100 dark:bg-blue-900/30',
+                iconColor: 'text-blue-600 dark:text-blue-400',
+                amountColor: 'text-blue-600 dark:text-blue-400',
+              });
+            }
           }
         }
       });
