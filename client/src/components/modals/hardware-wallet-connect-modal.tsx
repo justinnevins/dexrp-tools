@@ -34,15 +34,22 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
   const [showKeystoneScanner, setShowKeystoneScanner] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
-  const { connection, isConnecting, connect, getAddress } = useHardwareWallet();
+  const { connection, isConnecting, connect, disconnect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
 
   useEffect(() => {
     if (isOpen) {
-      // Show only Keystone 3 Pro
+      // Reset connection state and show only Keystone 3 Pro
+      disconnect().catch(() => {}); // Disconnect any previous connection
       setAvailableWallets(['Keystone 3 Pro']);
+      setSelectedWallet(null);
+      setSelectedNetwork('mainnet');
+      setShowNetworkSelection(false);
+      setShowKeystoneScanner(false);
+      setShowKeystoneModal(false);
+      setShowQRScanner(false);
     }
-  }, [isOpen]);
+  }, [isOpen, disconnect]);
 
   const handleConnect = async (walletType: HardwareWalletType) => {
     setSelectedWallet(walletType);
