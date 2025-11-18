@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const { URDecoder } = await import('@ngraveio/bc-ur');
+      const { UR } = await import('@ngraveio/bc-ur');
       
       const { ur: urString } = req.body;
       
@@ -385,24 +385,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Initialize Keystone SDK
       const keystoneSDK = new KeystoneSDK();
       
-      // Use URDecoder to parse the UR string (DO NOT uppercase - it handles both hex and Bytewords)
-      const decoder = new URDecoder();
-      decoder.receivePart(urString);
-      
-      if (!decoder.isComplete()) {
-        throw new Error('UR decoding incomplete - this should not happen for single-part URs');
+      // Parse UR string format: ur:<type>/<cbor_hex>
+      // According to Keystone docs: new UR(Buffer.from(cbor, "hex"), type)
+      const urMatch = urString.match(/^ur:([^/]+)\/(.+)$/i);
+      if (!urMatch) {
+        throw new Error('Invalid UR format - expected ur:<type>/<cbor>');
       }
       
-      const decodedUR = decoder.resultUR();
+      const type = urMatch[1].toLowerCase(); // e.g., "bytes" or "xrp-signature"
+      const cborHex = urMatch[2]; // The CBOR payload as hex string
       
-      console.log('Backend: Decoded UR type:', decodedUR.type);
-      console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
+      console.log('Backend: UR type:', type);
+      console.log('Backend: CBOR hex length:', cborHex.length);
+      console.log('Backend: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
       
-      // Parse the XRP signature using the decoded UR
-      const signature = keystoneSDK.xrp.parseSignature(decodedUR);
+      // Create UR object as per Keystone documentation
+      // new UR(Buffer.from(cbor, "hex"), type)
+      const ur = new UR(Buffer.from(cborHex, 'hex'), type);
       
-      console.log('Backend: Parsed signature object:', JSON.stringify(signature, null, 2));
-      console.log('Backend: Signature keys:', Object.keys(signature));
+      console.log('Backend: Created UR object');
+      
+      // Parse the XRP signature using the UR object
+      const signature = keystoneSDK.xrp.parseSignature(ur);
+      
+      console.log('Backend: Parsed signature:', signature);
       
       // Return the signature data
       const parsedSignature: any = signature;
