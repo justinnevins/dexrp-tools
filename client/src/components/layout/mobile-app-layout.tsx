@@ -57,79 +57,127 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   ];
 
   return (
-    <div className="max-w-md mx-auto bg-white dark:bg-card min-h-screen relative">
-      {/* Testnet Banner */}
-      <TestnetBanner />
-
-      {/* App Header */}
-      <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <AccountSwitcher />
+    <div className="flex min-h-screen bg-background">
+      {/* Desktop Sidebar Navigation */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-white dark:bg-card">
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+              <Coins className="w-4 h-4 text-white" />
+            </div>
+            <h1 className="text-lg font-semibold">XRPL Wallet</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowConnectModal(true)}
-              className="p-2"
-              data-testid="add-account-header-button"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleTheme}
-              className="p-2 rounded-full bg-muted"
-              data-testid="theme-toggle"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
+          {xrpPrice && currentWallet?.network === 'mainnet' && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+              <TrendingUp className="w-3 h-3" />
+              <span>XRP {formatPrice(xrpPrice.price)}</span>
+            </div>
+          )}
+        </div>
+        
+        <nav className="flex-1 p-4">
+          <div className="space-y-1">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.path;
+              
+              return (
+                <Link key={item.path} href={item.path}>
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={`w-full justify-start ${isActive ? 'bg-accent' : ''}`}
+                  >
+                    <Icon className="w-5 h-5 mr-3" />
+                    <span>{item.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col max-w-md lg:max-w-4xl mx-auto w-full">
+        {/* Testnet Banner */}
+        <TestnetBanner />
+
+        {/* App Header */}
+        <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <AccountSwitcher />
+            </div>
+            <div className="flex items-center gap-2">
+              {xrpPrice && currentWallet?.network === 'mainnet' && (
+                <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground mr-2">
+                  <TrendingUp className="w-3 h-3" />
+                  <span>{formatPrice(xrpPrice.price)}</span>
+                </div>
               )}
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowConnectModal(true)}
+                className="p-2"
+                data-testid="add-account-header-button"
+              >
+                <Plus className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleTheme}
+                className="p-2 rounded-full bg-muted"
+                data-testid="theme-toggle"
+              >
+                {theme === 'dark' ? (
+                  <Sun className="w-4 h-4" />
+                ) : (
+                  <Moon className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="pb-20">
-        {children}
-      </main>
+        {/* Main Content */}
+        <main className="flex-1 pb-20 lg:pb-6">
+          {children}
+        </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md bg-white dark:bg-card border-t border-border">
-        <div className="flex items-center justify-around py-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location === item.path;
-            
-            return (
-              <Link key={item.path} href={item.path}>
-                <Button
-                  variant="ghost"
-                  className={`flex flex-col items-center py-2 px-4 touch-target ${
-                    isActive 
-                      ? 'text-primary' 
-                      : 'text-muted-foreground'
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mb-1" />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </Button>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+        {/* Mobile Bottom Navigation (hidden on desktop) */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-border">
+          <div className="flex items-center justify-around py-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location === item.path;
+              
+              return (
+                <Link key={item.path} href={item.path}>
+                  <Button
+                    variant="ghost"
+                    className={`flex flex-col items-center py-2 px-4 touch-target ${
+                      isActive 
+                        ? 'text-primary' 
+                        : 'text-muted-foreground'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 mb-1" />
+                    <span className="text-xs font-medium">{item.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
 
-      {/* Hardware Wallet Connect Modal */}
-      <HardwareWalletConnectModal
-        isOpen={showConnectModal}
-        onClose={() => setShowConnectModal(false)}
-      />
+        {/* Hardware Wallet Connect Modal */}
+        <HardwareWalletConnectModal
+          isOpen={showConnectModal}
+          onClose={() => setShowConnectModal(false)}
+        />
+      </div>
     </div>
   );
 }
