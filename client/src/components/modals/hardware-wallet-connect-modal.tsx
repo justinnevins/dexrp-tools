@@ -77,7 +77,8 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       onClose();
     } catch (error: any) {
       console.error('Keystone 3 Pro connection failed:', error);
-      alert(`Keystone 3 Pro connection failed: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      alert(`Failed to add account: ${errorMessage}`);
     }
   };
 
@@ -97,7 +98,8 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       onClose();
     } catch (error: any) {
       console.error('Keystone 3 Pro connection failed:', error);
-      alert(`Keystone 3 Pro connection failed: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      alert(`Failed to add account: ${errorMessage}`);
     }
   };
 
