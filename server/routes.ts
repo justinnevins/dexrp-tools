@@ -376,7 +376,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/keystone/xrp/decode-signature", async (req, res) => {
     try {
       const { default: KeystoneSDK } = await import('@keystonehq/keystone-sdk');
-      const { UR } = await import('@ngraveio/bc-ur');
+      const cbor = await import('cbor');
       
       const { ur: urString } = req.body;
       
@@ -401,14 +401,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const isHexEncoded = /^[0-9a-fA-F]+$/.test(urPayload);
       console.log('Backend: Payload encoding detected:', isHexEncoded ? 'hex' : 'bytewords');
       
-      let cborData: Buffer;
+      let signature: string;
       
       if (isHexEncoded) {
-        // Hex-encoded UR - convert hex to buffer directly
-        console.log('Backend: Decoding hex-encoded UR');
-        cborData = Buffer.from(urPayload, 'hex');
+        // Hex-encoded UR - decode CBOR directly and extract signature
+        console.log('Backend: Decoding hex-encoded UR - parsing CBOR directly');
+        const cborData = Buffer.from(urPayload, 'hex');
+        console.log('Backend: CBOR data length:', cborData.length);
+        
+        // Decode CBOR to get the signature object
+        const decoded = cbor.decode(cborData);
+        console.log('Backend: Decoded CBOR:', decoded);
+        
+        // The signature should be in the decoded data
+        // Based on Keystone SDK structure, look for signature field
+        if (typeof decoded === 'string') {
+          signature = decoded;
+        } else if (decoded && decoded.signature) {
+          signature = decoded.signature;
+        } else if (Buffer.isBuffer(decoded)) {
+          signature = decoded.toString('hex').toUpperCase();
+        } else {
+          throw new Error('Could not extract signature from CBOR data');
+        }
+        
+        console.log('Backend: Extracted signature from hex UR:', signature);
       } else {
-        // Bytewords-encoded UR - use URDecoder
+        // Bytewords-encoded UR - use URDecoder and SDK
         console.log('Backend: Decoding Bytewords-encoded UR');
         const { URDecoder } = await import('@ngraveio/bc-ur');
         const decoder = new URDecoder();
@@ -419,26 +438,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         const decodedUR = decoder.resultUR();
-        cborData = Buffer.from(decodedUR.cbor);
+        console.log('Backend: Decoded UR type:', decodedUR.type);
+        console.log('Backend: Decoded CBOR length:', decodedUR.cbor.length);
+        
+        // Parse the XRP signature using the decoded UR
+        const parsedSig = keystoneSDK.xrp.parseSignature(decodedUR);
+        console.log('Backend: Parsed signature from Bytewords:', parsedSig);
+        
+        signature = typeof parsedSig === 'string' ? parsedSig : (parsedSig as any).signature;
       }
       
-      console.log('Backend: CBOR data length:', cborData.length);
-      
-      // Create UR object for SDK (type must be a Buffer)
-      const decodedUR = new UR(Buffer.from(urType), cborData);
-      
-      console.log('Backend: Created UR object with type:', urType);
-      
-      // Parse the XRP signature using the decoded UR
-      const signature = keystoneSDK.xrp.parseSignature(decodedUR);
-      
-      console.log('Backend: Parsed signature:', signature);
-      
       // Return the signature data
-      const parsedSignature: any = signature;
       res.json({
-        signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
-        requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
+        signature: signature,
+        requestId: crypto.randomUUID()
       });
     } catch (error: any) {
       console.error('Backend: Keystone decode signature error:', error);
