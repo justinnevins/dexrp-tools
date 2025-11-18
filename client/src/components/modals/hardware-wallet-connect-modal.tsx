@@ -223,7 +223,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
                       Connected
                     </>
                   ) : (
-                    `Add ${walletType} Account`
+                    `Add ${walletType} Wallet Account`
                   )}
                 </Button>
               </div>
