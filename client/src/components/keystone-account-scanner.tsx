@@ -328,7 +328,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         <div className="text-sm text-muted-foreground">
           <p><strong>Step 1:</strong> On your Keystone 3 Pro, go to "..." select "Connect Software Wallet"</p>
           <p><strong>Step 2:</strong> Select "XRP Toolkit"</p>
-          <p><strong>Step 3:</strong> Display the account/address QR code on your device</p>
+          <p><strong>Step 3:</strong> Select the account/address from the list to display the account QR code</p>
           <p><strong>Step 4:</strong> Scan that QR code with the camera below</p>
           <p className="text-xs mt-2 text-amber-600">Note: The QR code must be from your Keystone device, not a simple address</p>
         </div>
