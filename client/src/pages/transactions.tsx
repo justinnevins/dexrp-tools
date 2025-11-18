@@ -110,6 +110,7 @@ export default function Transactions() {
             transactions.push({
               id: transaction.hash || tx.hash,
               type: 'exchange',
+              transactionType: transaction.TransactionType, // Store OfferCreate or OfferCancel
               amount: `Paid ${getsAmount} ${getsCurrency} • Received ${paysAmount} ${paysCurrency}`,
               paidAmount: `${getsAmount} ${getsCurrency}`,
               receivedAmount: `${paysAmount} ${paysCurrency}`,
@@ -257,7 +258,7 @@ export default function Transactions() {
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.type === 'sent' ? 'Sent' : transaction.type === 'received' ? 'Received' : 'DEX Trade'}
+                        {transaction.type === 'sent' ? 'Sent' : transaction.type === 'received' ? 'Received' : transaction.transactionType === 'OfferCreate' ? 'Offer Created' : transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
                       </p>
                       {transaction.type !== 'exchange' && (
                         <p className="text-sm text-muted-foreground">
