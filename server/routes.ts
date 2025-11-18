@@ -424,8 +424,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Backend: CBOR data length:', cborData.length);
       
-      // Create UR object for SDK
-      const decodedUR = new UR(urType, cborData);
+      // Create UR object for SDK (type must be a Buffer)
+      const decodedUR = new UR(Buffer.from(urType), cborData);
+      
+      console.log('Backend: Created UR object with type:', urType);
       
       // Parse the XRP signature using the decoded UR
       const signature = keystoneSDK.xrp.parseSignature(decodedUR);
