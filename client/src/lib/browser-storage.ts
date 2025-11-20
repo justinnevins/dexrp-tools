@@ -6,6 +6,7 @@ import type {
   InsertTransaction, 
   InsertTrustline
 } from "@shared/schema";
+import type { StoredOffer, OfferFill } from './dex-types';
 
 export interface XRPLSettings {
   customMainnetNode?: string;
@@ -20,7 +21,8 @@ class BrowserStorage {
     TRANSACTIONS: 'xrpl_transactions',
     TRUSTLINES: 'xrpl_trustlines',
     COUNTERS: 'xrpl_counters',
-    SETTINGS: 'xrpl_settings'
+    SETTINGS: 'xrpl_settings',
+    OFFERS: 'xrpl_dex_offers'
   };
 
   private getCounters() {
@@ -325,6 +327,68 @@ class BrowserStorage {
 
   saveSettings(settings: XRPLSettings): void {
     localStorage.setItem(this.STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+  }
+
+  // DEX Offer operations
+  getAllOffers(): StoredOffer[] {
+    return this.getStoredData<StoredOffer>(this.STORAGE_KEYS.OFFERS);
+  }
+
+  getOffersByWallet(walletAddress: string, network: 'mainnet' | 'testnet'): StoredOffer[] {
+    const offers = this.getAllOffers();
+    return offers.filter(o => o.walletAddress === walletAddress && o.network === network);
+  }
+
+  getOffer(walletAddress: string, network: 'mainnet' | 'testnet', sequence: number): StoredOffer | undefined {
+    const offers = this.getAllOffers();
+    return offers.find(o => 
+      o.walletAddress === walletAddress && 
+      o.network === network && 
+      o.sequence === sequence
+    );
+  }
+
+  saveOffer(offer: StoredOffer): void {
+    const offers = this.getAllOffers();
+    const existingIndex = offers.findIndex(o => 
+      o.walletAddress === offer.walletAddress && 
+      o.network === offer.network && 
+      o.sequence === offer.sequence
+    );
+    
+    if (existingIndex >= 0) {
+      offers[existingIndex] = offer;
+    } else {
+      offers.push(offer);
+    }
+    
+    this.saveData(this.STORAGE_KEYS.OFFERS, offers);
+  }
+
+  addOfferFill(walletAddress: string, network: 'mainnet' | 'testnet', sequence: number, fill: OfferFill): void {
+    const offer = this.getOffer(walletAddress, network, sequence);
+    if (!offer) {
+      console.warn(`Offer not found: ${walletAddress} ${network} ${sequence}`);
+      return;
+    }
+    
+    // Check if this fill already exists (by txHash)
+    const existingFill = offer.fills.find(f => f.txHash === fill.txHash);
+    if (existingFill) {
+      console.log(`Fill already recorded for offer ${sequence}: ${fill.txHash}`);
+      return;
+    }
+    
+    offer.fills.push(fill);
+    this.saveOffer(offer);
+  }
+
+  deleteOffer(walletAddress: string, network: 'mainnet' | 'testnet', sequence: number): void {
+    const offers = this.getAllOffers();
+    const filtered = offers.filter(o => 
+      !(o.walletAddress === walletAddress && o.network === network && o.sequence === sequence)
+    );
+    this.saveData(this.STORAGE_KEYS.OFFERS, filtered);
   }
 }
 

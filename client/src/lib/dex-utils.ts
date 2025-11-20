@@ -1,0 +1,273 @@
+/**
+ * DEX Utilities
+ * 
+ * Parse XRPL transaction metadata to detect offer fills and calculate statistics
+ */
+
+import type { StoredOffer, OfferFill, Amount, OfferWithStatus } from './dex-types';
+import { xrplClient } from './xrpl-client';
+
+/**
+ * Parse transaction metadata to detect if this transaction filled any offers
+ * Returns array of offer fills extracted from AffectedNodes
+ */
+export function extractOfferFills(
+  tx: any,
+  walletAddress: string
+): OfferFill[] {
+  const fills: OfferFill[] = [];
+  
+  if (!tx.meta || !tx.meta.AffectedNodes) {
+    return fills;
+  }
+  
+  const transaction = tx.tx_json || tx.tx || tx;
+  const txHash = transaction.hash || tx.hash;
+  const timestamp = transaction.date ? (transaction.date * 1000 + 946684800000) : Date.now();
+  const ledgerIndex = tx.ledger_index || tx.ledger_current_index || 0;
+  
+  // Look for ModifiedNode or DeletedNode of type Offer belonging to our wallet
+  for (const node of tx.meta.AffectedNodes) {
+    const nodeData = node.ModifiedNode || node.DeletedNode;
+    
+    if (!nodeData || nodeData.LedgerEntryType !== 'Offer') {
+      continue;
+    }
+    
+    const finalFields = nodeData.FinalFields;
+    const previousFields = nodeData.PreviousFields;
+    
+    // Check if this offer belongs to our wallet
+    if (finalFields?.Account !== walletAddress && previousFields?.Account !== walletAddress) {
+      continue;
+    }
+    
+    // Calculate the fill amount by comparing previous and final fields
+    if (previousFields && (previousFields.TakerGets || previousFields.TakerPays)) {
+      const previousGets = previousFields.TakerGets;
+      const previousPays = previousFields.TakerPays;
+      const finalGets = finalFields?.TakerGets;
+      const finalPays = finalFields?.TakerPays;
+      
+      // Calculate how much was filled
+      const takerGotAmount = calculateAmountDifference(previousGets, finalGets);
+      const takerPaidAmount = calculateAmountDifference(previousPays, finalPays);
+      
+      if (takerGotAmount || takerPaidAmount) {
+        fills.push({
+          txHash,
+          timestamp,
+          ledgerIndex,
+          takerGotAmount: takerGotAmount || previousGets,
+          takerPaidAmount: takerPaidAmount || previousPays,
+          executionPrice: calculateExecutionPrice(takerGotAmount || previousGets, takerPaidAmount || previousPays)
+        });
+      }
+    } else if (node.DeletedNode) {
+      // Offer was fully consumed
+      const previousGets = previousFields?.TakerGets || finalFields?.TakerGets;
+      const previousPays = previousFields?.TakerPays || finalFields?.TakerPays;
+      
+      if (previousGets && previousPays) {
+        fills.push({
+          txHash,
+          timestamp,
+          ledgerIndex,
+          takerGotAmount: previousGets,
+          takerPaidAmount: previousPays,
+          executionPrice: calculateExecutionPrice(previousGets, previousPays)
+        });
+      }
+    }
+  }
+  
+  return fills;
+}
+
+/**
+ * Calculate the difference between two amounts (previous - current)
+ * Returns the amount that was consumed
+ */
+function calculateAmountDifference(
+  previous: Amount | string | undefined,
+  current: Amount | string | undefined
+): Amount | string | null {
+  if (!previous) return null;
+  if (!current) return previous; // Fully consumed
+  
+  if (typeof previous === 'string' && typeof current === 'string') {
+    // XRP amounts in drops
+    const diff = BigInt(previous) - BigInt(current);
+    return diff > 0 ? diff.toString() : null;
+  }
+  
+  if (typeof previous === 'object' && typeof current === 'object') {
+    // Token amounts
+    const prevValue = parseFloat(previous.value);
+    const currValue = parseFloat(current.value);
+    const diff = prevValue - currValue;
+    
+    if (diff > 0) {
+      return {
+        currency: previous.currency,
+        issuer: previous.issuer,
+        value: diff.toString()
+      };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Calculate execution price from amounts
+ */
+function calculateExecutionPrice(
+  takerGets: Amount | string,
+  takerPays: Amount | string
+): number | undefined {
+  try {
+    let getsValue: number;
+    let paysValue: number;
+    
+    if (typeof takerGets === 'string') {
+      getsValue = parseFloat(xrplClient.formatXRPAmount(takerGets));
+    } else {
+      getsValue = parseFloat(takerGets.value);
+    }
+    
+    if (typeof takerPays === 'string') {
+      paysValue = parseFloat(xrplClient.formatXRPAmount(takerPays));
+    } else {
+      paysValue = parseFloat(takerPays.value);
+    }
+    
+    if (getsValue > 0) {
+      return paysValue / getsValue;
+    }
+  } catch (error) {
+    console.error('Error calculating execution price:', error);
+  }
+  
+  return undefined;
+}
+
+/**
+ * Enrich stored offer with current status and calculated fields
+ */
+export function enrichOfferWithStatus(
+  storedOffer: StoredOffer,
+  currentOffer?: any // From account_offers query
+): OfferWithStatus {
+  const currentTakerGets = currentOffer?.taker_gets;
+  const currentTakerPays = currentOffer?.taker_pays;
+  
+  // Calculate total filled amounts
+  const totalFilledGets = calculateTotalFilled(storedOffer.fills, 'takerGotAmount');
+  const totalFilledPays = calculateTotalFilled(storedOffer.fills, 'takerPaidAmount');
+  
+  // Calculate fill percentage
+  const fillPercentage = calculateFillPercentage(
+    storedOffer.originalTakerGets,
+    totalFilledGets
+  );
+  
+  // Calculate average execution price
+  const averageExecutionPrice = calculateAverageExecutionPrice(storedOffer.fills);
+  
+  // Determine if fully executed or cancelled
+  const isFullyExecuted = !currentOffer && storedOffer.fills.length > 0;
+  const isCancelled = !currentOffer && storedOffer.fills.length === 0;
+  
+  return {
+    ...storedOffer,
+    currentTakerGets,
+    currentTakerPays,
+    totalFilled: {
+      takerGets: totalFilledGets,
+      takerPays: totalFilledPays
+    },
+    fillPercentage,
+    averageExecutionPrice,
+    isFullyExecuted,
+    isCancelled
+  };
+}
+
+/**
+ * Calculate total filled amount from fills
+ */
+function calculateTotalFilled(fills: OfferFill[], field: 'takerGotAmount' | 'takerPaidAmount'): string {
+  let total = 0;
+  let isXRP = true;
+  
+  for (const fill of fills) {
+    const amount = fill[field];
+    if (typeof amount === 'string') {
+      total += parseFloat(xrplClient.formatXRPAmount(amount));
+    } else {
+      isXRP = false;
+      total += parseFloat(amount.value);
+    }
+  }
+  
+  return total.toFixed(isXRP ? 6 : 6);
+}
+
+/**
+ * Calculate fill percentage
+ */
+function calculateFillPercentage(original: Amount | string, filled: string): number {
+  try {
+    let originalValue: number;
+    
+    if (typeof original === 'string') {
+      originalValue = parseFloat(xrplClient.formatXRPAmount(original));
+    } else {
+      originalValue = parseFloat(original.value);
+    }
+    
+    const filledValue = parseFloat(filled);
+    
+    if (originalValue > 0) {
+      return Math.min(100, (filledValue / originalValue) * 100);
+    }
+  } catch (error) {
+    console.error('Error calculating fill percentage:', error);
+  }
+  
+  return 0;
+}
+
+/**
+ * Calculate weighted average execution price from fills
+ */
+function calculateAverageExecutionPrice(fills: OfferFill[]): number | undefined {
+  if (fills.length === 0) return undefined;
+  
+  let totalValue = 0;
+  let totalWeight = 0;
+  
+  for (const fill of fills) {
+    if (fill.executionPrice !== undefined) {
+      const weight = typeof fill.takerGotAmount === 'string'
+        ? parseFloat(xrplClient.formatXRPAmount(fill.takerGotAmount))
+        : parseFloat((fill.takerGotAmount as Amount).value);
+      
+      totalValue += fill.executionPrice * weight;
+      totalWeight += weight;
+    }
+  }
+  
+  return totalWeight > 0 ? totalValue / totalWeight : undefined;
+}
+
+/**
+ * Format amount for display
+ */
+export function formatOfferAmount(amount: Amount | string): string {
+  if (typeof amount === 'string') {
+    return `${xrplClient.formatXRPAmount(amount)} XRP`;
+  }
+  return `${parseFloat(amount.value).toFixed(6)} ${xrplClient.decodeCurrency(amount.currency)}`;
+}
