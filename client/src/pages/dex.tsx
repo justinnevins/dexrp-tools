@@ -26,6 +26,9 @@ import { KeystoneTransactionSigner } from '@/components/keystone-transaction-sig
 import { queryClient } from '@/lib/queryClient';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
 import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
+import { browserStorage } from '@/lib/browser-storage';
+import type { StoredOffer, OfferWithStatus } from '@/lib/dex-types';
+import { enrichOfferWithStatus, formatOfferAmount } from '@/lib/dex-utils';
 
 const OWNER_RESERVE_XRP = 0.2;
 
@@ -321,6 +324,26 @@ export default function DEX() {
 
   const handleSigningSuccess = async (txHash: string) => {
     console.log('Offer transaction successful:', txHash);
+    
+    // Save offer to browser storage if it's an OfferCreate
+    if (transactionType === 'OfferCreate' && unsignedTransaction && currentWallet) {
+      const storedOffer: StoredOffer = {
+        sequence: unsignedTransaction.Sequence,
+        walletAddress: currentWallet.address,
+        network: network,
+        originalTakerGets: unsignedTransaction.TakerGets,
+        originalTakerPays: unsignedTransaction.TakerPays,
+        createdAt: Date.now(),
+        createdTxHash: txHash,
+        createdLedgerIndex: unsignedTransaction.LastLedgerSequence ? unsignedTransaction.LastLedgerSequence - 1000 : 0,
+        fills: [],
+        expiration: unsignedTransaction.Expiration,
+        flags: unsignedTransaction.Flags
+      };
+      
+      browserStorage.saveOffer(storedOffer);
+      console.log('Saved offer to browser storage:', storedOffer);
+    }
     
     // Invalidate offers cache
     if (currentWallet) {
@@ -884,24 +907,93 @@ export default function DEX() {
           </div>
         ) : accountOffers?.offers && accountOffers.offers.length > 0 ? (
           <div className="space-y-3">
-            {accountOffers.offers.map((offer: any, index: number) => (
-              <Card key={index} data-testid={`offer-${offer.seq}`}>
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="w-4 h-4 text-primary" />
-                        <span className="font-medium">Order #{offer.seq}</span>
-                      </div>
-                      <div className="text-sm space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">Pay:</span>
-                          <span className="font-mono">{formatAmount(offer.taker_gets)}</span>
+            {accountOffers.offers.map((offer: any, index: number) => {
+              // Get stored offer data for this offer
+              const storedOffer = currentWallet ? 
+                browserStorage.getOffer(currentWallet.address, network, offer.seq) : 
+                undefined;
+              
+              // Enrich with status if we have stored data
+              const enrichedOffer = storedOffer ? 
+                enrichOfferWithStatus(storedOffer, offer) : 
+                null;
+              
+              return (
+                <Card key={index} data-testid={`offer-${offer.seq}`}>
+                  <CardContent className="pt-6">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <TrendingUp className="w-4 h-4 text-primary" />
+                          <span className="font-medium">Order #{offer.seq}</span>
+                          {enrichedOffer && enrichedOffer.fillPercentage > 0 && (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                              {enrichedOffer.fillPercentage.toFixed(1)}% Filled
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground">to Receive:</span>
-                          <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
-                        </div>
+                        
+                        {/* Show original vs remaining if we have stored data */}
+                        {enrichedOffer ? (
+                          <div className="text-sm space-y-2">
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Original Pay:</span>
+                                <span className="font-mono text-xs">{formatOfferAmount(enrichedOffer.originalTakerGets)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Remaining:</span>
+                                <span className="font-mono">{formatAmount(offer.taker_gets)}</span>
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Original to Receive:</span>
+                                <span className="font-mono text-xs">{formatOfferAmount(enrichedOffer.originalTakerPays)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Remaining:</span>
+                                <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
+                              </div>
+                            </div>
+                            {enrichedOffer.fills.length > 0 && (
+                              <div className="mt-2 pt-2 border-t">
+                                <p className="text-xs text-muted-foreground mb-1">
+                                  Fill History ({enrichedOffer.fills.length} fill{enrichedOffer.fills.length > 1 ? 's' : ''})
+                                </p>
+                                <div className="space-y-1">
+                                  {enrichedOffer.fills.slice(0, 3).map((fill, i) => (
+                                    <div key={i} className="text-xs flex items-center justify-between">
+                                      <span className="text-muted-foreground">
+                                        {new Date(fill.timestamp).toLocaleDateString()}
+                                      </span>
+                                      <span className="font-mono">
+                                        {formatOfferAmount(fill.takerPaidAmount)}
+                                      </span>
+                                    </div>
+                                  ))}
+                                  {enrichedOffer.fills.length > 3 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      +{enrichedOffer.fills.length - 3} more
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-sm space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">Pay:</span>
+                              <span className="font-mono">{formatAmount(offer.taker_gets)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground">to Receive:</span>
+                              <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
+                            </div>
+                          </div>
+                        )}
+                        
                         {offer.expiration && (
                           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-2">
                             <Calendar className="w-3 h-3" />
@@ -909,19 +1001,19 @@ export default function DEX() {
                           </div>
                         )}
                       </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleCancelOffer(offer.seq)}
+                        data-testid={`button-cancel-${offer.seq}`}
+                      >
+                        Cancel
+                      </Button>
                     </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleCancelOffer(offer.seq)}
-                      data-testid={`button-cancel-${offer.seq}`}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card>

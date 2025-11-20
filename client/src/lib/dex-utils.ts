@@ -11,11 +11,15 @@ import { xrplClient } from './xrpl-client';
  * Parse transaction metadata to detect if this transaction filled any offers
  * Returns array of offer fills extracted from AffectedNodes
  */
+export interface OfferFillWithSequence extends OfferFill {
+  offerSequence: number; // The sequence number of the offer that was filled
+}
+
 export function extractOfferFills(
   tx: any,
   walletAddress: string
-): OfferFill[] {
-  const fills: OfferFill[] = [];
+): OfferFillWithSequence[] {
+  const fills: OfferFillWithSequence[] = [];
   
   if (!tx.meta || !tx.meta.AffectedNodes) {
     return fills;
@@ -38,7 +42,16 @@ export function extractOfferFills(
     const previousFields = nodeData.PreviousFields;
     
     // Check if this offer belongs to our wallet
-    if (finalFields?.Account !== walletAddress && previousFields?.Account !== walletAddress) {
+    // For DeletedNode, Account/Sequence might only be in PreviousFields
+    const offerAccount = finalFields?.Account || previousFields?.Account;
+    if (offerAccount !== walletAddress) {
+      continue;
+    }
+    
+    // Get the offer sequence number (try both FinalFields and PreviousFields)
+    const offerSequence = finalFields?.Sequence || previousFields?.Sequence;
+    if (!offerSequence) {
+      console.warn('Offer node missing Sequence field:', nodeData);
       continue;
     }
     
@@ -55,6 +68,7 @@ export function extractOfferFills(
       
       if (takerGotAmount || takerPaidAmount) {
         fills.push({
+          offerSequence,
           txHash,
           timestamp,
           ledgerIndex,
@@ -70,6 +84,7 @@ export function extractOfferFills(
       
       if (previousGets && previousPays) {
         fills.push({
+          offerSequence,
           txHash,
           timestamp,
           ledgerIndex,

@@ -366,10 +366,23 @@ class BrowserStorage {
   }
 
   addOfferFill(walletAddress: string, network: 'mainnet' | 'testnet', sequence: number, fill: OfferFill): void {
-    const offer = this.getOffer(walletAddress, network, sequence);
+    let offer = this.getOffer(walletAddress, network, sequence);
+    
+    // If offer doesn't exist, create a placeholder (historical fill before we tracked the offer)
     if (!offer) {
-      console.warn(`Offer not found: ${walletAddress} ${network} ${sequence}`);
-      return;
+      console.log(`Creating placeholder offer for historical fill: ${walletAddress} ${network} ${sequence}`);
+      offer = {
+        sequence,
+        walletAddress,
+        network,
+        // These will be unknown for historical fills, so use the fill amounts as best guess
+        originalTakerGets: fill.takerGotAmount,
+        originalTakerPays: fill.takerPaidAmount,
+        createdAt: fill.timestamp,
+        createdTxHash: '',
+        createdLedgerIndex: fill.ledgerIndex,
+        fills: []
+      };
     }
     
     // Check if this fill already exists (by txHash)
