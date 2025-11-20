@@ -76,6 +76,11 @@ export default function Transactions() {
           // Calculate actual balance changes from metadata (more accurate for DEX fills)
           const balanceChanges = currentWallet ? calculateBalanceChanges(tx, currentWallet.address) : { xrpChange: null, tokenChanges: [] };
           
+          // Debug logging
+          if (isDEXFill || (balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0)) {
+            console.log('Balance changes for tx', transaction.hash, balanceChanges);
+          }
+          
           // Skip transactions where current wallet is neither sender nor receiver
           // UNLESS there are balance changes (which means we're involved indirectly via DEX)
           const isSender = transaction.Account === currentWallet?.address;
