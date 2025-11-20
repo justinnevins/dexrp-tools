@@ -21,12 +21,20 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
   const formatTransactions = () => {
     const transactions: any[] = [];
     
-    // Preload stored offers for quick lookup by transaction hash
+    // Preload stored offers for quick lookup
     const storedOffers = currentWallet 
       ? browserStorage.getOffersByWallet(currentWallet.address, network)
       : [];
+    
+    // Create maps for lookup by both transaction hash AND sequence number
     const offersByTxHash = new Map(
-      storedOffers.map((offer: any) => [offer.createdTxHash, offer])
+      storedOffers
+        .filter((offer: any) => offer.createdTxHash)
+        .map((offer: any) => [offer.createdTxHash, offer])
+    );
+    
+    const offersBySequence = new Map(
+      storedOffers.map((offer: any) => [offer.sequence, offer])
     );
 
     // Add XRPL transactions
@@ -180,7 +188,11 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
               
               // Check if this offer has fill status
               const txHash = transaction.hash || tx.hash;
-              const storedOffer = offersByTxHash.get(txHash);
+              let storedOffer = offersByTxHash.get(txHash);
+              if (!storedOffer && transaction.Sequence) {
+                storedOffer = offersBySequence.get(transaction.Sequence);
+              }
+              
               let fillStatusText = '';
               
               if (storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {

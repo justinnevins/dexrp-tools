@@ -57,17 +57,17 @@ export default function Transactions() {
       ? browserStorage.getOffersByWallet(currentWallet.address, network)
       : [];
     
-    console.log('Loaded', storedOffers.length, 'stored offers for wallet', currentWallet?.address);
-    storedOffers.forEach(offer => {
-      console.log('Stored offer:', offer.sequence, 'txHash:', offer.createdTxHash, 'fills:', offer.fills?.length);
-    });
-    
-    // Create a map for quick lookup by transaction hash
+    // Create maps for quick lookup by both transaction hash AND sequence number
+    // (sequence number is more reliable for historical fills that don't have createdTxHash)
     const offersByTxHash = new Map(
-      storedOffers.map(offer => [offer.createdTxHash, offer])
+      storedOffers
+        .filter(offer => offer.createdTxHash) // Only map non-empty tx hashes
+        .map(offer => [offer.createdTxHash, offer])
     );
     
-    console.log('Created offersByTxHash map with', offersByTxHash.size, 'entries');
+    const offersBySequence = new Map(
+      storedOffers.map(offer => [offer.sequence, offer])
+    );
 
     // Add XRPL transactions first
     if (xrplTransactions?.transactions) {
@@ -83,10 +83,6 @@ export default function Transactions() {
           // Calculate actual balance changes from metadata (more accurate for DEX fills)
           const balanceChanges = currentWallet ? calculateBalanceChanges(tx, currentWallet.address) : { xrpChange: null, tokenChanges: [] };
           
-          // Debug logging
-          if (isDEXFill || (balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0)) {
-            console.log('Balance changes for tx', transaction.hash || tx.hash, balanceChanges, 'isDEXFill:', isDEXFill, 'offerFills:', offerFills);
-          }
           
           // Skip transactions where current wallet is neither sender nor receiver
           // UNLESS there are balance changes (which means we're involved indirectly via DEX)
@@ -229,10 +225,23 @@ export default function Transactions() {
               }
               
               // Check if we have this offer stored and enrich with fill status
-              const storedOffer = offersByTxHash.get(txHash);
-              let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
+              // Try lookup by transaction hash first, then by sequence number
+              let storedOffer = offersByTxHash.get(txHash);
+              console.log('OfferCreate - txHash:', txHash, 'Sequence:', transaction.Sequence, 'OfferSequence:', transaction.OfferSequence);
+              console.log('offersBySequence has:', Array.from(offersBySequence.keys()));
               
-              console.log('OfferCreate tx', txHash, 'storedOffer:', storedOffer, 'has fills:', storedOffer?.fills?.length);
+              if (!storedOffer && transaction.Sequence) {
+                storedOffer = offersBySequence.get(transaction.Sequence);
+              }
+              
+              // Also try OfferSequence if available (this is the created offer's sequence number)
+              if (!storedOffer && transaction.OfferSequence) {
+                storedOffer = offersBySequence.get(transaction.OfferSequence);
+              }
+              
+              console.log('Found storedOffer:', storedOffer?.sequence, 'fills:', storedOffer?.fills?.length);
+              
+              let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
               
               if (storedOffer && storedOffer.fills.length > 0) {
                 const enriched = enrichOfferWithStatus(storedOffer);
