@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useWallet, useTransactions } from '@/hooks/use-wallet';
 import { useAccountTransactions } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
-import { extractOfferFills } from '@/lib/dex-utils';
+import { extractOfferFills, calculateBalanceChanges, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
 
 import { useEffect } from 'react';
@@ -52,6 +52,16 @@ export default function Transactions() {
   const formatTransactions = () => {
     const transactions: any[] = [];
 
+    // Preload stored offers for enrichment
+    const storedOffers = currentWallet 
+      ? browserStorage.getOffersByWallet(currentWallet.address, network)
+      : [];
+    
+    // Create a map for quick lookup by transaction hash
+    const offersByTxHash = new Map(
+      storedOffers.map(offer => [offer.createdTxHash, offer])
+    );
+
     // Add XRPL transactions first
     if (xrplTransactions?.transactions) {
       xrplTransactions.transactions.forEach((tx: any) => {
@@ -63,52 +73,97 @@ export default function Transactions() {
           const offerFills = currentWallet ? extractOfferFills(tx, currentWallet.address) : [];
           const isDEXFill = offerFills.length > 0;
           
+          // Calculate actual balance changes from metadata (more accurate for DEX fills)
+          const balanceChanges = currentWallet ? calculateBalanceChanges(tx, currentWallet.address) : { xrpChange: null, tokenChanges: [] };
+          
           // Skip transactions where current wallet is neither sender nor receiver
-          // (these are transactions where the wallet was involved indirectly, like offer consumption)
+          // UNLESS there are balance changes (which means we're involved indirectly via DEX)
           const isSender = transaction.Account === currentWallet?.address;
           const isReceiver = transaction.Destination === currentWallet?.address;
+          const hasBalanceChanges = balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0;
           
-          if (!isSender && !isReceiver) {
+          if (!isSender && !isReceiver && !hasBalanceChanges) {
             return; // Skip this transaction
           }
           
-          // Handle both XRP (string) and token (object) amounts
-          // For path payments, use delivered_amount from metadata instead of DeliverMax
-          let amountField = transaction.DeliverMax || transaction.Amount;
+          let displayAmount = '';
+          let isOutgoing = isSender;
           
-          // Check if this is a path payment (has delivered_amount in metadata)
-          if (tx.meta && tx.meta.delivered_amount) {
-            amountField = tx.meta.delivered_amount;
+          // For DEX fills, show both sides of the trade (what was paid and what was received)
+          if (isDEXFill || hasBalanceChanges) {
+            const increases: string[] = [];
+            const decreases: string[] = [];
+            
+            // Add XRP changes
+            if (balanceChanges.xrpChange) {
+              const xrpDisplay = `${balanceChanges.xrpChange.replace('-', '')} XRP`;
+              if (balanceChanges.xrpChange.startsWith('-')) {
+                decreases.push(xrpDisplay);
+              } else {
+                increases.push(xrpDisplay);
+              }
+            }
+            
+            // Add token changes
+            for (const tc of balanceChanges.tokenChanges) {
+              const tokenDisplay = `${tc.change.replace('-', '')} ${tc.currency}`;
+              if (tc.change.startsWith('-')) {
+                decreases.push(tokenDisplay);
+              } else {
+                increases.push(tokenDisplay);
+              }
+            }
+            
+            // Build display showing both sides
+            if (decreases.length > 0 && increases.length > 0) {
+              displayAmount = `-${decreases.join(', -')} → +${increases.join(', +')}`;
+            } else if (increases.length > 0) {
+              displayAmount = `+${increases.join(', +')}`;
+            } else if (decreases.length > 0) {
+              displayAmount = `-${decreases.join(', -')}`;
+            }
+            
+            isOutgoing = decreases.length > 0;
           }
           
-          let amount = '0';
-          let currency = 'XRP';
-          
-          if (typeof amountField === 'string') {
-            // XRP payment (in drops)
-            amount = xrplClient.formatXRPAmount(amountField);
-            currency = 'XRP';
-          } else if (typeof amountField === 'object' && amountField.value) {
-            // Token payment
-            amount = amountField.value;
-            currency = xrplClient.decodeCurrency(amountField.currency);
+          // Fallback to transaction amount for regular payments
+          if (!displayAmount) {
+            let amountField = transaction.DeliverMax || transaction.Amount;
+            
+            // Check if this is a path payment (has delivered_amount in metadata)
+            if (tx.meta && tx.meta.delivered_amount) {
+              amountField = tx.meta.delivered_amount;
+            }
+            
+            let amount = '0';
+            let currency = 'XRP';
+            
+            if (typeof amountField === 'string') {
+              // XRP payment (in drops)
+              amount = xrplClient.formatXRPAmount(amountField);
+              currency = 'XRP';
+            } else if (typeof amountField === 'object' && amountField.value) {
+              // Token payment
+              amount = amountField.value;
+              currency = xrplClient.decodeCurrency(amountField.currency);
+            }
+            
+            displayAmount = `${isOutgoing ? '-' : '+'}${amount} ${currency}`;
           }
-          
-          const isOutgoing = isSender;
           
           transactions.push({
             id: transaction.hash || tx.hash,
             type: isDEXFill ? 'dex-fill' : (isOutgoing ? 'sent' : 'received'),
-            amount: `${isOutgoing ? '-' : '+'}${amount} ${currency}`,
+            amount: displayAmount,
             address: isOutgoing ? transaction.Destination : transaction.Account,
             time: new Date((transaction.date || 0) * 1000 + 946684800000),
             hash: transaction.hash || tx.hash,
             status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
             icon: isDEXFill ? ArrowLeftRight : (isOutgoing ? ArrowUp : ArrowDown),
             isDEXFill,
-            iconBg: isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30',
-            iconColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
-            amountColor: isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
+            iconBg: isDEXFill ? 'bg-purple-100 dark:bg-purple-900/30' : (isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'),
+            iconColor: isDEXFill ? 'text-purple-600 dark:text-purple-400' : (isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'),
+            amountColor: isDEXFill ? 'text-purple-600 dark:text-purple-400' : (isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'),
           });
         } else if (transaction?.TransactionType === 'OfferCreate' || transaction?.TransactionType === 'OfferCancel') {
           // Handle DEX offer transactions
@@ -134,6 +189,7 @@ export default function Transactions() {
             // OfferCreate has TakerGets/TakerPays
             const takerGets = transaction.TakerGets;
             const takerPays = transaction.TakerPays;
+            const txHash = transaction.hash || tx.hash;
             
             if (takerGets && takerPays) {
               // Determine what was received and what was paid
@@ -160,16 +216,28 @@ export default function Transactions() {
                 paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
               }
               
+              // Check if we have this offer stored and enrich with fill status
+              const storedOffer = offersByTxHash.get(txHash);
+              let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
+              
+              if (storedOffer && storedOffer.fills.length > 0) {
+                const enriched = enrichOfferWithStatus(storedOffer);
+                const fillStatus = enriched.isFullyExecuted 
+                  ? 'Fully Filled'
+                  : `${enriched.fillPercentage.toFixed(0)}% Filled`;
+                displayAmount = `${fillStatus} - ${displayAmount}`;
+              }
+              
               transactions.push({
-                id: transaction.hash || tx.hash,
+                id: txHash,
                 type: 'exchange',
                 transactionType: transaction.TransactionType, // Store OfferCreate or OfferCancel
-                amount: `Paid ${getsAmount} ${getsCurrency} • Received ${paysAmount} ${paysCurrency}`,
+                amount: displayAmount,
                 paidAmount: `${getsAmount} ${getsCurrency}`,
                 receivedAmount: `${paysAmount} ${paysCurrency}`,
                 address: 'DEX Trading',
                 time: new Date((transaction.date || 0) * 1000 + 946684800000),
-                hash: transaction.hash || tx.hash,
+                hash: txHash,
                 status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
                 icon: ArrowLeftRight,
                 iconBg: 'bg-blue-100 dark:bg-blue-900/30',

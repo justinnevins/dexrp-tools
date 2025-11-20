@@ -286,3 +286,93 @@ export function formatOfferAmount(amount: Amount | string): string {
   }
   return `${parseFloat(amount.value).toFixed(6)} ${xrplClient.decodeCurrency(amount.currency)}`;
 }
+
+/**
+ * Calculate the wallet's actual balance changes from transaction metadata
+ * Returns { xrpChange, tokenChanges } where changes are positive for increases, negative for decreases
+ */
+export function calculateBalanceChanges(tx: any, walletAddress: string): {
+  xrpChange: string | null;
+  tokenChanges: Array<{ currency: string; issuer: string; change: string }>;
+} {
+  const result = {
+    xrpChange: null as string | null,
+    tokenChanges: [] as Array<{ currency: string; issuer: string; change: string }>
+  };
+
+  if (!tx.meta || !tx.meta.AffectedNodes) {
+    return result;
+  }
+
+  // Look through AffectedNodes for balance changes
+  for (const node of tx.meta.AffectedNodes) {
+    const nodeData = node.ModifiedNode || node.CreatedNode || node.DeletedNode;
+    
+    if (!nodeData) continue;
+
+    // Check AccountRoot for XRP balance changes
+    if (nodeData.LedgerEntryType === 'AccountRoot') {
+      const finalFields = nodeData.FinalFields;
+      const previousFields = nodeData.PreviousFields;
+      
+      // Only process if this is our wallet
+      const account = finalFields?.Account || previousFields?.Account;
+      if (account === walletAddress) {
+        const prevBalance = previousFields?.Balance;
+        const finalBalance = finalFields?.Balance;
+        
+        if (prevBalance && finalBalance) {
+          const change = BigInt(finalBalance) - BigInt(prevBalance);
+          if (change !== BigInt(0)) {
+            result.xrpChange = xrplClient.formatXRPAmount(change.toString().replace('-', ''));
+            if (change < BigInt(0)) {
+              result.xrpChange = '-' + result.xrpChange;
+            }
+          }
+        }
+      }
+    }
+    
+    // Check RippleState for token balance changes
+    if (nodeData.LedgerEntryType === 'RippleState') {
+      const finalFields = nodeData.FinalFields;
+      const previousFields = nodeData.PreviousFields;
+      
+      // RippleState has HighLimit and LowLimit representing the two parties
+      const highLimit = finalFields?.HighLimit || previousFields?.HighLimit;
+      const lowLimit = finalFields?.LowLimit || previousFields?.LowLimit;
+      
+      // Check if our wallet is involved
+      const isHighParty = highLimit?.issuer === walletAddress;
+      const isLowParty = lowLimit?.issuer === walletAddress;
+      
+      if (isHighParty || isLowParty) {
+        const prevBalance = previousFields?.Balance;
+        const finalBalance = finalFields?.Balance;
+        
+        if (prevBalance && finalBalance && prevBalance.value && finalBalance.value) {
+          let change = parseFloat(finalBalance.value) - parseFloat(prevBalance.value);
+          
+          // Balance is from the perspective of the low party
+          // If we're the high party, invert the change
+          if (isHighParty) {
+            change = -change;
+          }
+          
+          if (change !== 0) {
+            const currency = xrplClient.decodeCurrency(finalBalance.currency || prevBalance.currency);
+            const issuer = isHighParty ? lowLimit.issuer : highLimit.issuer;
+            
+            result.tokenChanges.push({
+              currency,
+              issuer,
+              change: change.toString()
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+}
