@@ -57,10 +57,17 @@ export default function Transactions() {
       ? browserStorage.getOffersByWallet(currentWallet.address, network)
       : [];
     
+    console.log('Loaded', storedOffers.length, 'stored offers for wallet', currentWallet?.address);
+    storedOffers.forEach(offer => {
+      console.log('Stored offer:', offer.sequence, 'txHash:', offer.createdTxHash, 'fills:', offer.fills?.length);
+    });
+    
     // Create a map for quick lookup by transaction hash
     const offersByTxHash = new Map(
       storedOffers.map(offer => [offer.createdTxHash, offer])
     );
+    
+    console.log('Created offersByTxHash map with', offersByTxHash.size, 'entries');
 
     // Add XRPL transactions first
     if (xrplTransactions?.transactions) {
@@ -78,7 +85,7 @@ export default function Transactions() {
           
           // Debug logging
           if (isDEXFill || (balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0)) {
-            console.log('Balance changes for tx', transaction.hash, balanceChanges);
+            console.log('Balance changes for tx', transaction.hash || tx.hash, balanceChanges, 'isDEXFill:', isDEXFill, 'offerFills:', offerFills);
           }
           
           // Skip transactions where current wallet is neither sender nor receiver
@@ -224,6 +231,8 @@ export default function Transactions() {
               // Check if we have this offer stored and enrich with fill status
               const storedOffer = offersByTxHash.get(txHash);
               let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
+              
+              console.log('OfferCreate tx', txHash, 'storedOffer:', storedOffer, 'has fills:', storedOffer?.fills?.length);
               
               if (storedOffer && storedOffer.fills.length > 0) {
                 const enriched = enrichOfferWithStatus(storedOffer);
