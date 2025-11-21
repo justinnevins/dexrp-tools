@@ -340,12 +340,12 @@ export default function Transactions() {
                 // For fills, highlight the received amount in green (stored in custom field)
                 displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
                 if (pricePerXRP) {
-                  displayAmount += ` | ${pricePerXRP}`;
+                  displayAmount += `<br/>${pricePerXRP}`;
                 }
               } else {
                 displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
                 if (pricePerXRP) {
-                  displayAmount += ` | ${pricePerXRP}`;
+                  displayAmount += `<br/>${pricePerXRP}`;
                 }
                 
                 if (!isFromOtherWallet) {
