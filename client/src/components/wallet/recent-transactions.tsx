@@ -4,7 +4,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useTransactions } from '@/hooks/use-wallet';
 import { useAccountTransactions } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
-import { calculateBalanceChanges, extractOfferFills } from '@/lib/dex-utils';
+import { calculateBalanceChanges, extractOfferFills, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
 
 interface RecentTransactionsProps {
@@ -256,14 +256,11 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                   : `Offers #${filledOfferSequences.join(', #')}`;
                 displayAddress = `Payment to Fill ${offerSeqDisplay}`;
               } else if (!isFromOtherWallet && storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
-                // Calculate fill percentage based on original amounts
-                const totalFilled = (storedOffer as any).fills.reduce((sum: number, fill: any) => sum + parseFloat(fill.amountFilled), 0);
-                const originalAmount = parseFloat((storedOffer as any).originalTakerPays);
-                const fillPercentage = Math.min(100, (totalFilled / originalAmount) * 100);
-                
-                const fillStatus = fillPercentage >= 99.9 
+                // Use enrichOfferWithStatus to properly calculate fill percentage
+                const enriched = enrichOfferWithStatus(storedOffer as any);
+                const fillStatus = enriched.isFullyExecuted 
                   ? 'Fully Filled'
-                  : `${fillPercentage.toFixed(0)}% Filled`;
+                  : `${enriched.fillPercentage.toFixed(0)}% Filled`;
                 displayAmount = `${fillStatus} - ${displayAmount}`;
               }
               
