@@ -316,6 +316,18 @@ export default function Transactions() {
               const roundedGetsAmount = parseFloat(getsAmount).toFixed(4);
               const roundedPaysAmount = parseFloat(paysAmount).toFixed(4);
               
+              // Calculate price per XRP
+              let pricePerXRP = '';
+              if (getsCurrency === 'XRP' && paysCurrency !== 'XRP') {
+                // Paying XRP, receiving token: price = token/XRP
+                const price = parseFloat(paysAmount) / parseFloat(getsAmount);
+                pricePerXRP = `Price: ${price.toFixed(4)} ${paysCurrency} /XRP`;
+              } else if (paysCurrency === 'XRP' && getsCurrency !== 'XRP') {
+                // Receiving XRP, paying token: price = token/XRP
+                const price = parseFloat(getsAmount) / parseFloat(paysAmount);
+                pricePerXRP = `Price: ${price.toFixed(4)} ${getsCurrency} /XRP`;
+              }
+              
               let displayAmount = '';
               let displayAddress = 'DEX Trading';
               
@@ -327,8 +339,14 @@ export default function Transactions() {
                 displayAddress = `Payment to Fill ${offerSeqDisplay}`;
                 // For fills, highlight the received amount in green (stored in custom field)
                 displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
+                if (pricePerXRP) {
+                  displayAmount += ` | ${pricePerXRP}`;
+                }
               } else {
                 displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
+                if (pricePerXRP) {
+                  displayAmount += ` | ${pricePerXRP}`;
+                }
                 
                 if (!isFromOtherWallet) {
                   // Always show offer number for our own offers
