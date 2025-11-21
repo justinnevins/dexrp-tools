@@ -250,20 +250,26 @@ export default function DEX() {
   // Initialize limit price once when switching to limit mode
   useEffect(() => {
     if (orderType === 'limit' && !limitPriceInitialized && marketPrice) {
-      setPrice(marketPrice.toString());
-      setLimitPriceInitialized(true);
+      const effectivePrice = getEffectivePriceForAssets(marketPrice);
+      if (effectivePrice) {
+        setPrice(effectivePrice.toString());
+        setLimitPriceInitialized(true);
+      }
     } else if (orderType === 'market') {
       setLimitPriceInitialized(false); // Reset flag when switching back to market
       if (marketPrice) {
-        setPrice(marketPrice.toString());
-        // Force recalculation of total when marketPrice arrives
-        if (amount) {
-          const newTotal = calculateTotal(amount, marketPrice.toString());
-          setTotal(newTotal);
+        const effectivePrice = getEffectivePriceForAssets(marketPrice);
+        if (effectivePrice) {
+          setPrice(effectivePrice.toString());
+          // Force recalculation of total when marketPrice arrives
+          if (amount) {
+            const newTotal = calculateTotal(amount, effectivePrice.toString());
+            setTotal(newTotal);
+          }
         }
       }
     }
-  }, [orderType, marketPrice, limitPriceInitialized, amount]);
+  }, [orderType, marketPrice, limitPriceInitialized, amount, baseAsset, quoteAsset]);
 
   // Auto-calculate total when amount or price changes
   useEffect(() => {
@@ -302,11 +308,26 @@ export default function DEX() {
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
 
+    console.log('MAX clicked:', {
+      orderSide,
+      baseAsset,
+      quoteAsset,
+      price,
+      marketPrice,
+      effectivePrice: getEffectivePriceForAssets(marketPrice)
+    });
+
     if (orderSide === 'buy') {
       // Buying base with quote - calculate max base we can afford
       const quoteBalance = quoteInfo.currency === 'XRP'
         ? parseFloat(getXRPBalance())
         : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
+
+      console.log('Buy MAX calculation:', {
+        quoteBalance,
+        price,
+        isQuoteXRP: quoteInfo.currency === 'XRP'
+      });
 
       const maxCalc = calculateMaxBuy(
         quoteBalance,
@@ -318,6 +339,8 @@ export default function DEX() {
         incrementReserve
       );
 
+      console.log('Buy MAX result:', maxCalc);
+
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
         // Let useEffect auto-calculate total from amount × price
@@ -328,6 +351,12 @@ export default function DEX() {
         ? parseFloat(getXRPBalance())
         : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
 
+      console.log('Sell MAX calculation:', {
+        baseBalance,
+        price,
+        isBaseXRP: baseInfo.currency === 'XRP'
+      });
+
       const maxCalc = calculateMaxSell(
         baseBalance,
         price,
@@ -337,6 +366,8 @@ export default function DEX() {
         baseReserve,
         incrementReserve
       );
+
+      console.log('Sell MAX result:', maxCalc);
 
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
@@ -741,6 +772,52 @@ export default function DEX() {
     return '0.000000';
   };
 
+  // Get effective price based on trading direction
+  // Market pair is always "XRP/Token" (base/quote), marketPrice = how many tokens per 1 XRP
+  // If user is trading in the same direction, use price directly
+  // If user is trading in opposite direction, invert the price
+  const getEffectivePriceForAssets = (rawPrice: number | null): number | null => {
+    if (!rawPrice || !marketPairs) return rawPrice;
+    
+    const pair = (marketPairs as any)[marketPair];
+    if (!pair) return rawPrice;
+    
+    const baseInfo = parseAsset(baseAsset);
+    const quoteInfo = parseAsset(quoteAsset);
+    
+    // Market pair: XRP/Token means marketPrice = tokens per XRP
+    // If user's base is XRP and quote is the token → same direction, use price as-is
+    // If user's base is the token and quote is XRP → opposite direction, invert
+    
+    const marketPairBase = pair.base; // Always 'XRP'
+    const marketPairQuoteCurrency = pair.quote.currency;
+    const marketPairQuoteIssuer = pair.quote.issuer;
+    
+    // Check if user is trading in same direction as market pair
+    const userBaseIsXRP = baseInfo.currency === 'XRP';
+    const userQuoteMatchesMarketQuote = 
+      quoteInfo.currency === marketPairQuoteCurrency && 
+      quoteInfo.issuer === marketPairQuoteIssuer;
+    
+    if (userBaseIsXRP && userQuoteMatchesMarketQuote) {
+      // Same direction: selling XRP for token → use marketPrice (tokens per XRP)
+      return rawPrice;
+    }
+    
+    const userQuoteIsXRP = quoteInfo.currency === 'XRP';
+    const userBaseMatchesMarketQuote = 
+      baseInfo.currency === marketPairQuoteCurrency && 
+      baseInfo.issuer === marketPairQuoteIssuer;
+    
+    if (userQuoteIsXRP && userBaseMatchesMarketQuote) {
+      // Opposite direction: buying token with XRP → invert (XRP per token)
+      return 1 / rawPrice;
+    }
+    
+    // If neither matches, return as-is (user may have selected unrelated pair)
+    return rawPrice;
+  };
+
 
   // Market pairs configuration - network aware
   const marketPairs = (() => {
@@ -986,9 +1063,25 @@ export default function DEX() {
                   {marketPrice.toFixed(4)}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {marketPair.split('/')[1]}
+                  {marketPair.split('/')[1]} per {marketPair.split('/')[0]}
                 </span>
               </div>
+              {(() => {
+                const effectivePrice = getEffectivePriceForAssets(marketPrice);
+                const baseInfo = parseAsset(baseAsset);
+                const quoteInfo = parseAsset(quoteAsset);
+                const baseLabel = baseInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(baseInfo.currency);
+                const quoteLabel = quoteInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(quoteInfo.currency);
+                
+                if (effectivePrice && effectivePrice !== marketPrice) {
+                  return (
+                    <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded">
+                      Your pair: {effectivePrice.toFixed(6)} {quoteLabel} per {baseLabel}
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 {lastUpdate && (
                   <div>
