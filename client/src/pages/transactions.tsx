@@ -227,36 +227,82 @@ export default function Transactions() {
             const txHash = transaction.hash || tx.hash;
             
             if (takerGets && takerPays) {
+              // Check if this OfferCreate is from another wallet
+              const isFromOtherWallet = transaction.Account !== currentWallet?.address;
+              
               // Determine what was received and what was paid
               let getsAmount = '0';
               let getsCurrency = 'XRP';
               let paysAmount = '0';
               let paysCurrency = 'XRP';
               
-              // Parse TakerGets (what taker gets = what YOU pay as offer creator)
-              if (typeof takerGets === 'string') {
-                getsAmount = xrplClient.formatXRPAmount(takerGets);
-                getsCurrency = 'XRP';
-              } else if (typeof takerGets === 'object' && takerGets.value) {
-                getsAmount = takerGets.value;
-                getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
+              if (isFromOtherWallet) {
+                // For OfferCreate from another wallet, show only the balance changes to OUR wallet
+                const balanceChanges = calculateBalanceChanges(tx, currentWallet!.address);
+                
+                if (balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0) {
+                  // Extract what was paid (decreased) and received (increased)
+                  
+                  // Check XRP changes
+                  if (balanceChanges.xrpChange) {
+                    const xrpAmount = balanceChanges.xrpChange.replace('-', '');
+                    if (balanceChanges.xrpChange.startsWith('-')) {
+                      // XRP was paid
+                      getsAmount = xrpAmount;
+                      getsCurrency = 'XRP';
+                    } else {
+                      // XRP was received
+                      paysAmount = xrpAmount;
+                      paysCurrency = 'XRP';
+                    }
+                  }
+                  
+                  // Check token changes
+                  balanceChanges.tokenChanges.forEach(tokenChange => {
+                    const amount = tokenChange.change.replace('-', '');
+                    const currency = xrplClient.decodeCurrency(tokenChange.currency);
+                    
+                    if (tokenChange.change.startsWith('-')) {
+                      // Token was paid
+                      getsAmount = amount;
+                      getsCurrency = currency;
+                    } else {
+                      // Token was received
+                      paysAmount = amount;
+                      paysCurrency = currency;
+                    }
+                  });
+                }
+              } else {
+                // For our own OfferCreate, show the full transaction amounts
+                // Parse TakerGets (what taker gets = what YOU pay as offer creator)
+                if (typeof takerGets === 'string') {
+                  getsAmount = xrplClient.formatXRPAmount(takerGets);
+                  getsCurrency = 'XRP';
+                } else if (typeof takerGets === 'object' && takerGets.value) {
+                  getsAmount = takerGets.value;
+                  getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
+                }
+                
+                // Parse TakerPays (what taker pays = what YOU receive as offer creator)
+                if (typeof takerPays === 'string') {
+                  paysAmount = xrplClient.formatXRPAmount(takerPays);
+                  paysCurrency = 'XRP';
+                } else if (typeof takerPays === 'object' && takerPays.value) {
+                  paysAmount = takerPays.value;
+                  paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
+                }
               }
               
-              // Parse TakerPays (what taker pays = what YOU receive as offer creator)
-              if (typeof takerPays === 'string') {
-                paysAmount = xrplClient.formatXRPAmount(takerPays);
-                paysCurrency = 'XRP';
-              } else if (typeof takerPays === 'object' && takerPays.value) {
-                paysAmount = takerPays.value;
-                paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
-              }
-              
-              // Check if we have this offer stored and enrich with fill status
-              // Try lookup by transaction hash first, then by sequence number
-              let storedOffer = offersByTxHash.get(txHash);
-              
-              if (!storedOffer && transaction.Sequence) {
-                storedOffer = offersBySequence.get(transaction.Sequence);
+              // Check if we have this offer stored and enrich with fill status (only for our own offers)
+              let storedOffer = null;
+              if (!isFromOtherWallet) {
+                // Try lookup by transaction hash first, then by sequence number
+                storedOffer = offersByTxHash.get(txHash);
+                
+                if (!storedOffer && transaction.Sequence) {
+                  storedOffer = offersBySequence.get(transaction.Sequence);
+                }
               }
               
               let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
@@ -276,7 +322,7 @@ export default function Transactions() {
                 amount: displayAmount,
                 paidAmount: `${getsAmount} ${getsCurrency}`,
                 receivedAmount: `${paysAmount} ${paysCurrency}`,
-                address: 'DEX Trading',
+                address: isFromOtherWallet ? 'DEX Fill (Taker)' : 'DEX Trading',
                 time: new Date((transaction.date || 0) * 1000 + 946684800000),
                 hash: txHash,
                 status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
