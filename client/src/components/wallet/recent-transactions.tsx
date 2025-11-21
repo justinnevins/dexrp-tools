@@ -246,7 +246,11 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                 }
               }
               
-              let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
+              // Round amounts to 4 decimal places
+              const roundedGetsAmount = parseFloat(getsAmount).toFixed(4);
+              const roundedPaysAmount = parseFloat(paysAmount).toFixed(4);
+              
+              let displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
               let displayAddress = 'DEX Trading';
               
               if (isFromOtherWallet && filledOfferSequences.length > 0) {
@@ -255,13 +259,19 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                   ? `Offer #${filledOfferSequences[0]}`
                   : `Offers #${filledOfferSequences.join(', #')}`;
                 displayAddress = `Payment to Fill ${offerSeqDisplay}`;
-              } else if (!isFromOtherWallet && storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
-                // Use enrichOfferWithStatus to properly calculate fill percentage
-                const enriched = enrichOfferWithStatus(storedOffer as any);
-                const fillStatus = enriched.isFullyExecuted 
-                  ? 'Fully Filled'
-                  : `${enriched.fillPercentage.toFixed(0)}% Filled`;
-                displayAmount = `${fillStatus} - ${displayAmount}`;
+              } else if (!isFromOtherWallet) {
+                // Always show offer number for our own offers
+                displayAddress = `Offer #${transaction.Sequence}`;
+                
+                // Add fill status if there are fills
+                if (storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
+                  // Use enrichOfferWithStatus to properly calculate fill percentage
+                  const enriched = enrichOfferWithStatus(storedOffer as any);
+                  const fillStatus = enriched.isFullyExecuted 
+                    ? 'Fully Filled'
+                    : `${enriched.fillPercentage.toFixed(0)}% Filled`;
+                  displayAmount = `${fillStatus} - ${displayAmount}`;
+                }
               }
               
               transactions.push({
@@ -354,10 +364,11 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                          transaction.type === 'sent' ? 'Sent' : 
                          transaction.type === 'received' ? 'Received' : 
                          transaction.address?.startsWith('Payment to Fill') ? transaction.address :
+                         transaction.address?.startsWith('Offer #') ? transaction.address :
                          transaction.transactionType === 'OfferCreate' ? 'Offer Created' : 
                          transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
                       </p>
-                      {transaction.type !== 'exchange' && transaction.type !== 'dex-fill' && !transaction.address?.startsWith('Payment to Fill') && (
+                      {transaction.type !== 'exchange' && transaction.type !== 'dex-fill' && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && (
                         <p className="text-sm text-muted-foreground">
                           {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
                         </p>
