@@ -30,6 +30,43 @@ export function extractOfferFills(
   const timestamp = transaction.date ? (transaction.date * 1000 + 946684800000) : Date.now();
   const ledgerIndex = tx.ledger_index || tx.ledger_current_index || 0;
   
+  // Check for immediate partial fill when creating an offer
+  // This happens when OfferCreate transaction consumes existing offers
+  if (transaction.TransactionType === 'OfferCreate' && transaction.Account === walletAddress) {
+    for (const node of tx.meta.AffectedNodes) {
+      if (node.CreatedNode?.LedgerEntryType === 'Offer') {
+        const newFields = node.CreatedNode.NewFields;
+        if (newFields?.Account === walletAddress) {
+          // Compare submitted amounts with created amounts
+          const submittedGets = transaction.TakerGets;
+          const submittedPays = transaction.TakerPays;
+          const createdGets = newFields.TakerGets;
+          const createdPays = newFields.TakerPays;
+          
+          // Calculate immediate fill (submitted - created = consumed)
+          const immediateFillGets = calculateAmountDifference(submittedGets, createdGets);
+          const immediateFillPays = calculateAmountDifference(submittedPays, createdPays);
+          
+          if (immediateFillGets || immediateFillPays) {
+            fills.push({
+              offerSequence: transaction.Sequence,
+              txHash,
+              timestamp,
+              ledgerIndex,
+              takerGotAmount: immediateFillGets || submittedGets,
+              takerPaidAmount: immediateFillPays || submittedPays,
+              executionPrice: calculateExecutionPrice(
+                immediateFillGets || submittedGets,
+                immediateFillPays || submittedPays
+              )
+            });
+          }
+          break; // Found our created offer
+        }
+      }
+    }
+  }
+  
   // Look for ModifiedNode or DeletedNode of type Offer belonging to our wallet
   for (const node of tx.meta.AffectedNodes) {
     const nodeData = node.ModifiedNode || node.DeletedNode;
