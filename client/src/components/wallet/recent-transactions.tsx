@@ -160,62 +160,121 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             // OfferCreate has TakerGets/TakerPays
             const takerGets = transaction.TakerGets;
             const takerPays = transaction.TakerPays;
+            const txHash = transaction.hash || tx.hash;
             
             if (takerGets && takerPays) {
+              // Check if this OfferCreate is from another wallet
+              const isFromOtherWallet = transaction.Account !== currentWallet?.address;
+              
+              // Determine which of our offers was filled (if from other wallet)
+              let filledOfferSequences: number[] = [];
+              if (isFromOtherWallet) {
+                const offerFills = extractOfferFills(tx, currentWallet!.address);
+                filledOfferSequences = offerFills.map(fill => fill.offerSequence);
+              }
+              
               // Determine what was received and what was paid
               let getsAmount = '0';
               let getsCurrency = 'XRP';
               let paysAmount = '0';
               let paysCurrency = 'XRP';
               
-              // Parse TakerGets (what taker gets = what YOU pay as offer creator)
-              if (typeof takerGets === 'string') {
-                getsAmount = xrplClient.formatXRPAmount(takerGets);
-                getsCurrency = 'XRP';
-              } else if (typeof takerGets === 'object' && takerGets.value) {
-                getsAmount = takerGets.value;
-                getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
+              if (isFromOtherWallet) {
+                // For OfferCreate from another wallet, show only the balance changes to OUR wallet
+                const balanceChanges = calculateBalanceChanges(tx, currentWallet!.address);
+                
+                if (balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0) {
+                  // Extract what was paid (decreased) and received (increased)
+                  
+                  // Check XRP changes
+                  if (balanceChanges.xrpChange) {
+                    const xrpAmount = balanceChanges.xrpChange.replace('-', '');
+                    if (balanceChanges.xrpChange.startsWith('-')) {
+                      // XRP was paid
+                      getsAmount = xrpAmount;
+                      getsCurrency = 'XRP';
+                    } else {
+                      // XRP was received
+                      paysAmount = xrpAmount;
+                      paysCurrency = 'XRP';
+                    }
+                  }
+                  
+                  // Check token changes
+                  balanceChanges.tokenChanges.forEach(tokenChange => {
+                    const amount = tokenChange.change.replace('-', '');
+                    const currency = xrplClient.decodeCurrency(tokenChange.currency);
+                    
+                    if (tokenChange.change.startsWith('-')) {
+                      // Token was paid
+                      getsAmount = amount;
+                      getsCurrency = currency;
+                    } else {
+                      // Token was received
+                      paysAmount = amount;
+                      paysCurrency = currency;
+                    }
+                  });
+                }
+              } else {
+                // For our own OfferCreate, show the full transaction amounts
+                // Parse TakerGets (what taker gets = what YOU pay as offer creator)
+                if (typeof takerGets === 'string') {
+                  getsAmount = xrplClient.formatXRPAmount(takerGets);
+                  getsCurrency = 'XRP';
+                } else if (typeof takerGets === 'object' && takerGets.value) {
+                  getsAmount = takerGets.value;
+                  getsCurrency = xrplClient.decodeCurrency(takerGets.currency);
+                }
+                
+                // Parse TakerPays (what taker pays = what YOU receive as offer creator)
+                if (typeof takerPays === 'string') {
+                  paysAmount = xrplClient.formatXRPAmount(takerPays);
+                  paysCurrency = 'XRP';
+                } else if (typeof takerPays === 'object' && takerPays.value) {
+                  paysAmount = takerPays.value;
+                  paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
+                }
               }
               
-              // Parse TakerPays (what taker pays = what YOU receive as offer creator)
-              if (typeof takerPays === 'string') {
-                paysAmount = xrplClient.formatXRPAmount(takerPays);
-                paysCurrency = 'XRP';
-              } else if (typeof takerPays === 'object' && takerPays.value) {
-                paysAmount = takerPays.value;
-                paysCurrency = xrplClient.decodeCurrency(takerPays.currency);
+              // Check if this offer has fill status (only for our own offers)
+              let storedOffer = null;
+              if (!isFromOtherWallet) {
+                storedOffer = offersByTxHash.get(txHash);
+                if (!storedOffer && transaction.Sequence) {
+                  storedOffer = offersBySequence.get(transaction.Sequence);
+                }
               }
               
-              // Check if this offer has fill status
-              const txHash = transaction.hash || tx.hash;
-              let storedOffer = offersByTxHash.get(txHash);
-              if (!storedOffer && transaction.Sequence) {
-                storedOffer = offersBySequence.get(transaction.Sequence);
-              }
+              let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
+              let displayAddress = 'DEX Trading';
               
-              let fillStatusText = '';
-              
-              if (storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
+              if (isFromOtherWallet && filledOfferSequences.length > 0) {
+                // Show which of our offers was filled
+                const offerSeqDisplay = filledOfferSequences.length === 1 
+                  ? `Offer #${filledOfferSequences[0]}`
+                  : `Offers #${filledOfferSequences.join(', #')}`;
+                displayAddress = `Payment to Fill ${offerSeqDisplay}`;
+              } else if (!isFromOtherWallet && storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
                 // Calculate fill percentage based on original amounts
                 const totalFilled = (storedOffer as any).fills.reduce((sum: number, fill: any) => sum + parseFloat(fill.amountFilled), 0);
                 const originalAmount = parseFloat((storedOffer as any).originalTakerPays);
                 const fillPercentage = Math.min(100, (totalFilled / originalAmount) * 100);
                 
-                if (fillPercentage >= 99.9) {
-                  fillStatusText = 'Fully Filled - ';
-                } else {
-                  fillStatusText = `${fillPercentage.toFixed(0)}% Filled - `;
-                }
+                const fillStatus = fillPercentage >= 99.9 
+                  ? 'Fully Filled'
+                  : `${fillPercentage.toFixed(0)}% Filled`;
+                displayAmount = `${fillStatus} - ${displayAmount}`;
               }
               
               transactions.push({
                 id: txHash,
                 type: 'exchange',
                 transactionType: transaction.TransactionType,
-                amount: `${fillStatusText}Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`,
+                amount: displayAmount,
                 paidAmount: `${getsAmount} ${getsCurrency}`,
                 receivedAmount: `${paysAmount} ${paysCurrency}`,
-                address: 'DEX Trading',
+                address: displayAddress,
                 time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
                 icon: ArrowLeftRight,
                 iconBg: 'bg-blue-100 dark:bg-blue-900/30',
@@ -294,9 +353,14 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.type === 'dex-fill' ? 'DEX Fill' : transaction.type === 'sent' ? 'Sent' : transaction.type === 'received' ? 'Received' : transaction.transactionType === 'OfferCreate' ? 'Offer Created' : transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
+                        {transaction.type === 'dex-fill' ? 'DEX Fill' : 
+                         transaction.type === 'sent' ? 'Sent' : 
+                         transaction.type === 'received' ? 'Received' : 
+                         transaction.address?.startsWith('Payment to Fill') ? transaction.address :
+                         transaction.transactionType === 'OfferCreate' ? 'Offer Created' : 
+                         transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
                       </p>
-                      {transaction.type !== 'exchange' && transaction.type !== 'dex-fill' && (
+                      {transaction.type !== 'exchange' && transaction.type !== 'dex-fill' && !transaction.address?.startsWith('Payment to Fill') && (
                         <p className="text-sm text-muted-foreground">
                           {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
                         </p>
