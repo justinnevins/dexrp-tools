@@ -227,19 +227,10 @@ export default function Transactions() {
               // Check if we have this offer stored and enrich with fill status
               // Try lookup by transaction hash first, then by sequence number
               let storedOffer = offersByTxHash.get(txHash);
-              console.log('OfferCreate - txHash:', txHash, 'Sequence:', transaction.Sequence, 'OfferSequence:', transaction.OfferSequence);
-              console.log('offersBySequence has:', Array.from(offersBySequence.keys()));
               
               if (!storedOffer && transaction.Sequence) {
                 storedOffer = offersBySequence.get(transaction.Sequence);
               }
-              
-              // Also try OfferSequence if available (this is the created offer's sequence number)
-              if (!storedOffer && transaction.OfferSequence) {
-                storedOffer = offersBySequence.get(transaction.OfferSequence);
-              }
-              
-              console.log('Found storedOffer:', storedOffer?.sequence, 'fills:', storedOffer?.fills?.length);
               
               let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
               

@@ -191,7 +191,8 @@ export function enrichOfferWithStatus(
   const averageExecutionPrice = calculateAverageExecutionPrice(storedOffer.fills);
   
   // Determine if fully executed or cancelled
-  const isFullyExecuted = !currentOffer && storedOffer.fills.length > 0;
+  // An offer is fully executed if fill percentage is >= 99.9% (allowing for rounding)
+  const isFullyExecuted = fillPercentage >= 99.9;
   const isCancelled = !currentOffer && storedOffer.fills.length === 0;
   
   return {
