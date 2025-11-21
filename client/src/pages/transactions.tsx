@@ -21,11 +21,12 @@ export default function Transactions() {
   useEffect(() => {
     if (!xrplTransactions?.transactions || !currentWallet) return;
     
+    // FIRST PASS: Save all OfferCreate transactions with authoritative original amounts
+    // This must happen BEFORE processing fills to avoid creating placeholders with wrong amounts
     xrplTransactions.transactions.forEach((tx: any) => {
       const transaction = tx.tx_json || tx.tx || tx;
       const txHash = transaction.hash || tx.hash;
       
-      // If this is an OfferCreate by our wallet, save/update the stored offer with authoritative data
       if (transaction.TransactionType === 'OfferCreate' && transaction.Account === currentWallet.address) {
         const existingOffer = browserStorage.getOffer(currentWallet.address, network, transaction.Sequence);
         
@@ -46,9 +47,10 @@ export default function Transactions() {
         
         browserStorage.saveOffer(storedOffer);
       }
-      
-      // Process ALL transaction types - takers fill offers via OfferCreate, not just Payment
-      // Extract and save offer fills
+    });
+    
+    // SECOND PASS: Process fills now that all offers have correct original amounts
+    xrplTransactions.transactions.forEach((tx: any) => {
       const offerFills = extractOfferFills(tx, currentWallet.address);
       if (offerFills.length > 0) {
         offerFills.forEach(fill => {
