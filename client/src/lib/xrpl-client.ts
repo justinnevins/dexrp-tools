@@ -628,6 +628,45 @@ class XRPLClient {
       seed: wallet.seed!
     };
   }
+
+  async getReserveRequirements(network: XRPLNetwork): Promise<{ baseReserve: number; incrementReserve: number }> {
+    await this.connect(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
+    
+    try {
+      const response = await state.connector.request({ command: 'server_state' });
+      
+      if (response?.result?.state?.validated_ledger) {
+        const ledger = response.result.state.validated_ledger;
+        
+        // Reserve values are in drops (1 XRP = 1,000,000 drops)
+        const baseReserveDrops = ledger.reserve_base || ledger.reserve_base_xrp * 1000000;
+        const incrementReserveDrops = ledger.reserve_inc || ledger.reserve_inc_xrp * 1000000;
+        
+        return {
+          baseReserve: baseReserveDrops / 1000000,
+          incrementReserve: incrementReserveDrops / 1000000
+        };
+      }
+      
+      // Fallback to current known values if server_state doesn't return expected data
+      console.warn('Unable to fetch reserve requirements from XRPL, using fallback values');
+      return {
+        baseReserve: 20, // Current XRPL base reserve
+        incrementReserve: 2 // Current XRPL increment reserve  
+      };
+    } catch (error) {
+      console.error('Error fetching reserve requirements:', error);
+      // Return current known values as fallback
+      return {
+        baseReserve: 20,
+        incrementReserve: 2
+      };
+    }
+  }
 }
 
 export const xrplClient = new XRPLClient();

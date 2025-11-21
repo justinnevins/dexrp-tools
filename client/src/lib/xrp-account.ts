@@ -7,8 +7,6 @@ export interface BalanceInfo {
   availableMinusFees: number;
 }
 
-const BASE_RESERVE_XRP = 1;
-const OWNER_RESERVE_XRP = 0.2;
 const STANDARD_FEE_DROPS = 12;
 const DROPS_PER_XRP = 1000000;
 
@@ -16,15 +14,19 @@ const DROPS_PER_XRP = 1000000;
  * Calculate available XRP balance accounting for reserves and fees
  * @param accountInfo - XRPL account info response
  * @param feeDrops - Transaction fee in drops (default: 12)
+ * @param baseReserve - Base reserve requirement in XRP (fetched from ledger)
+ * @param incrementReserve - Increment reserve per owned object in XRP (fetched from ledger)
  * @returns Balance breakdown with total, reserved, available, and available minus fees
  */
 export function calculateAvailableBalance(
   accountInfo: AccountInfoResponse | { account_not_found: string } | null | undefined,
-  feeDrops: number = STANDARD_FEE_DROPS
+  feeDrops: number = STANDARD_FEE_DROPS,
+  baseReserve: number = 20,  // Current XRPL base reserve
+  incrementReserve: number = 2  // Current XRPL increment reserve
 ): BalanceInfo {
   const defaultBalance: BalanceInfo = {
     totalBalance: 0,
-    reserved: BASE_RESERVE_XRP,
+    reserved: baseReserve,
     available: 0,
     availableMinusFees: 0
   };
@@ -43,9 +45,9 @@ export function calculateAvailableBalance(
   const totalBalanceDrops = parseInt(account_data.Balance);
   const totalBalance = totalBalanceDrops / DROPS_PER_XRP;
 
-  // Calculate reserve (1 XRP base + 0.2 XRP per owned object)
+  // Calculate reserve using dynamic values from ledger
   const ownerCount = account_data.OwnerCount || 0;
-  const reserved = BASE_RESERVE_XRP + (ownerCount * OWNER_RESERVE_XRP);
+  const reserved = baseReserve + (ownerCount * incrementReserve);
 
   // Calculate available (total - reserve, clamped to 0)
   const available = Math.max(0, totalBalance - reserved);

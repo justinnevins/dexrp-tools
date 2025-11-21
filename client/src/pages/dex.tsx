@@ -21,11 +21,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountOffers, useAccountInfo, useAccountLines } from '@/hooks/use-xrpl';
 import { useToast } from '@/hooks/use-toast';
-import { xrplClient } from '@/lib/xrpl-client';
+import { xrplClient, type XRPLNetwork } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { queryClient } from '@/lib/queryClient';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
-import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
 import { browserStorage } from '@/lib/browser-storage';
 import type { StoredOffer, OfferWithStatus } from '@/lib/dex-types';
 import { enrichOfferWithStatus, formatOfferAmount } from '@/lib/dex-utils';
@@ -36,8 +35,6 @@ import {
   calculateMaxSell,
   getTokenBalance as getTokenBalanceFromLines
 } from '@/lib/order-calculator';
-
-const OWNER_RESERVE_XRP = 0.2;
 
 // Common XRPL tokens with mainnet/testnet issuers
 interface CommonToken {
@@ -113,17 +110,19 @@ export default function DEX() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [offerToCancel, setOfferToCancel] = useState<any>(null);
   
-  // New order form state
+  // New order form state - using composite asset identifiers
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState<'limit' | 'market'>('limit');
-  const [baseCurrency, setBaseCurrency] = useState('524C555344000000000000000000000000000000'); // RLUSD
-  const [baseIssuer, setBaseIssuer] = useState('');
-  const [quoteCurrency, setQuoteCurrency] = useState('XRP');
-  const [quoteIssuer, setQuoteIssuer] = useState('');
+  // Composite asset values: "XRP" or "CURRENCY:ISSUER"
+  const [baseAsset, setBaseAsset] = useState('');  // Will be initialized in useEffect based on network
+  const [quoteAsset, setQuoteAsset] = useState('XRP');
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
   const [total, setTotal] = useState('');
   const [expirationDays, setExpirationDays] = useState('');
+  // Dynamic reserve state - fetched from XRPL ledger
+  const [baseReserve, setBaseReserve] = useState(20); // Default to current XRPL base reserve
+  const [incrementReserve, setIncrementReserve] = useState(2); // Default to current XRPL increment
   
   // Advanced options
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -153,64 +152,94 @@ export default function DEX() {
 
   const currentNetwork = network;
 
-  // Update issuers when network changes to ensure valid selections
-  useEffect(() => {
-    // Helper to check if a currency+issuer pair is valid for the current network
-    const isValidForNetwork = (currency: string, issuer: string): boolean => {
-      if (currency === 'XRP') return true;
-      
-      // Check if it's in COMMON_TOKENS for this network
-      const commonToken = COMMON_TOKENS.find(t => t.currency === currency);
-      if (commonToken) {
-        const validIssuer = currentNetwork === 'mainnet' 
-          ? commonToken.mainnetIssuer 
-          : commonToken.testnetIssuer;
-        return issuer === validIssuer && validIssuer !== undefined;
-      }
-      
-      // For custom trustlines, assume valid (user's responsibility)
-      return true;
-    };
+  // Helper functions to work with composite asset identifiers
+  const parseAsset = (asset: string): { currency: string; issuer: string } => {
+    if (asset === 'XRP' || !asset) {
+      return { currency: 'XRP', issuer: '' };
+    }
+    const [currency, issuer] = asset.split(':');
+    return { currency: currency || 'XRP', issuer: issuer || '' };
+  };
 
-    // Update or reset base currency/issuer
-    if (baseCurrency !== 'XRP') {
-      const commonToken = COMMON_TOKENS.find(t => t.currency === baseCurrency);
+  const createAsset = (currency: string, issuer?: string): string => {
+    if (currency === 'XRP' || !currency) {
+      return 'XRP';
+    }
+    return issuer ? `${currency}:${issuer}` : currency;
+  };
+
+  const getRLUSDAsset = (network: XRPLNetwork): string => {
+    const rlusdIssuer = network === 'mainnet'
+      ? 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De'
+      : 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
+    return `524C555344000000000000000000000000000000:${rlusdIssuer}`;
+  };
+
+  // Initialize base asset with network-specific RLUSD on first render
+  useEffect(() => {
+    if (!baseAsset) {
+      setBaseAsset(getRLUSDAsset(currentNetwork));
+    }
+  }, []);
+
+  // Fetch dynamic reserve requirements from XRPL on mount and network changes
+  useEffect(() => {
+    const fetchReserves = async () => {
+      try {
+        const reserves = await xrplClient.getReserveRequirements(currentNetwork);
+        setBaseReserve(reserves.baseReserve);
+        setIncrementReserve(reserves.incrementReserve);
+      } catch (error) {
+        console.error('Failed to fetch reserve requirements:', error);
+        // Keep using the default fallback values (20/2)
+      }
+    };
+    fetchReserves();
+  }, [currentNetwork]);
+
+  // Update assets when network changes to ensure valid selections
+  useEffect(() => {
+    // Update base asset if it's a common token
+    const baseInfo = parseAsset(baseAsset);
+    if (baseInfo.currency !== 'XRP') {
+      const commonToken = COMMON_TOKENS.find(t => t.currency === baseInfo.currency);
       if (commonToken) {
         const validIssuer = currentNetwork === 'mainnet' 
           ? commonToken.mainnetIssuer 
           : commonToken.testnetIssuer;
         
-        if (validIssuer && validIssuer !== baseIssuer) {
+        if (validIssuer) {
           // Update to network-specific issuer
-          setBaseIssuer(validIssuer);
-        } else if (!validIssuer) {
+          const newAsset = createAsset(baseInfo.currency, validIssuer);
+          if (newAsset !== baseAsset) {
+            setBaseAsset(newAsset);
+          }
+        } else {
           // Token doesn't exist on this network - reset to RLUSD
-          setBaseCurrency('524C555344000000000000000000000000000000');
-          setBaseIssuer(
-            currentNetwork === 'mainnet'
-              ? 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De'
-              : 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV'
-          );
+          setBaseAsset(getRLUSDAsset(currentNetwork));
         }
       }
       // For trustline-derived tokens not in COMMON_TOKENS, keep as-is
     }
 
-    // Update or reset quote currency/issuer
-    if (quoteCurrency !== 'XRP') {
-      const commonToken = COMMON_TOKENS.find(t => t.currency === quoteCurrency);
+    // Update quote asset if it's a common token
+    const quoteInfo = parseAsset(quoteAsset);
+    if (quoteInfo.currency !== 'XRP') {
+      const commonToken = COMMON_TOKENS.find(t => t.currency === quoteInfo.currency);
       if (commonToken) {
         const validIssuer = currentNetwork === 'mainnet' 
           ? commonToken.mainnetIssuer 
           : commonToken.testnetIssuer;
         
-        if (validIssuer && validIssuer !== quoteIssuer) {
+        if (validIssuer) {
           // Update to network-specific issuer
-          setQuoteIssuer(validIssuer);
-        } else if (!validIssuer) {
+          const newAsset = createAsset(quoteInfo.currency, validIssuer);
+          if (newAsset !== quoteAsset) {
+            setQuoteAsset(newAsset);
+          }
+        } else {
           // Token doesn't exist on this network - reset to XRP
-          setQuoteCurrency('XRP');
-          setQuoteIssuer('');
+          setQuoteAsset('XRP');
         }
       }
       // For trustline-derived tokens not in COMMON_TOKENS, keep as-is
@@ -257,18 +286,23 @@ export default function DEX() {
     // Add 1 to offer count for the pending offer being created
     const pendingOfferCount = offerCount + 1;
 
+    const baseInfo = parseAsset(baseAsset);
+    const quoteInfo = parseAsset(quoteAsset);
+
     if (orderSide === 'buy') {
       // Buying base with quote - calculate max base we can afford
-      const quoteBalance = quoteCurrency === 'XRP'
+      const quoteBalance = quoteInfo.currency === 'XRP'
         ? parseFloat(getXRPBalance())
-        : getTokenBalanceFromLines(quoteCurrency, quoteIssuer, accountLines?.lines);
+        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
 
       const maxCalc = calculateMaxBuy(
         quoteBalance,
         price,
-        quoteCurrency === 'XRP',
+        quoteInfo.currency === 'XRP',
         trustlineCount,
-        pendingOfferCount
+        pendingOfferCount,
+        baseReserve,
+        incrementReserve
       );
 
       if (maxCalc.maxAmount) {
@@ -277,16 +311,18 @@ export default function DEX() {
       }
     } else {
       // Selling base for quote - max is our base balance
-      const baseBalance = baseCurrency === 'XRP'
+      const baseBalance = baseInfo.currency === 'XRP'
         ? parseFloat(getXRPBalance())
-        : getTokenBalanceFromLines(baseCurrency, baseIssuer, accountLines?.lines);
+        : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
 
       const maxCalc = calculateMaxSell(
         baseBalance,
         price,
-        baseCurrency === 'XRP',
+        baseInfo.currency === 'XRP',
         trustlineCount,
-        pendingOfferCount
+        pendingOfferCount,
+        baseReserve,
+        incrementReserve
       );
 
       if (maxCalc.maxAmount) {
@@ -302,18 +338,23 @@ export default function DEX() {
     // Add 1 to offer count for the pending offer being created
     const pendingOfferCount = offerCount + 1;
 
+    const baseInfo = parseAsset(baseAsset);
+    const quoteInfo = parseAsset(quoteAsset);
+
     if (orderSide === 'buy') {
       // Max total = max quote we can spend
-      const quoteBalance = quoteCurrency === 'XRP'
+      const quoteBalance = quoteInfo.currency === 'XRP'
         ? parseFloat(getXRPBalance())
-        : getTokenBalanceFromLines(quoteCurrency, quoteIssuer, accountLines?.lines);
+        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
 
       const maxCalc = calculateMaxBuy(
         quoteBalance,
         price,
-        quoteCurrency === 'XRP',
+        quoteInfo.currency === 'XRP',
         trustlineCount,
-        pendingOfferCount
+        pendingOfferCount,
+        baseReserve,
+        incrementReserve
       );
 
       if (maxCalc.maxTotal) {
@@ -322,16 +363,18 @@ export default function DEX() {
       }
     } else {
       // Max total = selling all base at price
-      const baseBalance = baseCurrency === 'XRP'
+      const baseBalance = baseInfo.currency === 'XRP'
         ? parseFloat(getXRPBalance())
-        : getTokenBalanceFromLines(baseCurrency, baseIssuer, accountLines?.lines);
+        : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
 
       const maxCalc = calculateMaxSell(
         baseBalance,
         price,
-        baseCurrency === 'XRP',
+        baseInfo.currency === 'XRP',
         trustlineCount,
-        pendingOfferCount
+        pendingOfferCount,
+        baseReserve,
+        incrementReserve
       );
 
       if (maxCalc.maxTotal) {
@@ -342,13 +385,10 @@ export default function DEX() {
   };
 
   const swapPair = () => {
-    // Swap base and quote
-    const tempCurrency = baseCurrency;
-    const tempIssuer = baseIssuer;
-    setBaseCurrency(quoteCurrency);
-    setBaseIssuer(quoteIssuer);
-    setQuoteCurrency(tempCurrency);
-    setQuoteIssuer(tempIssuer);
+    // Swap base and quote assets
+    const temp = baseAsset;
+    setBaseAsset(quoteAsset);
+    setQuoteAsset(temp);
     // Clear form
     setAmount('');
     setPrice('');
@@ -410,7 +450,10 @@ export default function DEX() {
       return;
     }
 
-    if (baseCurrency !== 'XRP' && !baseIssuer) {
+    const baseInfo = parseAsset(baseAsset);
+    const quoteInfo = parseAsset(quoteAsset);
+
+    if (baseInfo.currency !== 'XRP' && !baseInfo.issuer) {
       toast({
         title: "Missing Issuer",
         description: "Non-XRP currencies require an issuer address",
@@ -419,7 +462,7 @@ export default function DEX() {
       return;
     }
 
-    if (quoteCurrency !== 'XRP' && !quoteIssuer) {
+    if (quoteInfo.currency !== 'XRP' && !quoteInfo.issuer) {
       toast({
         title: "Missing Issuer",
         description: "Non-XRP currencies require an issuer address",
@@ -445,22 +488,22 @@ export default function DEX() {
 
       if (orderSide === 'buy') {
         // Buying base with quote
-        takerGets = quoteCurrency === 'XRP'
+        takerGets = quoteInfo.currency === 'XRP'
           ? xrplClient.convertXRPToDrops(total)
-          : { currency: quoteCurrency, issuer: quoteIssuer, value: total };
+          : { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: total };
         
-        takerPays = baseCurrency === 'XRP'
+        takerPays = baseInfo.currency === 'XRP'
           ? xrplClient.convertXRPToDrops(amount)
-          : { currency: baseCurrency, issuer: baseIssuer, value: amount };
+          : { currency: baseInfo.currency, issuer: baseInfo.issuer, value: amount };
       } else {
         // Selling base for quote
-        takerGets = baseCurrency === 'XRP'
+        takerGets = baseInfo.currency === 'XRP'
           ? xrplClient.convertXRPToDrops(amount)
-          : { currency: baseCurrency, issuer: baseIssuer, value: amount };
+          : { currency: baseInfo.currency, issuer: baseInfo.issuer, value: amount };
         
-        takerPays = quoteCurrency === 'XRP'
+        takerPays = quoteInfo.currency === 'XRP'
           ? xrplClient.convertXRPToDrops(total)
-          : { currency: quoteCurrency, issuer: quoteIssuer, value: total };
+          : { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: total };
       }
 
       const transaction: any = {
@@ -932,17 +975,8 @@ export default function DEX() {
                 <div className="flex gap-2">
                   <div className="flex-1 grid grid-cols-2 gap-2">
                     <Select 
-                      value={baseCurrency === 'XRP' ? 'XRP' : `${baseCurrency}:${baseIssuer}`} 
-                      onValueChange={(val) => {
-                        if (val === 'XRP') {
-                          setBaseCurrency('XRP');
-                          setBaseIssuer('');
-                        } else {
-                          const [currency, issuer] = val.split(':');
-                          setBaseCurrency(currency);
-                          setBaseIssuer(issuer);
-                        }
-                      }}
+                      value={baseAsset} 
+                      onValueChange={(val) => setBaseAsset(val)}
                     >
                       <SelectTrigger data-testid="select-base-currency">
                         <SelectValue />
@@ -951,7 +985,7 @@ export default function DEX() {
                         {getAvailableCurrencies().map((currency) => (
                           <SelectItem 
                             key={`base-${currency.key}`} 
-                            value={currency.value === 'XRP' ? 'XRP' : `${currency.value}:${currency.issuer}`}
+                            value={currency.value}
                           >
                             {currency.label}
                           </SelectItem>
@@ -959,17 +993,8 @@ export default function DEX() {
                       </SelectContent>
                     </Select>
                     <Select 
-                      value={quoteCurrency === 'XRP' ? 'XRP' : `${quoteCurrency}:${quoteIssuer}`}
-                      onValueChange={(val) => {
-                        if (val === 'XRP') {
-                          setQuoteCurrency('XRP');
-                          setQuoteIssuer('');
-                        } else {
-                          const [currency, issuer] = val.split(':');
-                          setQuoteCurrency(currency);
-                          setQuoteIssuer(issuer);
-                        }
-                      }}
+                      value={quoteAsset}
+                      onValueChange={(val) => setQuoteAsset(val)}
                     >
                       <SelectTrigger data-testid="select-quote-currency">
                         <SelectValue />
@@ -996,16 +1021,24 @@ export default function DEX() {
                     <ArrowUpDown className="w-4 h-4" />
                   </Button>
                 </div>
-                {baseCurrency !== 'XRP' && baseIssuer && (
-                  <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-                    Base Issuer: {baseIssuer.substring(0, 12)}...
-                  </div>
-                )}
-                {quoteCurrency !== 'XRP' && quoteIssuer && (
-                  <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-                    Quote Issuer: {quoteIssuer.substring(0, 12)}...
-                  </div>
-                )}
+                {(() => {
+                  const baseInfo = parseAsset(baseAsset);
+                  const quoteInfo = parseAsset(quoteAsset);
+                  return (
+                    <>
+                      {baseInfo.currency !== 'XRP' && baseInfo.issuer && (
+                        <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+                          Base Issuer: {baseInfo.issuer.substring(0, 12)}...
+                        </div>
+                      )}
+                      {quoteInfo.currency !== 'XRP' && quoteInfo.issuer && (
+                        <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
+                          Quote Issuer: {quoteInfo.issuer.substring(0, 12)}...
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Order Type */}
@@ -1041,7 +1074,7 @@ export default function DEX() {
               {/* Amount Field */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  Amount ({xrplClient.decodeCurrency(baseCurrency)})
+                  Amount ({xrplClient.decodeCurrency(parseAsset(baseAsset).currency)})
                 </Label>
                 <div className="relative">
                   <Input
@@ -1066,16 +1099,21 @@ export default function DEX() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Available: {orderSide === 'buy' 
-                    ? `${(quoteCurrency === 'XRP' 
-                        ? getXRPBalance() 
-                        : getTokenBalanceFromLines(quoteCurrency, quoteIssuer, accountLines?.lines)
-                      )} ${xrplClient.decodeCurrency(quoteCurrency)}`
-                    : `${(baseCurrency === 'XRP' 
-                        ? getXRPBalance() 
-                        : getTokenBalanceFromLines(baseCurrency, baseIssuer, accountLines?.lines)
-                      )} ${xrplClient.decodeCurrency(baseCurrency)}`
-                  }
+                  Available: {(() => {
+                    const baseInfo = parseAsset(baseAsset);
+                    const quoteInfo = parseAsset(quoteAsset);
+                    if (orderSide === 'buy') {
+                      const balance = quoteInfo.currency === 'XRP'
+                        ? getXRPBalance()
+                        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
+                      return `${balance} ${xrplClient.decodeCurrency(quoteInfo.currency)}`;
+                    } else {
+                      const balance = baseInfo.currency === 'XRP'
+                        ? getXRPBalance()
+                        : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
+                      return `${balance} ${xrplClient.decodeCurrency(baseInfo.currency)}`;
+                    }
+                  })()}
                 </p>
               </div>
 
@@ -1084,7 +1122,7 @@ export default function DEX() {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label className="text-sm font-medium">
-                      Price ({xrplClient.decodeCurrency(quoteCurrency)} per {xrplClient.decodeCurrency(baseCurrency)})
+                      Price ({xrplClient.decodeCurrency(parseAsset(quoteAsset).currency)} per {xrplClient.decodeCurrency(parseAsset(baseAsset).currency)})
                     </Label>
                     {marketPrice && (
                       <Button
@@ -1114,7 +1152,7 @@ export default function DEX() {
               {/* Total Field */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  Total ({xrplClient.decodeCurrency(quoteCurrency)})
+                  Total ({xrplClient.decodeCurrency(parseAsset(quoteAsset).currency)})
                 </Label>
                 <div className="relative">
                   <Input
@@ -1139,71 +1177,78 @@ export default function DEX() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Available: {orderSide === 'buy'
-                    ? `${(quoteCurrency === 'XRP' 
-                        ? getXRPBalance() 
-                        : getTokenBalanceFromLines(quoteCurrency, quoteIssuer, accountLines?.lines)
-                      )} ${xrplClient.decodeCurrency(quoteCurrency)} (minus reserves)`
-                    : `N/A (calculated from amount × price)`
-                  }
+                  Available: {(() => {
+                    const quoteInfo = parseAsset(quoteAsset);
+                    if (orderSide === 'buy') {
+                      const balance = quoteInfo.currency === 'XRP'
+                        ? getXRPBalance()
+                        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
+                      return `${balance} ${xrplClient.decodeCurrency(quoteInfo.currency)} (minus reserves)`;
+                    }
+                    return 'N/A (calculated from amount × price)';
+                  })()}
                 </p>
               </div>
 
               {/* Order Summary */}
-              {amount && total && (
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <p className="text-sm font-medium mb-3">Order Summary</p>
-                  <div className="space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span>You're {orderSide === 'buy' ? 'buying' : 'selling'}:</span>
-                      <span className="font-semibold">{amount} {xrplClient.decodeCurrency(baseCurrency)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>You'll {orderSide === 'buy' ? 'pay' : 'receive'}:</span>
-                      <span className="font-semibold">~{total} {xrplClient.decodeCurrency(quoteCurrency)}</span>
-                    </div>
-                    {price && (
+              {amount && total && (() => {
+                const baseInfo = parseAsset(baseAsset);
+                const quoteInfo = parseAsset(quoteAsset);
+                return (
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                    <p className="text-sm font-medium mb-3">Order Summary</p>
+                    <div className="space-y-1.5 text-sm">
                       <div className="flex justify-between">
-                        <span>At price:</span>
-                        <span className="font-semibold">{parseFloat(price).toFixed(6)} {xrplClient.decodeCurrency(quoteCurrency)}/{xrplClient.decodeCurrency(baseCurrency)}</span>
+                        <span>You're {orderSide === 'buy' ? 'buying' : 'selling'}:</span>
+                        <span className="font-semibold">{amount} {xrplClient.decodeCurrency(baseInfo.currency)}</span>
                       </div>
-                    )}
+                      <div className="flex justify-between">
+                        <span>You'll {orderSide === 'buy' ? 'pay' : 'receive'}:</span>
+                        <span className="font-semibold">~{total} {xrplClient.decodeCurrency(quoteInfo.currency)}</span>
+                      </div>
+                      {price && (
+                        <div className="flex justify-between">
+                          <span>At price:</span>
+                          <span className="font-semibold">{parseFloat(price).toFixed(6)} {xrplClient.decodeCurrency(quoteInfo.currency)}/{xrplClient.decodeCurrency(baseInfo.currency)}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="pt-3 mt-3 border-t border-border">
+                      <p className="text-xs text-muted-foreground mb-2">XRPL Technical Details:</p>
+                      <div className="space-y-1 text-xs text-muted-foreground">
+                        <div className="flex justify-between">
+                          <span>TakerGets:</span>
+                          <span className="font-mono">
+                            {orderSide === 'buy' 
+                              ? `${total} ${xrplClient.decodeCurrency(quoteInfo.currency)}`
+                              : `${amount} ${xrplClient.decodeCurrency(baseInfo.currency)}`
+                            }
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>TakerPays:</span>
+                          <span className="font-mono">
+                            {orderSide === 'buy' 
+                              ? `${amount} ${xrplClient.decodeCurrency(baseInfo.currency)}`
+                              : `${total} ${xrplClient.decodeCurrency(quoteInfo.currency)}`
+                            }
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Flags:</span>
+                          <span className="font-mono">
+                            {orderSide === 'sell' && 'tfSell '}
+                            {orderType === 'market' && 'tfImmediateOrCancel '}
+                            {tfPassive && 'tfPassive '}
+                            {tfFillOrKill && 'tfFillOrKill'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  
-                  <div className="pt-3 mt-3 border-t border-border">
-                    <p className="text-xs text-muted-foreground mb-2">XRPL Technical Details:</p>
-                    <div className="space-y-1 text-xs text-muted-foreground">
-                      <div className="flex justify-between">
-                        <span>TakerGets:</span>
-                        <span className="font-mono">
-                          {orderSide === 'buy' 
-                            ? `${total} ${xrplClient.decodeCurrency(quoteCurrency)}`
-                            : `${amount} ${xrplClient.decodeCurrency(baseCurrency)}`
-                          }
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>TakerPays:</span>
-                        <span className="font-mono">
-                          {orderSide === 'buy' 
-                            ? `${amount} ${xrplClient.decodeCurrency(baseCurrency)}`
-                            : `${total} ${xrplClient.decodeCurrency(quoteCurrency)}`
-                          }
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Flags:</span>
-                        <span className="font-mono">
-                          {orderSide === 'sell' && 'tfSell '}
-                          {orderType === 'market' && 'tfImmediateOrCancel '}
-                          {tfPassive && 'tfPassive '}
-                          {tfFillOrKill && 'tfFillOrKill'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Advanced Options */}
               <div className="space-y-2">

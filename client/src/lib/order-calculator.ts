@@ -1,8 +1,5 @@
 import { xrplClient } from './xrpl-client';
 
-const BASE_RESERVE_XRP = 20;
-const TRUSTLINE_RESERVE_XRP = 2;
-const OFFER_RESERVE_XRP = 0.2;
 const TRANSACTION_FEE_XRP = 0.00001;
 
 export interface OrderCalculation {
@@ -53,15 +50,20 @@ export function calculatePrice(amount: string, total: string): string {
 
 export function calculateXRPReserves(
   trustlineCount: number,
-  offerCount: number
+  offerCount: number,
+  baseReserve: number,
+  incrementReserve: number
 ): ReserveInfo {
-  const trustlineReserve = trustlineCount * TRUSTLINE_RESERVE_XRP;
-  const offerReserve = offerCount * OFFER_RESERVE_XRP;
+  // In XRPL, trustlines count toward the owner reserve with the increment value
+  // Offers use a fractional reserve (typically 0.2 XRP but derived from increment)
+  const offerReservePerItem = incrementReserve / 10; // Offers are 1/10th of increment
+  const trustlineReserve = trustlineCount * incrementReserve;
+  const offerReserve = offerCount * offerReservePerItem;
   const ownerReserve = trustlineReserve + offerReserve;
-  const totalReserve = BASE_RESERVE_XRP + ownerReserve;
+  const totalReserve = baseReserve + ownerReserve;
   
   return {
-    baseReserve: BASE_RESERVE_XRP,
+    baseReserve,
     ownerReserve,
     totalReserve,
     availableBalance: 0
@@ -71,9 +73,11 @@ export function calculateXRPReserves(
 export function calculateAvailableXRP(
   xrpBalance: number,
   trustlineCount: number,
-  offerCount: number
+  offerCount: number,
+  baseReserve: number,
+  incrementReserve: number
 ): number {
-  const reserves = calculateXRPReserves(trustlineCount, offerCount);
+  const reserves = calculateXRPReserves(trustlineCount, offerCount, baseReserve, incrementReserve);
   const available = xrpBalance - reserves.totalReserve - TRANSACTION_FEE_XRP;
   return Math.max(0, available);
 }
@@ -83,7 +87,9 @@ export function calculateMaxBuy(
   price: string,
   isQuoteXRP: boolean,
   trustlineCount: number = 0,
-  offerCount: number = 0
+  offerCount: number = 0,
+  baseReserve: number = 20,
+  incrementReserve: number = 2
 ): MaxCalculation {
   if (!price || parseFloat(price) <= 0) {
     return {
@@ -97,7 +103,7 @@ export function calculateMaxBuy(
   let availableQuote = quoteBalance;
 
   if (isQuoteXRP) {
-    availableQuote = calculateAvailableXRP(quoteBalance, trustlineCount, offerCount);
+    availableQuote = calculateAvailableXRP(quoteBalance, trustlineCount, offerCount, baseReserve, incrementReserve);
     if (availableQuote <= 0) {
       return {
         maxAmount: '',
@@ -121,7 +127,9 @@ export function calculateMaxSell(
   price: string,
   isBaseXRP: boolean,
   trustlineCount: number = 0,
-  offerCount: number = 0
+  offerCount: number = 0,
+  baseReserve: number = 20,
+  incrementReserve: number = 2
 ): MaxCalculation {
   if (!price || parseFloat(price) <= 0) {
     return {
@@ -135,7 +143,7 @@ export function calculateMaxSell(
   let availableBase = baseBalance;
 
   if (isBaseXRP) {
-    availableBase = calculateAvailableXRP(baseBalance, trustlineCount, offerCount);
+    availableBase = calculateAvailableXRP(baseBalance, trustlineCount, offerCount, baseReserve, incrementReserve);
     if (availableBase <= 0) {
       return {
         maxAmount: '',
