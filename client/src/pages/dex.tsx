@@ -112,14 +112,15 @@ export default function DEX() {
   
   // New order form state - using composite asset identifiers
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy');
-  const [orderType, setOrderType] = useState<'limit' | 'market'>('limit');
+  const [orderType, setOrderType] = useState<'limit' | 'market'>('market'); // Default to market
   // Composite asset values: "XRP" or "CURRENCY:ISSUER"
-  const [baseAsset, setBaseAsset] = useState('');  // Will be initialized in useEffect based on network
-  const [quoteAsset, setQuoteAsset] = useState('XRP');
+  const [baseAsset, setBaseAsset] = useState('XRP');  // Default to XRP (what to buy/sell)
+  const [quoteAsset, setQuoteAsset] = useState('');  // Will be initialized to RLUSD based on network
   const [amount, setAmount] = useState('');
   const [price, setPrice] = useState('');
   const [total, setTotal] = useState('');
   const [expirationDays, setExpirationDays] = useState('');
+  const [limitPriceInitialized, setLimitPriceInitialized] = useState(false); // Track if limit price was set
   // Dynamic reserve state - fetched from XRPL ledger
   const [baseReserve, setBaseReserve] = useState(20); // Default to current XRPL base reserve
   const [incrementReserve, setIncrementReserve] = useState(2); // Default to current XRPL increment
@@ -175,10 +176,10 @@ export default function DEX() {
     return `524C555344000000000000000000000000000000:${rlusdIssuer}`;
   };
 
-  // Initialize base asset with network-specific RLUSD on first render
+  // Initialize quote asset with network-specific RLUSD on first render
   useEffect(() => {
-    if (!baseAsset) {
-      setBaseAsset(getRLUSDAsset(currentNetwork));
+    if (!quoteAsset) {
+      setQuoteAsset(getRLUSDAsset(currentNetwork));
     }
   }, []);
 
@@ -215,8 +216,8 @@ export default function DEX() {
             setBaseAsset(newAsset);
           }
         } else {
-          // Token doesn't exist on this network - reset to RLUSD
-          setBaseAsset(getRLUSDAsset(currentNetwork));
+          // Token doesn't exist on this network - reset to XRP
+          setBaseAsset('XRP');
         }
       }
       // For trustline-derived tokens not in COMMON_TOKENS, keep as-is
@@ -238,13 +239,42 @@ export default function DEX() {
             setQuoteAsset(newAsset);
           }
         } else {
-          // Token doesn't exist on this network - reset to XRP
-          setQuoteAsset('XRP');
+          // Token doesn't exist on this network - reset to RLUSD
+          setQuoteAsset(getRLUSDAsset(currentNetwork));
         }
       }
       // For trustline-derived tokens not in COMMON_TOKENS, keep as-is
     }
   }, [currentNetwork]); // Trigger on network changes
+
+  // Initialize limit price once when switching to limit mode
+  useEffect(() => {
+    if (orderType === 'limit' && !limitPriceInitialized && marketPrice) {
+      setPrice(marketPrice.toString());
+      setLimitPriceInitialized(true);
+    } else if (orderType === 'market') {
+      setLimitPriceInitialized(false); // Reset flag when switching back to market
+      if (marketPrice) {
+        setPrice(marketPrice.toString());
+        // Force recalculation of total when marketPrice arrives
+        if (amount) {
+          const newTotal = calculateTotal(amount, marketPrice.toString());
+          setTotal(newTotal);
+        }
+      }
+    }
+  }, [orderType, marketPrice, limitPriceInitialized, amount]);
+
+  // Auto-calculate total when amount or price changes
+  useEffect(() => {
+    if (amount && price) {
+      const newTotal = calculateTotal(amount, price);
+      setTotal(newTotal);
+    } else if (!price) {
+      // Clear total when price is cleared
+      setTotal('');
+    }
+  }, [amount, price]);
 
   // Calculate dependent fields
   const handleAmountChange = (value: string) => {
@@ -260,23 +290,6 @@ export default function DEX() {
     if (amount && value) {
       const newTotal = calculateTotal(amount, value);
       setTotal(newTotal);
-    } else if (total && value) {
-      const newAmount = calculateAmount(total, value);
-      setAmount(newAmount);
-    }
-  };
-
-  const handleTotalChange = (value: string) => {
-    setTotal(value);
-    if (price && value) {
-      const newAmount = calculateAmount(value, price);
-      setAmount(newAmount);
-    }
-  };
-
-  const handleUseMarketPrice = () => {
-    if (marketPrice) {
-      handlePriceChange(marketPrice.toString());
     }
   };
 
@@ -307,7 +320,7 @@ export default function DEX() {
 
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
-        setTotal(maxCalc.maxTotal);
+        // Let useEffect auto-calculate total from amount × price
       }
     } else {
       // Selling base for quote - max is our base balance
@@ -327,59 +340,7 @@ export default function DEX() {
 
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
-        setTotal(maxCalc.maxTotal);
-      }
-    }
-  };
-
-  const handleMaxTotal = () => {
-    const trustlineCount = accountLines?.lines?.length || 0;
-    const offerCount = accountOffers?.offers?.length || 0;
-    // Add 1 to offer count for the pending offer being created
-    const pendingOfferCount = offerCount + 1;
-
-    const baseInfo = parseAsset(baseAsset);
-    const quoteInfo = parseAsset(quoteAsset);
-
-    if (orderSide === 'buy') {
-      // Max total = max quote we can spend
-      const quoteBalance = quoteInfo.currency === 'XRP'
-        ? parseFloat(getXRPBalance())
-        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
-
-      const maxCalc = calculateMaxBuy(
-        quoteBalance,
-        price,
-        quoteInfo.currency === 'XRP',
-        trustlineCount,
-        pendingOfferCount,
-        baseReserve,
-        incrementReserve
-      );
-
-      if (maxCalc.maxTotal) {
-        setTotal(maxCalc.maxTotal);
-        setAmount(maxCalc.maxAmount);
-      }
-    } else {
-      // Max total = selling all base at price
-      const baseBalance = baseInfo.currency === 'XRP'
-        ? parseFloat(getXRPBalance())
-        : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
-
-      const maxCalc = calculateMaxSell(
-        baseBalance,
-        price,
-        baseInfo.currency === 'XRP',
-        trustlineCount,
-        pendingOfferCount,
-        baseReserve,
-        incrementReserve
-      );
-
-      if (maxCalc.maxTotal) {
-        setTotal(maxCalc.maxTotal);
-        setAmount(maxCalc.maxAmount);
+        // Let useEffect auto-calculate total from amount × price
       }
     }
   };
@@ -432,19 +393,62 @@ export default function DEX() {
     }
 
     // Validation
-    if (!amount || !total) {
+    const amountValue = parseFloat(amount);
+    if (!amount || isNaN(amountValue) || amountValue <= 0) {
       toast({
-        title: "Missing Information",
-        description: "Please enter amount and total",
+        title: "Invalid Amount",
+        description: "Please enter a valid amount greater than 0",
         variant: "destructive",
       });
       return;
     }
 
-    if (orderType === 'limit' && !price) {
+    // For market orders, use marketPrice; for limit orders, require price to be set
+    let effectivePrice = price;
+    if (orderType === 'market') {
+      if (!marketPrice || marketPrice <= 0) {
+        toast({
+          title: "Market Price Unavailable",
+          description: "Please wait for market price to load or switch to limit order",
+          variant: "destructive",
+        });
+        return;
+      }
+      effectivePrice = marketPrice.toString();
+    } else {
+      // Limit order - validate price is set and > 0
+      const priceValue = parseFloat(price);
+      if (!price || isNaN(priceValue) || priceValue <= 0) {
+        toast({
+          title: "Invalid Price",
+          description: "Please enter a valid price greater than 0",
+          variant: "destructive",
+        });
+        return;
+      }
+      effectivePrice = price;
+    }
+
+    // Validate effectivePrice is usable
+    const effectivePriceValue = parseFloat(effectivePrice);
+    if (isNaN(effectivePriceValue) || effectivePriceValue <= 0) {
       toast({
-        title: "Missing Price",
-        description: "Limit orders require a price",
+        title: "Invalid Price",
+        description: "Price must be greater than 0",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Calculate total from amount × price
+    const calculatedTotal = calculateTotal(amount, effectivePrice);
+
+    // Validate calculated total
+    const calculatedTotalValue = parseFloat(calculatedTotal);
+    if (!calculatedTotal || isNaN(calculatedTotalValue) || calculatedTotalValue <= 0) {
+      toast({
+        title: "Invalid Total",
+        description: "Unable to calculate order total. Please check amount and price.",
         variant: "destructive",
       });
       return;
@@ -452,6 +456,25 @@ export default function DEX() {
 
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
+
+    // Validate XRP amounts meet minimum drop precision (1 drop = 0.000001 XRP)
+    const MIN_XRP_AMOUNT = 0.000001;
+    if (baseInfo.currency === 'XRP' && amountValue < MIN_XRP_AMOUNT) {
+      toast({
+        title: "Amount Too Small",
+        description: "XRP amount must be at least 1 drop (0.000001 XRP)",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (quoteInfo.currency === 'XRP' && calculatedTotalValue < MIN_XRP_AMOUNT) {
+      toast({
+        title: "Total Too Small",
+        description: "XRP total must be at least 1 drop (0.000001 XRP)",
+        variant: "destructive",
+      });
+      return;
+    }
 
     if (baseInfo.currency !== 'XRP' && !baseInfo.issuer) {
       toast({
@@ -488,22 +511,66 @@ export default function DEX() {
 
       if (orderSide === 'buy') {
         // Buying base with quote
-        takerGets = quoteInfo.currency === 'XRP'
-          ? xrplClient.convertXRPToDrops(total)
-          : { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: total };
+        if (quoteInfo.currency === 'XRP') {
+          const drops = xrplClient.convertXRPToDrops(calculatedTotal);
+          if (drops === '0' || parseInt(drops) === 0) {
+            toast({
+              title: "Amount Too Small",
+              description: "XRP total rounds to 0 drops. Increase the amount or price.",
+              variant: "destructive",
+            });
+            return;
+          }
+          takerGets = drops;
+        } else {
+          takerGets = { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: calculatedTotal };
+        }
         
-        takerPays = baseInfo.currency === 'XRP'
-          ? xrplClient.convertXRPToDrops(amount)
-          : { currency: baseInfo.currency, issuer: baseInfo.issuer, value: amount };
+        if (baseInfo.currency === 'XRP') {
+          const drops = xrplClient.convertXRPToDrops(amount);
+          if (drops === '0' || parseInt(drops) === 0) {
+            toast({
+              title: "Amount Too Small",
+              description: "XRP amount rounds to 0 drops. Increase the amount.",
+              variant: "destructive",
+            });
+            return;
+          }
+          takerPays = drops;
+        } else {
+          takerPays = { currency: baseInfo.currency, issuer: baseInfo.issuer, value: amount };
+        }
       } else {
         // Selling base for quote
-        takerGets = baseInfo.currency === 'XRP'
-          ? xrplClient.convertXRPToDrops(amount)
-          : { currency: baseInfo.currency, issuer: baseInfo.issuer, value: amount };
+        if (baseInfo.currency === 'XRP') {
+          const drops = xrplClient.convertXRPToDrops(amount);
+          if (drops === '0' || parseInt(drops) === 0) {
+            toast({
+              title: "Amount Too Small",
+              description: "XRP amount rounds to 0 drops. Increase the amount.",
+              variant: "destructive",
+            });
+            return;
+          }
+          takerGets = drops;
+        } else {
+          takerGets = { currency: baseInfo.currency, issuer: baseInfo.issuer, value: amount };
+        }
         
-        takerPays = quoteInfo.currency === 'XRP'
-          ? xrplClient.convertXRPToDrops(total)
-          : { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: total };
+        if (quoteInfo.currency === 'XRP') {
+          const drops = xrplClient.convertXRPToDrops(calculatedTotal);
+          if (drops === '0' || parseInt(drops) === 0) {
+            toast({
+              title: "Amount Too Small",
+              description: "XRP total rounds to 0 drops. Increase the amount or price.",
+              variant: "destructive",
+            });
+            return;
+          }
+          takerPays = drops;
+        } else {
+          takerPays = { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: calculatedTotal };
+        }
       }
 
       const transaction: any = {
@@ -969,174 +1036,43 @@ export default function DEX() {
                 </Button>
               </div>
 
-              {/* Trading Pair Selection */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Trading Pair</Label>
-                <div className="flex gap-2">
-                  <div className="flex-1 grid grid-cols-2 gap-2">
-                    <Select 
-                      value={baseAsset} 
-                      onValueChange={(val) => setBaseAsset(val)}
-                    >
-                      <SelectTrigger data-testid="select-base-currency">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailableCurrencies().map((currency) => (
-                          <SelectItem 
-                            key={`base-${currency.key}`} 
-                            value={currency.value}
-                          >
-                            {currency.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Select 
-                      value={quoteAsset}
-                      onValueChange={(val) => setQuoteAsset(val)}
-                    >
-                      <SelectTrigger data-testid="select-quote-currency">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailableCurrencies().map((currency) => (
-                          <SelectItem 
-                            key={`quote-${currency.key}`} 
-                            value={currency.value}
-                          >
-                            {currency.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={swapPair}
-                    data-testid="button-swap-pair"
-                  >
-                    <ArrowUpDown className="w-4 h-4" />
-                  </Button>
-                </div>
-                {(() => {
-                  const baseInfo = parseAsset(baseAsset);
-                  const quoteInfo = parseAsset(quoteAsset);
-                  return (
-                    <>
-                      {baseInfo.currency !== 'XRP' && baseInfo.issuer && (
-                        <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-                          Base Issuer: {baseInfo.issuer.substring(0, 12)}...
-                        </div>
-                      )}
-                      {quoteInfo.currency !== 'XRP' && quoteInfo.issuer && (
-                        <div className="text-xs text-muted-foreground font-mono bg-muted p-2 rounded">
-                          Quote Issuer: {quoteInfo.issuer.substring(0, 12)}...
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
+              {/* Market/Limit Toggle */}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={orderType === 'market' ? 'default' : 'outline'}
+                  className="flex-1"
+                  size="sm"
+                  onClick={() => {
+                    setOrderType('market');
+                    if (marketPrice) handlePriceChange(marketPrice.toString());
+                  }}
+                  data-testid="button-market-type"
+                >
+                  Market
+                </Button>
+                <Button
+                  type="button"
+                  variant={orderType === 'limit' ? 'default' : 'outline'}
+                  className="flex-1"
+                  size="sm"
+                  onClick={() => setOrderType('limit')}
+                  data-testid="button-limit-type"
+                >
+                  Limit
+                </Button>
               </div>
 
-              {/* Order Type */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Order Type</Label>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={orderType === 'limit' ? 'default' : 'outline'}
-                    className="flex-1"
-                    size="sm"
-                    onClick={() => setOrderType('limit')}
-                    data-testid="button-limit-type"
-                  >
-                    Limit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={orderType === 'market' ? 'default' : 'outline'}
-                    className="flex-1"
-                    size="sm"
-                    onClick={() => {
-                      setOrderType('market');
-                      if (marketPrice) handlePriceChange(marketPrice.toString());
-                    }}
-                    data-testid="button-market-type"
-                  >
-                    Market
-                  </Button>
-                </div>
-              </div>
-
-              {/* Amount Field */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Amount ({xrplClient.decodeCurrency(parseAsset(baseAsset).currency)})
-                </Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => handleAmountChange(e.target.value)}
-                    className="font-mono pr-16"
-                    data-testid="input-amount"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1 h-7 text-xs"
-                    onClick={handleMaxAmount}
-                    disabled={!price}
-                    data-testid="button-max-amount"
-                  >
-                    MAX
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Available: {(() => {
-                    const baseInfo = parseAsset(baseAsset);
-                    const quoteInfo = parseAsset(quoteAsset);
-                    if (orderSide === 'buy') {
-                      const balance = quoteInfo.currency === 'XRP'
-                        ? getXRPBalance()
-                        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
-                      return `${balance} ${xrplClient.decodeCurrency(quoteInfo.currency)}`;
-                    } else {
-                      const balance = baseInfo.currency === 'XRP'
-                        ? getXRPBalance()
-                        : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
-                      return `${balance} ${xrplClient.decodeCurrency(baseInfo.currency)}`;
-                    }
-                  })()}
-                </p>
-              </div>
-
-              {/* Price Field (only for Limit orders) */}
+              {/* Limit Price Field (only for Limit orders) */}
               {orderType === 'limit' && (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">
-                      Price ({xrplClient.decodeCurrency(parseAsset(quoteAsset).currency)} per {xrplClient.decodeCurrency(parseAsset(baseAsset).currency)})
-                    </Label>
-                    {marketPrice && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs"
-                        onClick={handleUseMarketPrice}
-                        data-testid="button-use-market-price"
-                      >
-                        Market: {marketPrice.toFixed(6)}
-                      </Button>
-                    )}
-                  </div>
+                  <Label className="text-sm font-medium">
+                    Limit Price ({(() => {
+                      const quoteInfo = parseAsset(quoteAsset);
+                      const baseInfo = parseAsset(baseAsset);
+                      return `${xrplClient.decodeCurrency(quoteInfo.currency)} per ${xrplClient.decodeCurrency(baseInfo.currency)}`;
+                    })()})
+                  </Label>
                   <Input
                     type="number"
                     step="any"
@@ -1149,45 +1085,124 @@ export default function DEX() {
                 </div>
               )}
 
-              {/* Total Field */}
+              {/* Asset to Buy/Sell + Amount */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">
-                  Total ({xrplClient.decodeCurrency(parseAsset(quoteAsset).currency)})
+                  {orderSide === 'buy' ? 'Buy' : 'Sell'}
                 </Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    step="any"
-                    placeholder="0.00"
-                    value={total}
-                    onChange={(e) => handleTotalChange(e.target.value)}
-                    className="font-mono pr-16"
-                    data-testid="input-total"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-1 top-1 h-7 text-xs"
-                    onClick={handleMaxTotal}
-                    disabled={!price}
-                    data-testid="button-max-total"
+                <div className="grid grid-cols-[1fr,2fr] gap-2">
+                  <Select 
+                    value={baseAsset} 
+                    onValueChange={(val) => setBaseAsset(val)}
                   >
-                    MAX
-                  </Button>
+                    <SelectTrigger data-testid="select-base-currency">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableCurrencies().map((currency) => (
+                        <SelectItem 
+                          key={`base-${currency.key}`} 
+                          value={currency.value}
+                        >
+                          {currency.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="Amount"
+                      value={amount}
+                      onChange={(e) => handleAmountChange(e.target.value)}
+                      className="font-mono pr-16"
+                      data-testid="input-amount"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1 h-7 text-xs"
+                      onClick={handleMaxAmount}
+                      disabled={!price || (orderType === 'market' && !marketPrice)}
+                      data-testid="button-max-amount"
+                    >
+                      MAX
+                    </Button>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Available: {(() => {
-                    const quoteInfo = parseAsset(quoteAsset);
-                    if (orderSide === 'buy') {
-                      const balance = quoteInfo.currency === 'XRP'
-                        ? getXRPBalance()
-                        : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
-                      return `${balance} ${xrplClient.decodeCurrency(quoteInfo.currency)} (minus reserves)`;
-                    }
-                    return 'N/A (calculated from amount × price)';
-                  })()}
-                </p>
+                {orderSide === 'sell' && (() => {
+                  const baseInfo = parseAsset(baseAsset);
+                  const balance = baseInfo.currency === 'XRP'
+                    ? parseFloat(getXRPBalance())
+                    : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
+                  const amountValue = parseFloat(amount) || 0;
+                  const hasInsufficient = amountValue > balance;
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Available: {balance} {xrplClient.decodeCurrency(baseInfo.currency)}
+                      {hasInsufficient && (
+                        <span className="text-red-500 ml-2">not enough {xrplClient.decodeCurrency(baseInfo.currency)}</span>
+                      )}
+                    </p>
+                  );
+                })()}
+              </div>
+
+              {/* Swap Button */}
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={swapPair}
+                  data-testid="button-swap-pair"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Pay with / Sell for */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">
+                  {orderSide === 'buy' ? 'Pay with' : 'Sell for'}
+                </Label>
+                <Select 
+                  value={quoteAsset}
+                  onValueChange={(val) => setQuoteAsset(val)}
+                >
+                  <SelectTrigger data-testid="select-quote-currency">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAvailableCurrencies().map((currency) => (
+                      <SelectItem 
+                        key={`quote-${currency.key}`} 
+                        value={currency.value}
+                      >
+                        {currency.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {orderSide === 'buy' && (() => {
+                  const quoteInfo = parseAsset(quoteAsset);
+                  const balance = quoteInfo.currency === 'XRP'
+                    ? parseFloat(getXRPBalance())
+                    : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
+                  // Calculate total needed for buy
+                  const totalNeeded = parseFloat(total) || 0;
+                  const hasInsufficient = totalNeeded > balance;
+                  return (
+                    <p className="text-xs text-muted-foreground">
+                      Available: {balance} {xrplClient.decodeCurrency(quoteInfo.currency)}
+                      {hasInsufficient && totalNeeded > 0 && (
+                        <span className="text-red-500 ml-2">not enough {xrplClient.decodeCurrency(quoteInfo.currency)}</span>
+                      )}
+                    </p>
+                  );
+                })()}
               </div>
 
               {/* Order Summary */}
