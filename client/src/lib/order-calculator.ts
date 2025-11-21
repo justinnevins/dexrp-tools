@@ -113,7 +113,8 @@ export function calculateMaxBuy(
     }
   }
 
-  const maxAmount = availableQuote / priceNum;
+  // Truncate to 8 decimals to avoid rounding up when multiplied back
+  const maxAmount = Math.floor((availableQuote / priceNum) * 100000000) / 100000000;
   
   return {
     maxAmount: maxAmount.toFixed(8).replace(/\.?0+$/, ''),
@@ -153,7 +154,8 @@ export function calculateMaxSell(
     }
   }
 
-  const maxTotal = availableBase * priceNum;
+  // Truncate to 8 decimals to avoid rounding up when multiplied
+  const maxTotal = Math.floor((availableBase * priceNum) * 100000000) / 100000000;
   
   return {
     maxAmount: availableBase.toFixed(8).replace(/\.?0+$/, ''),
