@@ -316,7 +316,7 @@ export default function Transactions() {
               const roundedGetsAmount = parseFloat(getsAmount).toFixed(4);
               const roundedPaysAmount = parseFloat(paysAmount).toFixed(4);
               
-              let displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
+              let displayAmount = '';
               let displayAddress = 'DEX Trading';
               
               if (isFromOtherWallet && filledOfferSequences.length > 0) {
@@ -325,17 +325,23 @@ export default function Transactions() {
                   ? `Offer #${filledOfferSequences[0]}`
                   : `Offers #${filledOfferSequences.join(', #')}`;
                 displayAddress = `Payment to Fill ${offerSeqDisplay}`;
-              } else if (!isFromOtherWallet) {
-                // Always show offer number for our own offers
-                displayAddress = `Offer #${transaction.Sequence}`;
+                // For fills, highlight the received amount in green (stored in custom field)
+                displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to <span class="text-green-600 dark:text-green-400">Receive: ${roundedPaysAmount} ${paysCurrency}</span>`;
+              } else {
+                displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
                 
-                // Add fill status if there are fills
-                if (storedOffer && storedOffer.fills.length > 0) {
-                  const enriched = enrichOfferWithStatus(storedOffer);
-                  const fillStatus = enriched.isFullyExecuted 
-                    ? 'Fully Filled'
-                    : `${enriched.fillPercentage.toFixed(0)}% Filled`;
-                  displayAmount = `${fillStatus} - ${displayAmount}`;
+                if (!isFromOtherWallet) {
+                  // Always show offer number for our own offers
+                  displayAddress = `Offer #${transaction.Sequence}`;
+                  
+                  // Add fill status if there are fills
+                  if (storedOffer && storedOffer.fills.length > 0) {
+                    const enriched = enrichOfferWithStatus(storedOffer);
+                    const fillStatus = enriched.isFullyExecuted 
+                      ? 'Fully Filled'
+                      : `${enriched.fillPercentage.toFixed(0)}% Filled`;
+                    displayAmount = `${fillStatus} - ${displayAmount}`;
+                  }
                 }
               }
               
@@ -512,9 +518,10 @@ export default function Transactions() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`font-semibold ${transaction.amountColor}`}>
-                      {transaction.amount}
-                    </p>
+                    <p 
+                      className={`font-semibold ${transaction.amountColor}`}
+                      dangerouslySetInnerHTML={{ __html: transaction.amount }}
+                    />
                     <p className="text-xs text-muted-foreground">
                       {formatDate(transaction.time)}
                     </p>
