@@ -236,6 +236,13 @@ export default function Transactions() {
               let paysAmount = '0';
               let paysCurrency = 'XRP';
               
+              // Determine which of our offers was filled (if from other wallet)
+              let filledOfferSequences: number[] = [];
+              if (isFromOtherWallet) {
+                const offerFills = extractOfferFills(tx, currentWallet!.address);
+                filledOfferSequences = offerFills.map(fill => fill.offerSequence);
+              }
+              
               if (isFromOtherWallet) {
                 // For OfferCreate from another wallet, show only the balance changes to OUR wallet
                 const balanceChanges = calculateBalanceChanges(tx, currentWallet!.address);
@@ -306,8 +313,15 @@ export default function Transactions() {
               }
               
               let displayAmount = `Pay: ${getsAmount} ${getsCurrency} to Receive: ${paysAmount} ${paysCurrency}`;
+              let displayAddress = 'DEX Trading';
               
-              if (storedOffer && storedOffer.fills.length > 0) {
+              if (isFromOtherWallet && filledOfferSequences.length > 0) {
+                // Show which of our offers was filled
+                const offerSeqDisplay = filledOfferSequences.length === 1 
+                  ? `Offer #${filledOfferSequences[0]}`
+                  : `Offers #${filledOfferSequences.join(', #')}`;
+                displayAddress = `Payment to Fill ${offerSeqDisplay}`;
+              } else if (!isFromOtherWallet && storedOffer && storedOffer.fills.length > 0) {
                 const enriched = enrichOfferWithStatus(storedOffer);
                 const fillStatus = enriched.isFullyExecuted 
                   ? 'Fully Filled'
@@ -322,7 +336,7 @@ export default function Transactions() {
                 amount: displayAmount,
                 paidAmount: `${getsAmount} ${getsCurrency}`,
                 receivedAmount: `${paysAmount} ${paysCurrency}`,
-                address: isFromOtherWallet ? 'DEX Fill (Taker)' : 'DEX Trading',
+                address: displayAddress,
                 time: new Date((transaction.date || 0) * 1000 + 946684800000),
                 hash: txHash,
                 status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
