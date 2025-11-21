@@ -22,6 +22,31 @@ export default function Transactions() {
     if (!xrplTransactions?.transactions || !currentWallet) return;
     
     xrplTransactions.transactions.forEach((tx: any) => {
+      const transaction = tx.tx_json || tx.tx || tx;
+      const txHash = transaction.hash || tx.hash;
+      
+      // If this is an OfferCreate by our wallet, save/update the stored offer with authoritative data
+      if (transaction.TransactionType === 'OfferCreate' && transaction.Account === currentWallet.address) {
+        const existingOffer = browserStorage.getOffer(currentWallet.address, network, transaction.Sequence);
+        
+        // Create or update the stored offer with TRUE original amounts from the transaction
+        const storedOffer = {
+          sequence: transaction.Sequence,
+          walletAddress: currentWallet.address,
+          network: network,
+          originalTakerGets: transaction.TakerGets,
+          originalTakerPays: transaction.TakerPays,
+          createdAt: transaction.date ? (transaction.date * 1000 + 946684800000) : Date.now(),
+          createdTxHash: txHash,
+          createdLedgerIndex: tx.ledger_index || tx.ledger_current_index || 0,
+          fills: existingOffer?.fills || [], // Preserve existing fills if any
+          expiration: transaction.Expiration,
+          flags: transaction.Flags
+        };
+        
+        browserStorage.saveOffer(storedOffer);
+      }
+      
       // Process ALL transaction types - takers fill offers via OfferCreate, not just Payment
       // Extract and save offer fills
       const offerFills = extractOfferFills(tx, currentWallet.address);
