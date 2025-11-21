@@ -484,10 +484,11 @@ export default function Transactions() {
                         {transaction.isDEXFill ? 'DEX Fill' : 
                          transaction.type === 'sent' ? 'Sent' : 
                          transaction.type === 'received' ? 'Received' : 
+                         transaction.address?.startsWith('Payment to Fill') ? transaction.address :
                          transaction.transactionType === 'OfferCreate' ? 'Offer Created' : 
                          transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
                       </p>
-                      {transaction.type !== 'exchange' && !transaction.isDEXFill && (
+                      {transaction.type !== 'exchange' && !transaction.isDEXFill && !transaction.address?.startsWith('Payment to Fill') && (
                         <p className="text-sm text-muted-foreground">
                           {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
                         </p>
