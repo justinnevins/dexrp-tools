@@ -260,7 +260,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                   : `Offers #${filledOfferSequences.join(', #')}`;
                 displayAddress = `Payment to Fill ${offerSeqDisplay}`;
                 // For fills, highlight the received amount in green (stored in custom field)
-                displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to <span class="text-green-600 dark:text-green-400">Receive: ${roundedPaysAmount} ${paysCurrency}</span>`;
+                displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
               } else {
                 displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
                 
