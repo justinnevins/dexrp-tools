@@ -748,7 +748,7 @@ export default function DEX() {
     if (typeof amount === 'string') {
       return parseFloat(xrplClient.formatXRPAmount(amount)).toFixed(6) + ' XRP';
     }
-    return `${parseFloat(amount.value).toFixed(6)} ${amount.currency}`;
+    return `${parseFloat(amount.value).toFixed(6)} ${xrplClient.decodeCurrency(amount.currency)}`;
   };
 
   const copyAddress = () => {
