@@ -38,8 +38,8 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     // Initial fetch
     updatePrice();
 
-    // Update price every 15 seconds
-    const interval = setInterval(updatePrice, 15000);
+    // Update price every 5 seconds
+    const interval = setInterval(updatePrice, 5000);
 
     return () => clearInterval(interval);
   }, [currentWallet?.network]);
