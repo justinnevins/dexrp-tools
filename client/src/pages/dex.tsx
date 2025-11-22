@@ -777,44 +777,36 @@ export default function DEX() {
   // If user is trading in the same direction, use price directly
   // If user is trading in opposite direction, invert the price
   const getEffectivePriceForAssets = (rawPrice: number | null): number | null => {
-    if (!rawPrice || !marketPairs) return rawPrice;
-    
-    const pair = (marketPairs as any)[marketPair];
-    if (!pair) return rawPrice;
+    if (!rawPrice) return rawPrice;
     
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
     
-    // Market pair: XRP/Token means marketPrice = tokens per XRP
-    // If user's base is XRP and quote is the token → same direction, use price as-is
-    // If user's base is the token and quote is XRP → opposite direction, invert
+    // Simplified logic: 
+    // Market pair format is always XRP/Token (e.g., XRP/USD, XRP/RLUSD)
+    // marketPrice = how many tokens you get per 1 XRP
     
-    const marketPairBase = pair.base; // Always 'XRP'
-    const marketPairQuoteCurrency = pair.quote.currency;
-    const marketPairQuoteIssuer = pair.quote.issuer;
+    // If user's base is XRP → selling XRP for tokens → use price as-is
+    // If user's quote is XRP → buying tokens with XRP → invert price (need XRP per token)
     
-    // Check if user is trading in same direction as market pair
     const userBaseIsXRP = baseInfo.currency === 'XRP';
-    const userQuoteMatchesMarketQuote = 
-      quoteInfo.currency === marketPairQuoteCurrency && 
-      quoteInfo.issuer === marketPairQuoteIssuer;
+    const userQuoteIsXRP = quoteInfo.currency === 'XRP';
     
-    if (userBaseIsXRP && userQuoteMatchesMarketQuote) {
+    if (userBaseIsXRP && !userQuoteIsXRP) {
       // Same direction: selling XRP for token → use marketPrice (tokens per XRP)
+      console.log('Price direction: Same as market (XRP→Token)', rawPrice);
       return rawPrice;
     }
     
-    const userQuoteIsXRP = quoteInfo.currency === 'XRP';
-    const userBaseMatchesMarketQuote = 
-      baseInfo.currency === marketPairQuoteCurrency && 
-      baseInfo.issuer === marketPairQuoteIssuer;
-    
-    if (userQuoteIsXRP && userBaseMatchesMarketQuote) {
+    if (!userBaseIsXRP && userQuoteIsXRP) {
       // Opposite direction: buying token with XRP → invert (XRP per token)
-      return 1 / rawPrice;
+      const inverted = 1 / rawPrice;
+      console.log('Price direction: Inverted (Token→XRP)', { original: rawPrice, inverted });
+      return inverted;
     }
     
-    // If neither matches, return as-is (user may have selected unrelated pair)
+    // If both are XRP or neither is XRP, something is misconfigured
+    console.log('Price direction: No XRP in pair, using as-is', rawPrice);
     return rawPrice;
   };
 
