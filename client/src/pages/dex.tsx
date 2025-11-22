@@ -1074,28 +1074,17 @@ export default function DEX() {
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-primary" />
               <CardTitle className="text-base">Market Price</CardTitle>
+              <span className="text-xs text-muted-foreground">({marketPair})</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Select value={marketPair} onValueChange={setMarketPair}>
-                <SelectTrigger className="w-32 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {marketPairs && Object.keys(marketPairs).map(pair => (
-                    <SelectItem key={pair} value={pair}>{pair}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={fetchMarketPrice}
-                disabled={isLoadingPrice}
-                className="h-8 w-8 p-0"
-              >
-                <RefreshCw className={`w-3 h-3 ${isLoadingPrice ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={fetchMarketPrice}
+              disabled={isLoadingPrice}
+              className="h-8 w-8 p-0"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoadingPrice ? 'animate-spin' : ''}`} />
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
