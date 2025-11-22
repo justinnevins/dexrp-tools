@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
 import { AccountSwitcher } from '@/components/account-switcher';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
-import { fetchXRPPrice, formatPrice, type XRPPriceData } from '@/lib/xrp-price';
+import { fetchXRPToRLUSDPrice, formatPrice, type DEXPriceData } from '@/lib/xrp-price';
 import { useWallet } from '@/hooks/use-wallet';
 
 interface MobileAppLayoutProps {
@@ -17,33 +17,29 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const { theme, setTheme } = useTheme();
   const [location] = useLocation();
   const { currentWallet } = useWallet();
-  const [xrpPrice, setXrpPrice] = useState<XRPPriceData | null>(null);
+  const [rlusdPrice, setRLUSDPrice] = useState<DEXPriceData | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  // Fetch XRP price on mainnet only
+  // Fetch XRP/RLUSD price from DEX order book
   useEffect(() => {
     const network = currentWallet?.network ?? 'mainnet';
-    if (network !== 'mainnet') {
-      setXrpPrice(null);
-      return;
-    }
 
     const updatePrice = async () => {
-      const price = await fetchXRPPrice(network);
+      const price = await fetchXRPToRLUSDPrice(network);
       if (price) {
-        setXrpPrice(price);
+        setRLUSDPrice(price);
       }
     };
 
     // Initial fetch
     updatePrice();
 
-    // Update price every 30 seconds
-    const interval = setInterval(updatePrice, 30000);
+    // Update price every 15 seconds
+    const interval = setInterval(updatePrice, 15000);
 
     return () => clearInterval(interval);
   }, [currentWallet?.network]);
@@ -103,10 +99,10 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
               <AccountSwitcher />
             </div>
             <div className="flex items-center gap-2">
-              {xrpPrice && currentWallet?.network === 'mainnet' && (
+              {rlusdPrice && (
                 <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground mr-2">
                   <TrendingUp className="w-3 h-3" />
-                  <span>{formatPrice(xrpPrice.price)}</span>
+                  <span>XRP {formatPrice(rlusdPrice.price).replace('$', '')} (RLUSD)</span>
                 </div>
               )}
               <Button

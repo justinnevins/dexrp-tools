@@ -74,6 +74,43 @@ export async function fetchXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet'):
 }
 
 /**
+ * Fetches XRP/RLUSD price directly from XRPL order book
+ */
+export async function fetchXRPToRLUSDPrice(network: 'mainnet' | 'testnet' = 'mainnet'): Promise<DEXPriceData | null> {
+  try {
+    const isMainnet = network === 'mainnet';
+    const rlusdIssuer = isMainnet 
+      ? 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De'
+      : 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
+
+    const takerGets = { currency: 'XRP' };
+    const takerPays = { currency: '524C555344000000000000000000000000000000', issuer: rlusdIssuer };
+
+    const priceData = await xrplClient.getOrderBookPrice(network, takerGets, takerPays);
+
+    // Use mid-market price or best available price
+    const price = priceData.askPrice && priceData.bidPrice
+      ? (priceData.askPrice + priceData.bidPrice) / 2
+      : (priceData.askPrice || priceData.bidPrice);
+
+    if (!price) {
+      console.warn('No price available for XRP/RLUSD pair');
+      return null;
+    }
+
+    return {
+      price,
+      currency: 'RLUSD',
+      issuer: rlusdIssuer,
+      timestamp: Date.now()
+    };
+  } catch (error) {
+    console.error('Failed to fetch XRP/RLUSD price from order book:', error);
+    return null;
+  }
+}
+
+/**
  * Formats price for display
  */
 export function formatPrice(price: number): string {
