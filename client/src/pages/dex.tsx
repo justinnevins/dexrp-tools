@@ -1359,17 +1359,19 @@ export default function DEX() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Avg. Price:</span>
+                        <span className="text-muted-foreground">Avg. Execution Price:</span>
                         <span className="font-mono text-xs">
                           {executionEstimate.averagePrice.toFixed(6)}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Slippage:</span>
-                        <span className={`font-semibold ${executionEstimate.slippage > slippageTolerance * 100 ? 'text-yellow-600' : 'text-green-600'}`}>
-                          {executionEstimate.slippage.toFixed(2)}%
-                        </span>
-                      </div>
+                      {executionEstimate.slippage > 0.01 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Market Slippage:</span>
+                          <span className={`font-semibold ${executionEstimate.slippage > slippageTolerance * 100 ? 'text-yellow-600' : 'text-green-600'}`}>
+                            {executionEstimate.slippage.toFixed(2)}%
+                          </span>
+                        </div>
+                      )}
                       {executionEstimate.priceImpact > 1 && (
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Price Impact:</span>
@@ -1399,9 +1401,12 @@ export default function DEX() {
                 </Card>
               )}
 
-              {isLoadingDepth && orderType === 'market' && amount && parseFloat(amount) > 0 && (
-                <div className="text-sm text-muted-foreground text-center py-2">
-                  Analyzing order book depth...
+              {/* Reserve space for loading message to prevent layout shift */}
+              {orderType === 'market' && amount && parseFloat(amount) > 0 && (
+                <div className="text-sm text-center min-h-[36px] flex items-center justify-center">
+                  {isLoadingDepth && (
+                    <span className="text-muted-foreground">Analyzing order book depth...</span>
+                  )}
                 </div>
               )}
 
