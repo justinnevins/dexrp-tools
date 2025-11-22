@@ -9,6 +9,13 @@ export interface XRPPriceData {
   txHash?: string;
 }
 
+export interface DEXPriceData {
+  price: number;
+  currency: string;
+  issuer: string;
+  timestamp: number;
+}
+
 interface InFTFExchangeRate {
   rate: number;
   ledger_index: number;
