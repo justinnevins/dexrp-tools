@@ -629,6 +629,90 @@ class XRPLClient {
     };
   }
 
+  async getOrderBookPrice(
+    network: XRPLNetwork,
+    takerGets: { currency: string; issuer?: string },
+    takerPays: { currency: string; issuer?: string }
+  ): Promise<{ bidPrice: number | null; askPrice: number | null; spread: number | null }> {
+    await this.connect(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
+
+    try {
+      // Fetch both sides of the order book
+      const [bidsResponse, asksResponse] = await Promise.all([
+        // Bids: People buying takerGets (selling takerPays)
+        state.connector.request({
+          command: 'book_offers',
+          taker_gets: takerGets.currency === 'XRP' 
+            ? { currency: 'XRP' }
+            : { currency: takerGets.currency, issuer: takerGets.issuer },
+          taker_pays: takerPays.currency === 'XRP'
+            ? { currency: 'XRP' }
+            : { currency: takerPays.currency, issuer: takerPays.issuer },
+          limit: 1
+        }),
+        // Asks: People selling takerGets (buying takerPays)
+        state.connector.request({
+          command: 'book_offers',
+          taker_gets: takerPays.currency === 'XRP'
+            ? { currency: 'XRP' }
+            : { currency: takerPays.currency, issuer: takerPays.issuer },
+          taker_pays: takerGets.currency === 'XRP'
+            ? { currency: 'XRP' }
+            : { currency: takerGets.currency, issuer: takerGets.issuer },
+          limit: 1
+        })
+      ]);
+
+      const bids = bidsResponse?.result?.offers || [];
+      const asks = asksResponse?.result?.offers || [];
+
+      let bidPrice: number | null = null;
+      let askPrice: number | null = null;
+
+      // Calculate bid price (highest buy order)
+      if (bids.length > 0) {
+        const topBid = bids[0];
+        const getsAmount = typeof topBid.TakerGets === 'string' 
+          ? parseFloat(this.formatXRPAmount(topBid.TakerGets))
+          : parseFloat(topBid.TakerGets.value);
+        const paysAmount = typeof topBid.TakerPays === 'string'
+          ? parseFloat(this.formatXRPAmount(topBid.TakerPays))
+          : parseFloat(topBid.TakerPays.value);
+        
+        if (getsAmount > 0) {
+          bidPrice = paysAmount / getsAmount;
+        }
+      }
+
+      // Calculate ask price (lowest sell order)
+      if (asks.length > 0) {
+        const topAsk = asks[0];
+        const getsAmount = typeof topAsk.TakerPays === 'string'
+          ? parseFloat(this.formatXRPAmount(topAsk.TakerPays))
+          : parseFloat(topAsk.TakerPays.value);
+        const paysAmount = typeof topAsk.TakerGets === 'string'
+          ? parseFloat(this.formatXRPAmount(topAsk.TakerGets))
+          : parseFloat(topAsk.TakerGets.value);
+        
+        if (getsAmount > 0) {
+          askPrice = paysAmount / getsAmount;
+        }
+      }
+
+      // Calculate mid-market price (average of bid and ask)
+      const spread = bidPrice && askPrice ? askPrice - bidPrice : null;
+
+      return { bidPrice, askPrice, spread };
+    } catch (error) {
+      console.error('Error fetching order book:', error);
+      return { bidPrice: null, askPrice: null, spread: null };
+    }
+  }
+
   async getReserveRequirements(network: XRPLNetwork): Promise<{ baseReserve: number; incrementReserve: number }> {
     await this.connect(network);
     const state = this.clients.get(network);

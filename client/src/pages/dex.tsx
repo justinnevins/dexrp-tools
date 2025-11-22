@@ -176,38 +176,6 @@ export default function DEX() {
     return `524C555344000000000000000000000000000000:${rlusdIssuer}`;
   };
 
-  // Market pairs configuration - network aware (defined early for use in effects)
-  const marketPairs = useMemo(() => {
-    if (currentNetwork === 'mainnet') {
-      return {
-        'XRP/USD': {
-          base: 'XRP',
-          quote: {
-            currency: 'USD',
-            issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq' // GateHub USD on mainnet
-          }
-        },
-        'XRP/RLUSD': {
-          base: 'XRP',
-          quote: {
-            currency: '524C555344000000000000000000000000000000', // RLUSD hex
-            issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De' // RLUSD on mainnet
-          }
-        }
-      };
-    } else {
-      // Testnet - only RLUSD is available
-      return {
-        'XRP/RLUSD': {
-          base: 'XRP',
-          quote: {
-            currency: '524C555344000000000000000000000000000000', // RLUSD hex
-            issuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV' // RLUSD on testnet
-          }
-        }
-      };
-    }
-  }, [currentNetwork]);
 
   // Initialize quote asset with network-specific RLUSD on first render
   useEffect(() => {
@@ -280,41 +248,23 @@ export default function DEX() {
     }
   }, [currentNetwork]); // Trigger on network changes
 
-  // Auto-switch market pair when base/quote assets change
-  useEffect(() => {
-    const matchingPair = findMatchingMarketPair(baseAsset, quoteAsset);
-    if (matchingPair && matchingPair !== marketPair) {
-      console.log('Auto-switching market pair:', { from: marketPair, to: matchingPair });
-      setMarketPair(matchingPair);
-    } else if (!matchingPair) {
-      console.log('No matching market pair for:', { baseAsset, quoteAsset });
-      // Keep current market pair but price will show as unavailable
-    }
-  }, [baseAsset, quoteAsset, marketPairs]);
-
   // Initialize limit price once when switching to limit mode
   useEffect(() => {
     if (orderType === 'limit' && !limitPriceInitialized && marketPrice) {
-      const effectivePrice = getEffectivePriceForAssets(marketPrice);
-      if (effectivePrice) {
-        setPrice(effectivePrice.toString());
-        setLimitPriceInitialized(true);
-      }
+      setPrice(marketPrice.toString());
+      setLimitPriceInitialized(true);
     } else if (orderType === 'market') {
       setLimitPriceInitialized(false); // Reset flag when switching back to market
       if (marketPrice) {
-        const effectivePrice = getEffectivePriceForAssets(marketPrice);
-        if (effectivePrice) {
-          setPrice(effectivePrice.toString());
-          // Force recalculation of total when marketPrice arrives
-          if (amount) {
-            const newTotal = calculateTotal(amount, effectivePrice.toString());
-            setTotal(newTotal);
-          }
+        setPrice(marketPrice.toString());
+        // Force recalculation of total when marketPrice arrives
+        if (amount) {
+          const newTotal = calculateTotal(amount, marketPrice.toString());
+          setTotal(newTotal);
         }
       }
     }
-  }, [orderType, marketPrice, limitPriceInitialized, amount, baseAsset, quoteAsset]);
+  }, [orderType, marketPrice, limitPriceInitialized, amount]);
 
   // Auto-calculate total when amount or price changes
   useEffect(() => {
@@ -358,8 +308,7 @@ export default function DEX() {
       baseAsset,
       quoteAsset,
       price,
-      marketPrice,
-      effectivePrice: getEffectivePriceForAssets(marketPrice)
+      marketPrice
     });
 
     if (orderSide === 'buy') {
@@ -817,121 +766,48 @@ export default function DEX() {
     return '0.000000';
   };
 
-  // Find the best matching market pair for the selected trading assets
-  const findMatchingMarketPair = (base: string, quote: string): string | null => {
-    if (!marketPairs) return null;
-    
-    const baseInfo = parseAsset(base);
-    const quoteInfo = parseAsset(quote);
-    
-    // Try to find exact match (base/quote)
-    for (const [pairName, pairData] of Object.entries(marketPairs)) {
-      const pairBase = (pairData as any).base;
-      const pairQuoteCurrency = (pairData as any).quote.currency;
-      const pairQuoteIssuer = (pairData as any).quote.issuer;
-      
-      // Check if matches base/quote
-      if (baseInfo.currency === pairBase && 
-          quoteInfo.currency === pairQuoteCurrency &&
-          quoteInfo.issuer === pairQuoteIssuer) {
-        return pairName;
-      }
-      
-      // Check if matches quote/base (reversed)
-      if (quoteInfo.currency === pairBase &&
-          baseInfo.currency === pairQuoteCurrency &&
-          baseInfo.issuer === pairQuoteIssuer) {
-        return pairName;
-      }
-    }
-    
-    return null;
-  };
-
-  // Get effective price based on trading direction relative to market pair
-  const getEffectivePriceForAssets = (rawPrice: number | null): number | null => {
-    if (!rawPrice || !marketPairs) return rawPrice;
-    
-    const pair = (marketPairs as any)[marketPair];
-    if (!pair) return rawPrice;
-    
+  // Fetch market price from XRPL order book
+  const fetchMarketPrice = async () => {
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
-    
-    // Market pair format: base/quote (e.g., XRP/RLUSD means XRP is base, RLUSD is quote)
-    // marketPrice = how many quote units per 1 base unit
-    
-    const marketPairBase = pair.base;
-    const marketPairQuoteCurrency = pair.quote.currency;
-    const marketPairQuoteIssuer = pair.quote.issuer;
-    
-    // Check if user's pair matches market pair direction
-    const userBaseMatchesMarketBase = baseInfo.currency === marketPairBase;
-    const userQuoteMatchesMarketQuote = 
-      quoteInfo.currency === marketPairQuoteCurrency &&
-      quoteInfo.issuer === marketPairQuoteIssuer;
-    
-    if (userBaseMatchesMarketBase && userQuoteMatchesMarketQuote) {
-      // Same direction: use price as-is
-      console.log('Price: Same direction as market pair', rawPrice);
-      return rawPrice;
-    }
-    
-    // Check if reversed (user's base is market's quote, user's quote is market's base)
-    const userQuoteMatchesMarketBase = quoteInfo.currency === marketPairBase;
-    const userBaseMatchesMarketQuote = 
-      baseInfo.currency === marketPairQuoteCurrency &&
-      baseInfo.issuer === marketPairQuoteIssuer;
-    
-    if (userQuoteMatchesMarketBase && userBaseMatchesMarketQuote) {
-      // Reversed: invert price
-      const inverted = 1 / rawPrice;
-      console.log('Price: Inverted from market pair', { original: rawPrice, inverted });
-      return inverted;
-    }
-    
-    // If no match, the market pair doesn't correspond to the selected assets
-    console.log('Warning: Market pair does not match selected assets');
-    return null;
-  };
-
-  const fetchMarketPrice = async () => {
-    if (!marketPairs) return;
-    const pair = (marketPairs as any)[marketPair];
-    if (!pair) return;
 
     setIsLoadingPrice(true);
     setPriceError(null);
     try {
-      // Build InFTF API URL format: XRP/{issuer}_{currency}
-      // API accepts either 3-letter codes (USD, EUR) or 40-char HEX codes
-      // Do NOT decode hex codes that result in non-standard currency codes
-      const currency = pair.quote.currency;
+      // Build currency objects for order book query
+      const takerGets = baseInfo.currency === 'XRP'
+        ? { currency: 'XRP' }
+        : { currency: baseInfo.currency, issuer: baseInfo.issuer };
       
-      const counter = `${pair.quote.issuer}_${currency}`;
-      const url = `https://xrpldata.inftf.org/v1/iou/exchange_rates/XRP/${counter}`;
-      
-      console.log('Fetching market price from InFTF:', { url, pair: marketPair });
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('InFTF API error:', { status: response.status, statusText: response.statusText, body: errorText });
-        throw new Error(`API error: ${response.status} - ${response.statusText}`);
-      }
+      const takerPays = quoteInfo.currency === 'XRP'
+        ? { currency: 'XRP' }
+        : { currency: quoteInfo.currency, issuer: quoteInfo.issuer };
 
-      const data = await response.json();
-      console.log('InFTF price data:', data);
+      console.log('Fetching order book price for:', { baseAsset, quoteAsset, takerGets, takerPays });
+      
+      const priceData = await xrplClient.getOrderBookPrice(currentNetwork, takerGets, takerPays);
+      
+      console.log('Order book price data:', priceData);
 
-      if (data.rate && data.rate > 0) {
-        setMarketPrice(data.rate);
-        setLastUpdate(new Date(data.timestamp));
+      // Use mid-market price (average of bid and ask) if both are available
+      if (priceData.bidPrice && priceData.askPrice) {
+        const midPrice = (priceData.bidPrice + priceData.askPrice) / 2;
+        setMarketPrice(midPrice);
+        setLastUpdate(new Date());
+      } else if (priceData.bidPrice) {
+        // Only bid available
+        setMarketPrice(priceData.bidPrice);
+        setLastUpdate(new Date());
+      } else if (priceData.askPrice) {
+        // Only ask available
+        setMarketPrice(priceData.askPrice);
+        setLastUpdate(new Date());
       } else {
         setMarketPrice(null);
-        setPriceError('No recent trades found');
+        setPriceError('No liquidity found for this trading pair');
       }
     } catch (error: any) {
-      console.error('Failed to fetch market price:', error);
+      console.error('Failed to fetch order book price:', error);
       setMarketPrice(null);
       setPriceError(error.message || 'Failed to load price data');
     } finally {
@@ -939,21 +815,14 @@ export default function DEX() {
     }
   };
 
-  // Fetch market price on mount and every 15 seconds
+  // Fetch market price when base/quote assets change or on mount
   useEffect(() => {
-    // Reset to default pair if current pair not available on network
-    if (marketPairs && !(marketPairs as any)[marketPair]) {
-      const firstPair = Object.keys(marketPairs)[0];
-      if (firstPair) {
-        setMarketPair(firstPair);
-      }
-      return;
-    }
+    if (!baseAsset || !quoteAsset) return;
     
     fetchMarketPrice();
     const interval = setInterval(fetchMarketPrice, 15000);
     return () => clearInterval(interval);
-  }, [marketPair, currentNetwork]);
+  }, [baseAsset, quoteAsset, currentNetwork]);
 
 
   // Get available currencies (XRP + active trustlines + common tokens)
@@ -1074,7 +943,15 @@ export default function DEX() {
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-primary" />
               <CardTitle className="text-base">Market Price</CardTitle>
-              <span className="text-xs text-muted-foreground">({marketPair})</span>
+              <span className="text-xs text-muted-foreground">
+                ({(() => {
+                  const baseInfo = parseAsset(baseAsset);
+                  const quoteInfo = parseAsset(quoteAsset);
+                  const baseLabel = baseInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(baseInfo.currency);
+                  const quoteLabel = quoteInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(quoteInfo.currency);
+                  return `${baseLabel}/${quoteLabel}`;
+                })()})
+              </span>
             </div>
             <Button
               variant="ghost"
@@ -1092,28 +969,18 @@ export default function DEX() {
             <div className="space-y-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold">
-                  {marketPrice.toFixed(4)}
+                  {marketPrice.toFixed(6)}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  {marketPair.split('/')[1]} per {marketPair.split('/')[0]}
+                  {(() => {
+                    const baseInfo = parseAsset(baseAsset);
+                    const quoteInfo = parseAsset(quoteAsset);
+                    const baseLabel = baseInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(baseInfo.currency);
+                    const quoteLabel = quoteInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(quoteInfo.currency);
+                    return `${quoteLabel} per ${baseLabel}`;
+                  })()}
                 </span>
               </div>
-              {(() => {
-                const effectivePrice = getEffectivePriceForAssets(marketPrice);
-                const baseInfo = parseAsset(baseAsset);
-                const quoteInfo = parseAsset(quoteAsset);
-                const baseLabel = baseInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(baseInfo.currency);
-                const quoteLabel = quoteInfo.currency === 'XRP' ? 'XRP' : xrplClient.decodeCurrency(quoteInfo.currency);
-                
-                if (effectivePrice && effectivePrice !== marketPrice) {
-                  return (
-                    <div className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 px-2 py-1 rounded">
-                      Your pair: {effectivePrice.toFixed(6)} {quoteLabel} per {baseLabel}
-                    </div>
-                  );
-                }
-                return null;
-              })()}
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 {lastUpdate && (
                   <div>
