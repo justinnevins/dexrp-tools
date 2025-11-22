@@ -61,18 +61,12 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-white dark:bg-card">
         <div className="p-4 border-b border-border">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <Coins className="w-4 h-4 text-white" />
             </div>
             <h1 className="text-lg font-semibold">XRPL Wallet</h1>
           </div>
-          {xrpPrice && currentWallet?.network === 'mainnet' && (
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <TrendingUp className="w-3 h-3" />
-              <span>XRP {formatPrice(xrpPrice.price)}</span>
-            </div>
-          )}
         </div>
         
         <nav className="flex-1 p-4">
