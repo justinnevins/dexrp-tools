@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Plus, X, Calendar, Wallet, Copy, Check, ArrowUpDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -176,6 +176,39 @@ export default function DEX() {
     return `524C555344000000000000000000000000000000:${rlusdIssuer}`;
   };
 
+  // Market pairs configuration - network aware (defined early for use in effects)
+  const marketPairs = useMemo(() => {
+    if (currentNetwork === 'mainnet') {
+      return {
+        'XRP/USD': {
+          base: 'XRP',
+          quote: {
+            currency: 'USD',
+            issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq' // GateHub USD on mainnet
+          }
+        },
+        'XRP/RLUSD': {
+          base: 'XRP',
+          quote: {
+            currency: '524C555344000000000000000000000000000000', // RLUSD hex
+            issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De' // RLUSD on mainnet
+          }
+        }
+      };
+    } else {
+      // Testnet - only RLUSD is available
+      return {
+        'XRP/RLUSD': {
+          base: 'XRP',
+          quote: {
+            currency: '524C555344000000000000000000000000000000', // RLUSD hex
+            issuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV' // RLUSD on testnet
+          }
+        }
+      };
+    }
+  }, [currentNetwork]);
+
   // Initialize quote asset with network-specific RLUSD on first render
   useEffect(() => {
     if (!quoteAsset) {
@@ -246,6 +279,18 @@ export default function DEX() {
       // For trustline-derived tokens not in COMMON_TOKENS, keep as-is
     }
   }, [currentNetwork]); // Trigger on network changes
+
+  // Auto-switch market pair when base/quote assets change
+  useEffect(() => {
+    const matchingPair = findMatchingMarketPair(baseAsset, quoteAsset);
+    if (matchingPair && matchingPair !== marketPair) {
+      console.log('Auto-switching market pair:', { from: marketPair, to: matchingPair });
+      setMarketPair(matchingPair);
+    } else if (!matchingPair) {
+      console.log('No matching market pair for:', { baseAsset, quoteAsset });
+      // Keep current market pair but price will show as unavailable
+    }
+  }, [baseAsset, quoteAsset, marketPairs]);
 
   // Initialize limit price once when switching to limit mode
   useEffect(() => {
@@ -772,77 +817,83 @@ export default function DEX() {
     return '0.000000';
   };
 
-  // Get effective price based on trading direction
-  // Market pair is always "XRP/Token" (base/quote), marketPrice = how many tokens per 1 XRP
-  // If user is trading in the same direction, use price directly
-  // If user is trading in opposite direction, invert the price
+  // Find the best matching market pair for the selected trading assets
+  const findMatchingMarketPair = (base: string, quote: string): string | null => {
+    if (!marketPairs) return null;
+    
+    const baseInfo = parseAsset(base);
+    const quoteInfo = parseAsset(quote);
+    
+    // Try to find exact match (base/quote)
+    for (const [pairName, pairData] of Object.entries(marketPairs)) {
+      const pairBase = (pairData as any).base;
+      const pairQuoteCurrency = (pairData as any).quote.currency;
+      const pairQuoteIssuer = (pairData as any).quote.issuer;
+      
+      // Check if matches base/quote
+      if (baseInfo.currency === pairBase && 
+          quoteInfo.currency === pairQuoteCurrency &&
+          quoteInfo.issuer === pairQuoteIssuer) {
+        return pairName;
+      }
+      
+      // Check if matches quote/base (reversed)
+      if (quoteInfo.currency === pairBase &&
+          baseInfo.currency === pairQuoteCurrency &&
+          baseInfo.issuer === pairQuoteIssuer) {
+        return pairName;
+      }
+    }
+    
+    return null;
+  };
+
+  // Get effective price based on trading direction relative to market pair
   const getEffectivePriceForAssets = (rawPrice: number | null): number | null => {
-    if (!rawPrice) return rawPrice;
+    if (!rawPrice || !marketPairs) return rawPrice;
+    
+    const pair = (marketPairs as any)[marketPair];
+    if (!pair) return rawPrice;
     
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
     
-    // Simplified logic: 
-    // Market pair format is always XRP/Token (e.g., XRP/USD, XRP/RLUSD)
-    // marketPrice = how many tokens you get per 1 XRP
+    // Market pair format: base/quote (e.g., XRP/RLUSD means XRP is base, RLUSD is quote)
+    // marketPrice = how many quote units per 1 base unit
     
-    // If user's base is XRP → selling XRP for tokens → use price as-is
-    // If user's quote is XRP → buying tokens with XRP → invert price (need XRP per token)
+    const marketPairBase = pair.base;
+    const marketPairQuoteCurrency = pair.quote.currency;
+    const marketPairQuoteIssuer = pair.quote.issuer;
     
-    const userBaseIsXRP = baseInfo.currency === 'XRP';
-    const userQuoteIsXRP = quoteInfo.currency === 'XRP';
+    // Check if user's pair matches market pair direction
+    const userBaseMatchesMarketBase = baseInfo.currency === marketPairBase;
+    const userQuoteMatchesMarketQuote = 
+      quoteInfo.currency === marketPairQuoteCurrency &&
+      quoteInfo.issuer === marketPairQuoteIssuer;
     
-    if (userBaseIsXRP && !userQuoteIsXRP) {
-      // Same direction: selling XRP for token → use marketPrice (tokens per XRP)
-      console.log('Price direction: Same as market (XRP→Token)', rawPrice);
+    if (userBaseMatchesMarketBase && userQuoteMatchesMarketQuote) {
+      // Same direction: use price as-is
+      console.log('Price: Same direction as market pair', rawPrice);
       return rawPrice;
     }
     
-    if (!userBaseIsXRP && userQuoteIsXRP) {
-      // Opposite direction: buying token with XRP → invert (XRP per token)
+    // Check if reversed (user's base is market's quote, user's quote is market's base)
+    const userQuoteMatchesMarketBase = quoteInfo.currency === marketPairBase;
+    const userBaseMatchesMarketQuote = 
+      baseInfo.currency === marketPairQuoteCurrency &&
+      baseInfo.issuer === marketPairQuoteIssuer;
+    
+    if (userQuoteMatchesMarketBase && userBaseMatchesMarketQuote) {
+      // Reversed: invert price
       const inverted = 1 / rawPrice;
-      console.log('Price direction: Inverted (Token→XRP)', { original: rawPrice, inverted });
+      console.log('Price: Inverted from market pair', { original: rawPrice, inverted });
       return inverted;
     }
     
-    // If both are XRP or neither is XRP, something is misconfigured
-    console.log('Price direction: No XRP in pair, using as-is', rawPrice);
-    return rawPrice;
+    // If no match, the market pair doesn't correspond to the selected assets
+    console.log('Warning: Market pair does not match selected assets');
+    return null;
   };
-
-
-  // Market pairs configuration - network aware
-  const marketPairs = (() => {
-    if (currentNetwork === 'mainnet') {
-      return {
-        'XRP/USD': {
-          base: 'XRP',
-          quote: {
-            currency: 'USD',
-            issuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq' // GateHub USD on mainnet
-          }
-        },
-        'XRP/RLUSD': {
-          base: 'XRP',
-          quote: {
-            currency: '524C555344000000000000000000000000000000', // RLUSD hex
-            issuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De' // RLUSD on mainnet
-          }
-        }
-      };
-    } else {
-      // Testnet - only RLUSD is available
-      return {
-        'XRP/RLUSD': {
-          base: 'XRP',
-          quote: {
-            currency: '524C555344000000000000000000000000000000', // RLUSD hex
-            issuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV' // RLUSD on testnet
-          }
-        }
-      };
-    }
-  })();
 
   const fetchMarketPrice = async () => {
     if (!marketPairs) return;
