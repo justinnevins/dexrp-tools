@@ -35,6 +35,13 @@ import {
   calculateMaxSell,
   getTokenBalance as getTokenBalanceFromLines
 } from '@/lib/order-calculator';
+import { 
+  analyzeOrderBookDepth, 
+  estimateExecution,
+  calculateSlippageProtectedPrice,
+  type OrderBookDepth,
+  type ExecutionEstimate
+} from '@/lib/order-book-depth';
 
 // Common XRPL tokens with mainnet/testnet issuers
 interface CommonToken {
@@ -143,6 +150,12 @@ export default function DEX() {
   const [isLoadingPrice, setIsLoadingPrice] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [priceError, setPriceError] = useState<string | null>(null);
+  
+  // Order book depth and slippage state
+  const [slippageTolerance, setSlippageTolerance] = useState(0.02); // 2% default
+  const [orderBookDepth, setOrderBookDepth] = useState<OrderBookDepth | null>(null);
+  const [executionEstimate, setExecutionEstimate] = useState<ExecutionEstimate | null>(null);
+  const [isLoadingDepth, setIsLoadingDepth] = useState(false);
 
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
@@ -428,7 +441,7 @@ export default function DEX() {
       return;
     }
 
-    // For market orders, use marketPrice; for limit orders, require price to be set
+    // For market orders, use slippage-protected price; for limit orders, require price to be set
     let effectivePrice = price;
     if (orderType === 'market') {
       if (!marketPrice || marketPrice <= 0) {
@@ -439,7 +452,22 @@ export default function DEX() {
         });
         return;
       }
-      effectivePrice = marketPrice.toString();
+      
+      // Use slippage-protected price for market orders
+      // This ensures the order fills even if the market moves slightly
+      const slippageProtectedPrice = calculateSlippageProtectedPrice(
+        marketPrice,
+        slippageTolerance,
+        orderSide
+      );
+      effectivePrice = slippageProtectedPrice.toString();
+      
+      console.log('Market order pricing:', {
+        marketPrice,
+        slippageTolerance: slippageTolerance * 100 + '%',
+        slippageProtectedPrice,
+        orderSide
+      });
     } else {
       // Limit order - validate price is set and > 0
       const priceValue = parseFloat(price);
@@ -815,6 +843,55 @@ export default function DEX() {
     }
   };
 
+  // Analyze order book depth for execution estimate
+  const analyzeDepth = async () => {
+    // Only analyze for market orders with an amount
+    if (orderType !== 'market' || !amount || parseFloat(amount) <= 0) {
+      setOrderBookDepth(null);
+      setExecutionEstimate(null);
+      return;
+    }
+
+    const baseInfo = parseAsset(baseAsset);
+    const quoteInfo = parseAsset(quoteAsset);
+
+    setIsLoadingDepth(true);
+    try {
+      // Build currency objects for order book query
+      const takerGets = baseInfo.currency === 'XRP'
+        ? { currency: 'XRP' }
+        : { currency: baseInfo.currency, issuer: baseInfo.issuer };
+      
+      const takerPays = quoteInfo.currency === 'XRP'
+        ? { currency: 'XRP' }
+        : { currency: quoteInfo.currency, issuer: quoteInfo.issuer };
+
+      // Fetch order book depth based on order side
+      const depth = await analyzeOrderBookDepth(
+        currentNetwork,
+        takerGets,
+        takerPays,
+        orderSide,
+        50 // Fetch 50 levels deep
+      );
+
+      setOrderBookDepth(depth);
+
+      // Calculate execution estimate for the given order size
+      const orderSize = parseFloat(amount);
+      const estimate = estimateExecution(depth, orderSize, slippageTolerance);
+      setExecutionEstimate(estimate);
+
+      console.log('Order book depth analysis:', { depth, estimate });
+    } catch (error: any) {
+      console.error('Failed to analyze order book depth:', error);
+      setOrderBookDepth(null);
+      setExecutionEstimate(null);
+    } finally {
+      setIsLoadingDepth(false);
+    }
+  };
+
   // Fetch market price when base/quote assets change or on mount
   useEffect(() => {
     if (!baseAsset || !quoteAsset) return;
@@ -823,6 +900,16 @@ export default function DEX() {
     const interval = setInterval(fetchMarketPrice, 15000);
     return () => clearInterval(interval);
   }, [baseAsset, quoteAsset, currentNetwork]);
+
+  // Analyze order book depth when market order amount changes
+  useEffect(() => {
+    if (orderType === 'market' && amount && parseFloat(amount) > 0) {
+      analyzeDepth();
+    } else {
+      setOrderBookDepth(null);
+      setExecutionEstimate(null);
+    }
+  }, [orderType, amount, orderSide, baseAsset, quoteAsset, slippageTolerance, currentNetwork]);
 
 
   // Get available currencies (XRP + active trustlines + common tokens)
@@ -1257,6 +1344,67 @@ export default function DEX() {
                 );
               })()}
 
+              {/* Execution Estimate for Market Orders */}
+              {orderType === 'market' && executionEstimate && amount && parseFloat(amount) > 0 && (
+                <Card className={executionEstimate.liquidityWarning ? 'border-yellow-500/50' : 'border-green-500/50'}>
+                  <CardContent className="pt-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Estimated {orderSide === 'buy' ? 'Cost' : 'Received'}:</span>
+                        <span className="font-semibold">
+                          {executionEstimate.totalCost.toFixed(6)} {orderSide === 'buy' 
+                            ? xrplClient.decodeCurrency(parseAsset(quoteAsset).currency)
+                            : xrplClient.decodeCurrency(parseAsset(quoteAsset).currency)
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Avg. Price:</span>
+                        <span className="font-mono text-xs">
+                          {executionEstimate.averagePrice.toFixed(6)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Slippage:</span>
+                        <span className={`font-semibold ${executionEstimate.slippage > slippageTolerance * 100 ? 'text-yellow-600' : 'text-green-600'}`}>
+                          {executionEstimate.slippage.toFixed(2)}%
+                        </span>
+                      </div>
+                      {executionEstimate.priceImpact > 1 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Price Impact:</span>
+                          <span className={`font-semibold ${executionEstimate.priceImpact > 5 ? 'text-red-600' : 'text-yellow-600'}`}>
+                            {executionEstimate.priceImpact.toFixed(2)}%
+                          </span>
+                        </div>
+                      )}
+                      {executionEstimate.liquidityWarning && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-yellow-600 dark:text-yellow-500 flex items-start gap-1">
+                            <span className="mt-0.5">⚠️</span>
+                            <span>{executionEstimate.liquidityWarning}</span>
+                          </p>
+                        </div>
+                      )}
+                      {!executionEstimate.isFullyFillable && (
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-red-600 dark:text-red-500">
+                            Only {executionEstimate.filledQuantity.toFixed(6)} can be filled. 
+                            {executionEstimate.unfillableQuantity.toFixed(6)} will remain unfilled.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {isLoadingDepth && orderType === 'market' && amount && parseFloat(amount) > 0 && (
+                <div className="text-sm text-muted-foreground text-center py-2">
+                  Analyzing order book depth...
+                </div>
+              )}
+
               {/* Advanced Options */}
               <div className="space-y-2">
                 <button
@@ -1269,6 +1417,32 @@ export default function DEX() {
                 
                 {showAdvanced && (
                   <div className="space-y-3 pt-2">
+                    {orderType === 'market' && (
+                      <div>
+                        <Label htmlFor="slippage" className="text-sm">
+                          Slippage Tolerance (%)
+                        </Label>
+                        <Input
+                          id="slippage"
+                          type="number"
+                          min="0.1"
+                          max="50"
+                          step="0.1"
+                          placeholder="2"
+                          value={(slippageTolerance * 100).toString()}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 0.1 && value <= 50) {
+                              setSlippageTolerance(value / 100);
+                            }
+                          }}
+                          data-testid="input-slippage"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Maximum price difference you'll accept ({(slippageTolerance * 100).toFixed(1)}%)
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <Label htmlFor="expiration" className="text-sm">Expiration (days)</Label>
                       <Input
