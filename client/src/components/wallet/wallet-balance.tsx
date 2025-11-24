@@ -15,7 +15,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null, network);
-  const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice();
+  const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice(network);
   const [, setLocation] = useLocation();
 
   // Handle account not found on XRPL network (new/unactivated addresses)

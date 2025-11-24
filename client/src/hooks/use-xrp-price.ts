@@ -1,11 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchXRPToRLUSDPrice, DEXPriceData } from '@/lib/xrp-price';
-import { useWallet } from './use-wallet';
 
-export function useXRPPrice() {
-  const { currentWallet } = useWallet();
-  const network = currentWallet?.network ?? 'mainnet';
-
+export function useXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet') {
   return useQuery<DEXPriceData | null>({
     queryKey: ['xrp-price-dex', network],
     queryFn: async () => {
