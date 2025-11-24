@@ -1,8 +1,8 @@
-# dexrp - XRPL DEX Trading Platform
+# DEXrp - XRPL DEX Trading Platform
 
 ## Overview
 
-dexrp is a mobile-first XRP Ledger (XRPL) DEX trading platform built with React and Express. Its primary purpose is to provide secure XRPL DEX trading with exclusive Keystone 3 Pro air-gapped hardware wallet integration using QR code-based transaction signing. The application provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and DEX trading, emphasizing security through hardware wallet integration.
+DEXrp is a mobile-first XRP Ledger (XRPL) DEX trading platform built with React and Express. Its primary purpose is to provide secure XRPL DEX trading with exclusive Keystone 3 Pro air-gapped hardware wallet integration using QR code-based transaction signing. The application provides a secure, user-friendly interface for managing XRP assets, tokens (trustlines), and DEX trading, emphasizing security through hardware wallet integration.
 
 Key capabilities include:
 - **Wallet Management**: Overview of balances, send/receive functionality, and transaction history.

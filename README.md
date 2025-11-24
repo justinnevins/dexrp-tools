@@ -1,4 +1,4 @@
-# dexrp - XRPL DEX Trading Platform
+# DEXrp - XRPL DEX Trading Platform
 
 A secure, mobile-optimized XRP Ledger (XRPL) DEX trading platform with exclusive Keystone 3 Pro hardware wallet integration using QR code-based air-gapped transaction signing.
 

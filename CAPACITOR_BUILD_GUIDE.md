@@ -1,11 +1,11 @@
-# dexrp - Capacitor Build Guide
+# DEXrp - Capacitor Build Guide
 
 ## Overview
 
-**dexrp** is now fully configured for Capacitor! The app can be built as standalone native Android and iOS applications.
+**DEXrp** is now fully configured for Capacitor! The app can be built as standalone native Android and iOS applications.
 
 **App Details:**
-- **App Name:** dexrp
+- **App Name:** DEXrp
 - **App ID:** me.dexrp.app
 - **Web Domain:** dexrp.me
 
@@ -139,7 +139,7 @@ cd android
 2. Enable "Install Unknown Apps" for your file manager
 3. Transfer the APK to your phone (via USB, cloud, or email)
 4. Tap the APK file to install
-5. Launch dexrp!
+5. Launch DEXrp!
 
 ### Testing on iOS
 1. **Using Xcode:**
@@ -256,7 +256,7 @@ For Capacitor-specific issues, check:
 - Capacitor Documentation: https://capacitorjs.com/docs
 - Capacitor Discord: https://discord.gg/UPYUybV
 
-For dexrp app issues:
+For DEXrp app issues:
 - Open an issue on GitHub
 - Check XRPL documentation: https://xrpl.org
 
@@ -264,4 +264,4 @@ For dexrp app issues:
 
 **Happy building! 🚀**
 
-Your dexrp app is ready to go mobile!
+Your DEXrp app is ready to go mobile!
