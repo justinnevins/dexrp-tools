@@ -1,4 +1,4 @@
-package com.xrpl.wallet;
+package me.dexrp.app;
 
 import com.getcapacitor.BridgeActivity;
 

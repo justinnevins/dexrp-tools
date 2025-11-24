@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.xrpl.wallet',
-  appName: 'XRPL Wallet',
+  appId: 'me.dexrp.app',
+  appName: 'dexrp',
   webDir: 'dist/public',
   server: {
     androidScheme: 'https'
