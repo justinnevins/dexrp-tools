@@ -1,26 +1,23 @@
 import { useQuery } from '@tanstack/react-query';
-
-interface XRPPriceResponse {
-  USD: number;
-}
+import { fetchXRPToRLUSDPrice, DEXPriceData } from '@/lib/xrp-price';
+import { useWallet } from './use-wallet';
 
 export function useXRPPrice() {
-  return useQuery<number>({
-    queryKey: ['xrp-price'],
+  const { currentWallet } = useWallet();
+  const network = currentWallet?.network ?? 'mainnet';
+
+  return useQuery<DEXPriceData | null>({
+    queryKey: ['xrp-price-dex', network],
     queryFn: async () => {
       try {
-        const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ripple&vs_currencies=usd');
-        if (!response.ok) {
-          throw new Error('Failed to fetch XRP price');
-        }
-        const data = await response.json();
-        return data.ripple?.usd || 0.5; // Fallback to $0.50 if API fails
+        const priceData = await fetchXRPToRLUSDPrice(network);
+        return priceData;
       } catch (error) {
-        console.warn('Failed to fetch XRP price:', error);
-        return 0.5; // Fallback rate
+        console.warn('Failed to fetch XRP price from DEX:', error);
+        return null;
       }
     },
-    refetchInterval: 60000, // Refetch every minute
-    staleTime: 30000, // Consider data stale after 30 seconds
+    refetchInterval: 5000, // Refetch every 5 seconds for real-time DEX pricing
+    staleTime: 2000, // Consider data stale after 2 seconds
   });
 }

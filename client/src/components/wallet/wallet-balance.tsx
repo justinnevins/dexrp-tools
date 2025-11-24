@@ -84,14 +84,14 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
     : '1.000000';
 
   const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
-  const usdValue = xrpPrice ? (parseFloat(balance) * xrpPrice).toFixed(2) : '0.00';
+  const rlusdValue = xrpPrice?.price ? (parseFloat(balance) * xrpPrice.price).toFixed(4) : '0.0000';
 
   return (
     <section className="px-4 py-6 xrpl-gradient text-white">
       <div className="text-center mb-6">
         <p className="text-sm opacity-90 mb-2">Total Balance</p>
         <h2 className="text-3xl font-bold mb-1">{balance} XRP</h2>
-        <p className="text-sm opacity-75">≈ ${usdValue} USD</p>
+        <p className="text-sm opacity-75">≈ ${rlusdValue} (RLUSD)</p>
       </div>
       
       <div className="grid grid-cols-2 gap-4 mb-6">
