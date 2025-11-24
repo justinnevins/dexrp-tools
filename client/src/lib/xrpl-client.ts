@@ -1,5 +1,6 @@
 import { Client, Wallet as XRPLWallet } from 'xrpl';
 import { browserStorage } from './browser-storage';
+import { isNativeApp } from './platform';
 
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
@@ -84,16 +85,20 @@ class JsonRpcConnector implements XRPLConnector {
         jsonrpc: '2.0'
       };
 
-      // Use backend proxy to avoid CORS issues
-      const response = await fetch('/api/xrpl-proxy', {
+      // Native apps can make direct requests without CORS issues
+      // Web apps need to use the backend proxy
+      const isNative = isNativeApp();
+      const url = isNative ? this.endpoint : '/api/xrpl-proxy';
+      const requestBody = isNative 
+        ? JSON.stringify(payload)
+        : JSON.stringify({ endpoint: this.endpoint, payload: payload });
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          endpoint: this.endpoint,
-          payload: payload
-        })
+        body: requestBody
       });
 
       if (!response.ok) {

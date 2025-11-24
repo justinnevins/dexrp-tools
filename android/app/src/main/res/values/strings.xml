@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">XRPL Wallet</string>
+    <string name="title_activity_main">XRPL Wallet</string>
+    <string name="package_name">com.xrpl.wallet</string>
+    <string name="custom_url_scheme">com.xrpl.wallet</string>
+</resources>

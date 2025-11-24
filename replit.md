@@ -25,6 +25,7 @@ Preferred communication style: Simple, everyday language.
 **Routing**: Wouter for client-side routing.
 **Mobile-First Design**: Optimized for mobile devices with a dedicated mobile app layout, bottom navigation, and a maximum width constraint.
 **Data Storage**: Client-side persistence using browser localStorage for wallets, transactions, and trustlines, eliminating backend database dependencies.
+**Native Mobile Apps**: Capacitor integration enables building standalone Android and iOS apps from the same codebase, with platform detection and automatic CORS bypass for native environments.
 
 ### Backend Architecture
 
@@ -104,3 +105,5 @@ The Keystone device returns signed transactions as UR (Uniform Resource) strings
 - `qr-scanner` (scanning)
 
 **Development Tools**: TypeScript, Vite, ESBuild, Drizzle Kit.
+
+**Mobile App Packaging**: Capacitor for building native Android and iOS applications from the same codebase.
