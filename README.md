@@ -11,12 +11,12 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 - **Multi-Network Support**: Per-wallet configuration for both Mainnet and Testnet
 - **Custom Node Configuration**: Support for both WebSocket (ws/wss) and JSON-RPC (http/https) XRPL endpoints
 - **Full Transaction History**: Dedicated full-history server support with automatic fallback
-- **Real-Time Price Tracking**: Live XRP/USD price display with CoinGecko integration
+- **Real-Time DEX Pricing**: Live XRP/RLUSD price sourced directly from XRPL DEX order book
 
 ### Wallet Management
 - **Send & Receive XRP**: Secure payment functionality with QR code-based signing
 - **Transaction History**: Complete transaction tracking with detailed status information
-- **Balance Overview**: Real-time account balance with USD conversion
+- **Balance Overview**: Real-time account balance with RLUSD conversion from DEX
 - **Reserve Calculation**: Automatic XRPL reserve and fee accounting
 
 ### Token Management

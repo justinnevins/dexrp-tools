@@ -94,7 +94,7 @@ The Keystone device returns signed transactions as UR (Uniform Resource) strings
 - `@ngraveio/bc-ur`
 - `cbor-web`
 
-**Pricing Data**: CoinGecko API for XRP/USD price (with fallback).
+**Pricing Data**: XRP/RLUSD price sourced directly from XRPL DEX order book for authentic, real-time market data.
 
 **Database** (Optional): PostgreSQL via Neon serverless (`@neondatabase/serverless`) with Drizzle ORM (primarily for schema definition, current implementation uses browser storage).
 
