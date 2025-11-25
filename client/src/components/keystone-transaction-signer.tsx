@@ -7,6 +7,7 @@ import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { useToast } from '@/hooks/use-toast';
 import { decode as cborDecode } from 'cbor-web';
 import { xrplClient } from '@/lib/xrpl-client';
+import { apiFetch } from '@/lib/queryClient';
 
 interface KeystoneTransactionSignerProps {
   isOpen: boolean;
@@ -75,7 +76,7 @@ export function KeystoneTransactionSigner({
           console.log('Keystone UR format detected');
           
           try {
-            const response = await fetch('/api/keystone/xrp/decode-signature', {
+            const response = await apiFetch('/api/keystone/xrp/decode-signature', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -157,7 +158,7 @@ export function KeystoneTransactionSigner({
             destinationTag: undefined
           };
 
-      const submitResponse = await fetch('/api/transactions/submit', {
+      const submitResponse = await apiFetch('/api/transactions/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

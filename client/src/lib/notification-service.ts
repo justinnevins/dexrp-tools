@@ -104,7 +104,8 @@ class NotificationService {
     // Check for new transactions every 30 seconds
     this.monitoringInterval = setInterval(async () => {
       try {
-        const response = await fetch('/api/transactions');
+        const { apiFetch } = await import('./queryClient');
+        const response = await apiFetch('/api/transactions');
         if (response.ok) {
           const transactions = await response.json();
           
@@ -130,7 +131,8 @@ class NotificationService {
 
   private async initializeTransactionCount() {
     try {
-      const response = await fetch('/api/transactions');
+      const { apiFetch } = await import('./queryClient');
+      const response = await apiFetch('/api/transactions');
       if (response.ok) {
         const transactions = await response.json();
         this.previousTransactionCount = transactions.length;

@@ -156,7 +156,8 @@ export default function Profile() {
       await disconnectHardwareWallet();
       
       // Clear server-side data
-      await fetch('/api/wallets', { method: 'DELETE' });
+      const { apiFetch } = await import('@/lib/queryClient');
+      await apiFetch('/api/wallets', { method: 'DELETE' });
       
       // Clear all local storage data
       localStorage.clear();

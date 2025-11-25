@@ -16,7 +16,8 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: strin
   console.log('Transaction object:', transactionTemplate);
   
   try {
-    const response = await fetch('/api/keystone/xrp/sign-request', {
+    const { apiFetch } = await import('@/lib/queryClient');
+    const response = await apiFetch('/api/keystone/xrp/sign-request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

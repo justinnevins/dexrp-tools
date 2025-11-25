@@ -46,7 +46,8 @@ async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: strin
   
   try {
     // Call backend API to generate Keystone UR using the SDK
-    const response = await fetch('/api/keystone/xrp/sign-request', {
+    const { apiFetch } = await import('@/lib/queryClient');
+    const response = await apiFetch('/api/keystone/xrp/sign-request', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -404,7 +405,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           try {
             // Call backend to decode using Keystone SDK and BC-UR library
             console.log('Calling backend to decode signature...');
-            const response = await fetch('/api/keystone/xrp/decode-signature', {
+            const { apiFetch } = await import('@/lib/queryClient');
+            const response = await apiFetch('/api/keystone/xrp/decode-signature', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -638,7 +640,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       console.log('Transaction blob:', signedTransaction.txBlob);
       
       // Submit signed transaction to XRPL network
-      const response = await fetch('/api/transactions/submit', {
+      const { apiFetch } = await import('@/lib/queryClient');
+      const response = await apiFetch('/api/transactions/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -171,7 +171,8 @@ export default function Tokens() {
         console.log('Preparing TrustSet transaction to remove trustline:', trustSetTx);
 
         // Encode the transaction for Keystone
-        const response = await fetch('/api/keystone/xrp/sign-request', {
+        const { apiFetch } = await import('@/lib/queryClient');
+        const response = await apiFetch('/api/keystone/xrp/sign-request', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
