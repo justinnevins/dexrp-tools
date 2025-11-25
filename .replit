@@ -25,6 +25,10 @@ localPort = 41519
 externalPort = 3002
 
 [[ports]]
+localPort = 42671
+externalPort = 5000
+
+[[ports]]
 localPort = 42789
 externalPort = 3003
 
@@ -63,4 +67,4 @@ waitForPort = 5000
 VITE_API_BASE_URL = "https://1be726d9-bb47-462b-a2e5-61c79e1b035b-00-ss8wi6tcqf86.worf.replit.dev"
 
 [userenv.production]
-VITE_API_BASE_URL = "https://dexxrp.me"
+VITE_API_BASE_URL = "https://dexrp.me"
