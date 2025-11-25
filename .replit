@@ -4,7 +4,7 @@ hidden = [".config", ".git", "generated-icon.png", "node_modules", "dist"]
 
 [nix]
 channel = "stable-24_05"
-packages = ["freetype", "lcms2", "libGL", "libGLU", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zbar", "zlib"]
+packages = ["freetype", "lcms2", "libGL", "libGLU", "libimagequant", "libjpeg", "libtiff", "libwebp", "libxcrypt", "openjpeg", "tcl", "tk", "zbar", "zlib", "jdk17"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -55,3 +55,8 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[userenv]
+
+[userenv.development]
+VITE_API_BASE_URL = "https://1be726d9-bb47-462b-a2e5-61c79e1b035b-00-ss8wi6tcqf86.worf.replit.dev"
