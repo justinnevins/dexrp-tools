@@ -88,33 +88,52 @@ class JsonRpcConnector implements XRPLConnector {
       // Native apps can make direct requests without CORS issues
       // Web apps need to use the backend proxy
       const isNative = isNativeApp();
-      const url = isNative ? this.endpoint : '/api/xrpl-proxy';
-      const requestBody = isNative 
-        ? JSON.stringify(payload)
-        : JSON.stringify({ endpoint: this.endpoint, payload: payload });
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: requestBody
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const data = await response.json();
       
-      if (data.error) {
-        const errorObj: any = new Error(data.error.message || 'JSON-RPC error');
-        errorObj.data = data.error;
-        throw errorObj;
-      }
+      if (isNative) {
+        // Native app: direct XRPL node connection (no backend dependency)
+        const response = await fetch(this.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
 
-      return { result: data.result };
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.error) {
+          const errorObj: any = new Error(data.error.message || 'JSON-RPC error');
+          errorObj.data = data.error;
+          throw errorObj;
+        }
+
+        return { result: data.result };
+      } else {
+        // Web app: use backend proxy for CORS
+        const { apiFetch } = await import('./queryClient');
+        const response = await apiFetch('/api/xrpl-proxy', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ endpoint: this.endpoint, payload: payload })
+        });
+
+        const data = await response.json();
+        
+        if (data.error) {
+          const errorObj: any = new Error(data.error.message || 'JSON-RPC error');
+          errorObj.data = data.error;
+          throw errorObj;
+        }
+
+        return { result: data.result };
+      }
     } catch (error) {
       if (error instanceof Error) {
         throw error;

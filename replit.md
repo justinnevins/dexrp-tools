@@ -67,7 +67,7 @@ The Keystone device returns signed transactions as UR (Uniform Resource) strings
 
 **Client Library**: `xrpl` JavaScript library for all blockchain interactions.
 **Network Support**: Per-wallet configuration for both Mainnet and Testnet.
-**Connection Management**: Custom `XRPLClient` with a protocol-aware connector abstraction supports both WebSocket (ws/wss) and JSON-RPC (http/https) endpoints, automatically detecting the protocol from the URL and managing connection states. JSON-RPC requests are routed through a backend proxy (`/api/xrpl-proxy`) to bypass browser CORS restrictions, enabling seamless connection to custom nodes.
+**Connection Management**: Custom `XRPLClient` with a protocol-aware connector abstraction supports both WebSocket (ws/wss) and JSON-RPC (http/https) endpoints, automatically detecting the protocol from the URL and managing connection states. **Hybrid Architecture**: Native apps connect directly to XRPL nodes (bypassing CORS), while web apps use the backend proxy (`/api/xrpl-proxy`) for CORS compliance.
 **Data Fetching**: Real-time account information, transaction history, and trustline data are fetched directly from XRPL nodes to ensure authenticity.
 **Transaction Encoding**: `ripple-binary-codec` for encoding transactions into XRPL's binary format for hardware wallet signing.
 
@@ -107,3 +107,5 @@ The Keystone device returns signed transactions as UR (Uniform Resource) strings
 **Development Tools**: TypeScript, Vite, ESBuild, Drizzle Kit.
 
 **Mobile App Packaging**: Capacitor for building native Android and iOS applications from the same codebase.
+- **Hybrid Architecture**: Native apps connect directly to XRPL nodes for blockchain queries (no backend dependency), while using the backend for Keystone SDK operations requiring Node.js libraries
+- **Platform-Aware API**: `apiFetch` helper automatically uses absolute URLs (`VITE_API_BASE_URL`) for native apps while using relative paths for web
