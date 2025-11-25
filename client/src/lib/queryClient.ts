@@ -1,4 +1,38 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { isNativeApp } from "./platform";
+
+function getApiBaseUrl(): string {
+  if (isNativeApp()) {
+    return import.meta.env.VITE_API_BASE_URL || window.location.origin;
+  }
+  return '';
+}
+
+function resolveApiUrl(path: string): string {
+  const baseUrl = getApiBaseUrl();
+  if (path.startsWith('/')) {
+    return baseUrl + path;
+  }
+  return path;
+}
+
+export async function apiFetch(
+  path: string,
+  options?: RequestInit
+): Promise<Response> {
+  const url = resolveApiUrl(path);
+  const res = await fetch(url, {
+    ...options,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    const text = (await res.text()) || res.statusText;
+    throw new Error(`${res.status}: ${text}`);
+  }
+
+  return res;
+}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
