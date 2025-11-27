@@ -59,7 +59,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   ];
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-white dark:bg-card">
         <div className="p-4 border-b border-border">
@@ -93,12 +93,12 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         </nav>
       </aside>
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col max-w-md lg:max-w-4xl mx-auto w-full">
+      <div className="flex-1 flex flex-col max-w-md lg:max-w-4xl mx-auto w-full h-full overflow-hidden">
         {/* Testnet Banner */}
         <TestnetBanner />
 
         {/* App Header */}
-        <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
+        <header className="flex-shrink-0 bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex-1 min-w-0 max-w-[50%] md:max-w-none">
               <AccountSwitcher onAddAccount={() => setShowConnectModal(true)} />
@@ -128,12 +128,15 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 pb-20 lg:pb-6">
+        <main className="flex-1 overflow-y-auto pb-20 lg:pb-6">
           {children}
         </main>
 
         {/* Mobile Bottom Navigation (hidden on desktop) */}
-        <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-border">
+        <nav 
+          className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-border z-50"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
           <div className="flex items-center justify-around py-2">
             {navItems.map((item) => {
               const Icon = item.icon;
