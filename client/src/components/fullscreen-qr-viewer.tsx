@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useCallback } from 'react';
+import { useEffect } from 'react';
 
 interface FullscreenQRViewerProps {
   onClose: () => void;
@@ -7,31 +7,38 @@ interface FullscreenQRViewerProps {
 }
 
 export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
-  const handleQRPointerDown = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    onClose();
+  useEffect(() => {
+    const handleClose = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    };
+    
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('touchend', handleClose, { capture: true, once: true });
+      document.addEventListener('click', handleClose, { capture: true, once: true });
+    }, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('touchend', handleClose, { capture: true });
+      document.removeEventListener('click', handleClose, { capture: true });
+    };
   }, [onClose]);
 
   return createPortal(
     <div 
       className="fixed inset-0 z-[9999] bg-white flex items-center justify-center"
       data-testid="fullscreen-qr-viewer"
-      onPointerDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
     >
       <div 
-        className="flex items-center justify-center p-4 cursor-pointer"
+        className="flex items-center justify-center p-4"
         style={{
           width: 'min(100vw, 100vh)',
           height: 'min(100vw, 100vh)',
         }}
-        onPointerDown={handleQRPointerDown}
-        data-testid="qr-close-target"
       >
-        <div 
-          className="w-full h-full [&>*]:!w-full [&>*]:!h-full [&_img]:!w-full [&_img]:!h-full pointer-events-none"
-        >
+        <div className="w-full h-full [&>*]:!w-full [&>*]:!h-full [&_img]:!w-full [&_img]:!h-full">
           {children}
         </div>
       </div>
