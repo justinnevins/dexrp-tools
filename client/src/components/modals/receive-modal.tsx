@@ -149,19 +149,18 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
         </div>
       </DialogContent>
 
-      <FullscreenQRViewer isOpen={showFullscreen} onClose={() => {
-        setShowFullscreen(false);
-        onClose();
-      }}>
-        {qrCodeUrl && (
-          <img 
-            src={qrCodeUrl} 
-            alt="Account Address QR Code" 
-            className="w-full h-full object-contain"
-            data-testid="fullscreen-qr-image"
-          />
-        )}
-      </FullscreenQRViewer>
+      {showFullscreen && (
+        <FullscreenQRViewer isOpen={showFullscreen} onClose={() => setShowFullscreen(false)}>
+          {qrCodeUrl && (
+            <img 
+              src={qrCodeUrl} 
+              alt="Account Address QR Code" 
+              className="w-full h-full object-contain"
+              data-testid="fullscreen-qr-image"
+            />
+          )}
+        </FullscreenQRViewer>
+      )}
     </Dialog>
   );
 }
