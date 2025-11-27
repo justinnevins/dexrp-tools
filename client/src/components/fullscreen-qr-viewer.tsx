@@ -8,21 +8,26 @@ interface FullscreenQRViewerProps {
 
 export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
   useEffect(() => {
-    const handleClick = () => onClose();
+    const handleMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+    };
     const handleTouch = (e: TouchEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       onClose();
     };
     
     const timer = setTimeout(() => {
-      document.addEventListener('click', handleClick, { capture: true });
-      document.addEventListener('touchend', handleTouch, { capture: true });
+      document.addEventListener('mousedown', handleMouseDown, { capture: true });
+      document.addEventListener('touchstart', handleTouch, { capture: true });
     }, 100);
     
     return () => {
       clearTimeout(timer);
-      document.removeEventListener('click', handleClick, { capture: true });
-      document.removeEventListener('touchend', handleTouch, { capture: true });
+      document.removeEventListener('mousedown', handleMouseDown, { capture: true });
+      document.removeEventListener('touchstart', handleTouch, { capture: true });
     };
   }, [onClose]);
 
