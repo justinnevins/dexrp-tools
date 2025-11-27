@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { hardwareWalletService } from '@/lib/hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
-import { useAccountInfo, useAccountLines } from '@/hooks/use-xrpl';
+import { useAccountInfo, useAccountLines, useServerInfo } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { SimpleQRScanner } from '@/components/simple-qr-scanner';
@@ -108,6 +108,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading: isAccountInfoLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: accountLines } = useAccountLines(currentWallet?.address || null, network);
+  const { data: serverInfo } = useServerInfo(network);
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
@@ -122,12 +123,11 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   });
 
   const getAvailableBalance = (currency?: string, issuer?: string) => {
-    // For XRP, use dynamic reserve calculation
+    // For XRP, use dynamic reserve calculation with live XRPL reserve values
     if (!currency || currency === 'XRP') {
-      console.log('[Balance Debug] accountInfo:', accountInfo);
-      console.log('[Balance Debug] isAccountInfoLoading:', isAccountInfoLoading);
-      const balanceInfo = calculateAvailableBalance(accountInfo);
-      console.log('[Balance Debug] balanceInfo:', balanceInfo);
+      const baseReserve = serverInfo?.reserve_base_xrp ?? 1;
+      const incrementReserve = serverInfo?.reserve_inc_xrp ?? 0.2;
+      const balanceInfo = calculateAvailableBalance(accountInfo, 12, baseReserve, incrementReserve);
       return balanceInfo.availableMinusFees;
     }
     

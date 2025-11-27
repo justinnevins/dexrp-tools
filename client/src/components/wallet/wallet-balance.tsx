@@ -1,7 +1,7 @@
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
-import { useAccountInfo } from '@/hooks/use-xrpl';
+import { useAccountInfo, useServerInfo } from '@/hooks/use-xrpl';
 import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { xrplClient } from '@/lib/xrpl-client';
 import { useLocation } from 'wouter';
@@ -16,6 +16,7 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: xrpPrice, isLoading: priceLoading } = useXRPPrice(network);
+  const { data: serverInfo } = useServerInfo(network);
   const [, setLocation] = useLocation();
 
   // Handle account not found on XRPL network (new/unactivated addresses)
@@ -78,12 +79,13 @@ export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProp
     ? xrplClient.formatXRPAmount(accountInfo.account_data.Balance)
     : '0.000000';
     
-  // Current XRPL reserve: 1 XRP base + 0.2 XRP per owned object
-  const reservedBalance = (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.OwnerCount)
-    ? ((accountInfo.account_data.OwnerCount * 0.2) + 1).toFixed(6)
-    : '1.000000';
+  // Use dynamic XRPL reserves from server_info
+  const baseReserve = serverInfo?.reserve_base_xrp ?? 1;
+  const incrementReserve = serverInfo?.reserve_inc_xrp ?? 0.2;
+  const ownerCount = (accountInfo && 'account_data' in accountInfo && accountInfo.account_data?.OwnerCount) || 0;
+  const reservedBalance = ((ownerCount * incrementReserve) + baseReserve).toFixed(6);
 
-  const availableBalance = (parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
+  const availableBalance = Math.max(0, parseFloat(balance) - parseFloat(reservedBalance)).toFixed(6);
   const rlusdValue = xrpPrice?.price ? (parseFloat(balance) * xrpPrice.price).toFixed(4) : '0.0000';
 
   return (

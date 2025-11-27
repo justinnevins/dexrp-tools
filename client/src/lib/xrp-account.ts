@@ -14,15 +14,15 @@ const DROPS_PER_XRP = 1000000;
  * Calculate available XRP balance accounting for reserves and fees
  * @param accountInfo - XRPL account info response
  * @param feeDrops - Transaction fee in drops (default: 12)
- * @param baseReserve - Base reserve requirement in XRP (fetched from ledger)
- * @param incrementReserve - Increment reserve per owned object in XRP (fetched from ledger)
+ * @param baseReserve - Base reserve requirement in XRP (fetched from ledger via server_info)
+ * @param incrementReserve - Increment reserve per owned object in XRP (fetched from ledger via server_info)
  * @returns Balance breakdown with total, reserved, available, and available minus fees
  */
 export function calculateAvailableBalance(
   accountInfo: AccountInfoResponse | { account_not_found: string } | null | undefined,
   feeDrops: number = STANDARD_FEE_DROPS,
-  baseReserve: number = 20,  // Current XRPL base reserve
-  incrementReserve: number = 2  // Current XRPL increment reserve
+  baseReserve: number = 1,  // Current XRPL base reserve (Dec 2024)
+  incrementReserve: number = 0.2  // Current XRPL increment reserve (Dec 2024)
 ): BalanceInfo {
   const defaultBalance: BalanceInfo = {
     totalBalance: 0,

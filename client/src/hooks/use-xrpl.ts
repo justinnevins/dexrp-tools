@@ -90,3 +90,14 @@ export function useAccountOffers(address: string | null, network: XRPLNetwork) {
     retryDelay: 1000,
   });
 }
+
+export function useServerInfo(network: XRPLNetwork) {
+  return useQuery({
+    queryKey: ['serverInfo', network],
+    queryFn: async () => {
+      return await xrplClient.getServerInfo(network);
+    },
+    refetchInterval: 300000, // Refetch every 5 minutes (reserves don't change often)
+    staleTime: 60000, // Consider data fresh for 1 minute
+  });
+}

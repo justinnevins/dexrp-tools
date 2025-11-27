@@ -388,6 +388,34 @@ class XRPLClient {
     }
   }
 
+  async getServerInfo(network: XRPLNetwork): Promise<{ reserve_base_xrp: number; reserve_inc_xrp: number }> {
+    await this.connect(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
+    
+    try {
+      const response = await state.connector.request({
+        command: 'server_info'
+      });
+      
+      const validatedLedger = response.result?.info?.validated_ledger;
+      if (!validatedLedger) {
+        console.warn('No validated_ledger in server_info, using fallback reserves');
+        return { reserve_base_xrp: 1, reserve_inc_xrp: 0.2 };
+      }
+      
+      return {
+        reserve_base_xrp: validatedLedger.reserve_base_xrp || 1,
+        reserve_inc_xrp: validatedLedger.reserve_inc_xrp || 0.2
+      };
+    } catch (error) {
+      console.error('Error fetching server info:', error);
+      return { reserve_base_xrp: 1, reserve_inc_xrp: 0.2 };
+    }
+  }
+
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
     // Determine which full history endpoint to use
     // Priority: custom full history endpoint > default full history endpoint
