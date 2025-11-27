@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 interface FullscreenQRViewerProps {
   onClose: () => void;
@@ -7,38 +7,23 @@ interface FullscreenQRViewerProps {
 }
 
 export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
-  const qrContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const container = qrContainerRef.current;
-    if (!container) return;
-
-    const handleClose = (e: MouseEvent | TouchEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onClose();
-    };
-
-    const timer = setTimeout(() => {
-      container.addEventListener('mousedown', handleClose, { capture: true });
-      container.addEventListener('touchstart', handleClose, { capture: true });
-    }, 100);
-
-    return () => {
-      clearTimeout(timer);
-      container.removeEventListener('mousedown', handleClose, { capture: true });
-      container.removeEventListener('touchstart', handleClose, { capture: true });
-    };
-  }, [onClose]);
-
   return createPortal(
     <div 
       className="fixed inset-0 z-[9999] bg-white flex items-center justify-center"
       data-testid="fullscreen-qr-viewer"
     >
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 p-3 rounded-full bg-black/10 hover:bg-black/20 active:bg-black/30 transition-colors z-10"
+        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
+        aria-label="Close fullscreen view"
+        data-testid="close-fullscreen-qr"
+      >
+        <X className="w-6 h-6 text-black" />
+      </button>
+      
       <div 
-        ref={qrContainerRef}
-        className="flex items-center justify-center p-4 cursor-pointer"
+        className="flex items-center justify-center p-4"
         style={{
           width: 'min(100vw, 100vh)',
           height: 'min(100vw, 100vh)',
