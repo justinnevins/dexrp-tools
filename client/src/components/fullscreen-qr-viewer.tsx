@@ -18,6 +18,7 @@ export function FullscreenQRViewer({ isOpen, onClose, children }: FullscreenQRVi
       <button
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/10 hover:bg-black/20 transition-colors z-10"
+        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
         aria-label="Close fullscreen view"
         data-testid="close-fullscreen-qr"
       >
@@ -25,10 +26,17 @@ export function FullscreenQRViewer({ isOpen, onClose, children }: FullscreenQRVi
       </button>
       
       <div 
-        className="w-[min(100vw,100vh)] h-[min(100vw,100vh)] p-4 flex items-center justify-center"
+        className="flex items-center justify-center p-4"
+        style={{
+          width: 'min(100vw, 100vh)',
+          height: 'min(100vw, 100vh)',
+        }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-full h-full flex items-center justify-center">
+        <div 
+          className="flex items-center justify-center [&>*]:!w-full [&>*]:!h-full [&>*]:!max-w-full [&>*]:!max-h-full [&_img]:!w-full [&_img]:!h-full [&_canvas]:!w-full [&_canvas]:!h-full [&_svg]:!w-full [&_svg]:!h-full"
+          style={{ width: '100%', height: '100%' }}
+        >
           {children}
         </div>
       </div>
