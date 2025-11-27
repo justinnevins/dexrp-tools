@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { useCallback } from 'react';
 
 interface FullscreenQRViewerProps {
   onClose: () => void;
@@ -7,29 +7,31 @@ interface FullscreenQRViewerProps {
 }
 
 export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
+  const handleQRPointerDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onClose();
+  }, [onClose]);
+
   return createPortal(
     <div 
       className="fixed inset-0 z-[9999] bg-white flex items-center justify-center"
       data-testid="fullscreen-qr-viewer"
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
     >
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 p-3 rounded-full bg-black/10 hover:bg-black/20 active:bg-black/30 transition-colors z-10"
-        style={{ top: 'max(16px, env(safe-area-inset-top))' }}
-        aria-label="Close fullscreen view"
-        data-testid="close-fullscreen-qr"
-      >
-        <X className="w-6 h-6 text-black" />
-      </button>
-      
       <div 
-        className="flex items-center justify-center p-4"
+        className="flex items-center justify-center p-4 cursor-pointer"
         style={{
           width: 'min(100vw, 100vh)',
           height: 'min(100vw, 100vh)',
         }}
+        onPointerDown={handleQRPointerDown}
+        data-testid="qr-close-target"
       >
-        <div className="w-full h-full [&>*]:!w-full [&>*]:!h-full [&_img]:!w-full [&_img]:!h-full">
+        <div 
+          className="w-full h-full [&>*]:!w-full [&>*]:!h-full [&_img]:!w-full [&_img]:!h-full pointer-events-none"
+        >
           {children}
         </div>
       </div>
