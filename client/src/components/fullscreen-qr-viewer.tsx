@@ -16,7 +16,10 @@ export function FullscreenQRViewer({ isOpen, onClose, children }: FullscreenQRVi
       data-testid="fullscreen-qr-viewer"
     >
       <button
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/10 hover:bg-black/20 transition-colors z-10"
         style={{ top: 'max(16px, env(safe-area-inset-top))' }}
         aria-label="Close fullscreen view"
