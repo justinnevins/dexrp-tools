@@ -243,17 +243,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md mx-auto max-h-[80vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-border sticky top-0 bg-background">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold">Trustline Manager</DialogTitle>
-            <Button
-              onClick={onClose}
-              variant="ghost"
-              size="sm"
-              className="p-2 text-muted-foreground"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-lg font-semibold">Trustline Manager</DialogTitle>
         </DialogHeader>
         
         <div className="pt-4 pb-6">
