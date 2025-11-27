@@ -1,12 +1,9 @@
 interface FullscreenQRViewerProps {
-  isOpen: boolean;
   onClose: () => void;
   children: React.ReactNode;
 }
 
-export function FullscreenQRViewer({ isOpen, onClose, children }: FullscreenQRViewerProps) {
-  if (!isOpen) return null;
-
+export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
   return (
     <div 
       className="fixed inset-0 z-[100] bg-white flex items-center justify-center cursor-pointer"
