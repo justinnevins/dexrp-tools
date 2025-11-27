@@ -14,6 +14,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
+  const hasScannedRef = useRef(false);
 
   useEffect(() => {
     startScanning();
@@ -28,6 +29,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     try {
       setError(null);
       setIsScanning(true);
+      hasScannedRef.current = false; // Reset scan flag when starting new scan
       console.log('Starting Keystone account QR scanner...');
 
       scannerRef.current = new QrScanner(
@@ -59,6 +61,12 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   };
 
   const handleScanResult = async (data: string) => {
+    // Prevent multiple scans from triggering duplicate wallet creation
+    if (hasScannedRef.current) {
+      console.log('Already processed a scan, ignoring duplicate');
+      return;
+    }
+    
     console.log('Scanned QR data:', data);
 
     try {
@@ -72,6 +80,8 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         const urData = await parseKeystoneAccountUR(data);
         if (urData) {
           console.log('Successfully parsed Keystone account:', urData);
+          // Mark as scanned BEFORE stopping and calling onScan to prevent race conditions
+          hasScannedRef.current = true;
           stopScanning();
           onScan(urData.address, urData.publicKey);
           return;
