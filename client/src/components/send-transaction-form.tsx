@@ -106,7 +106,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const { toast } = useToast();
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
-  const { data: accountInfo } = useAccountInfo(currentWallet?.address || null, network);
+  const { data: accountInfo, isLoading: isAccountInfoLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: accountLines } = useAccountLines(currentWallet?.address || null, network);
 
   const form = useForm<TransactionFormData>({
@@ -289,6 +289,26 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       toast({
         title: "Hardware Wallet Required",
         description: "Please connect your Keystone 3 Pro device first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Wait for account info to be loaded before checking balance
+    if (isAccountInfoLoading) {
+      toast({
+        title: "Loading Account Data",
+        description: "Please wait for your account balance to load",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if account info is available
+    if (!accountInfo || 'account_not_found' in accountInfo) {
+      toast({
+        title: "Account Not Found",
+        description: "Unable to fetch your account balance. Please check your connection.",
         variant: "destructive",
       });
       return;
