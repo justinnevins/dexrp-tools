@@ -8,15 +8,19 @@ interface FullscreenQRViewerProps {
 
 export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
   useEffect(() => {
+    const handleClose = () => {
+      requestAnimationFrame(() => onClose());
+    };
+    
     const handleMouseDown = (e: MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      onClose();
+      handleClose();
     };
     const handleTouch = (e: TouchEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      onClose();
+      handleClose();
     };
     
     const timer = setTimeout(() => {
