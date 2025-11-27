@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Wallet } from 'lucide-react';
+import { Check, ChevronDown, Wallet, Plus } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,7 +11,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 
-export function AccountSwitcher() {
+interface AccountSwitcherProps {
+  onAddAccount?: () => void;
+}
+
+export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
   const { currentWallet, wallets, setCurrentWallet } = useWallet();
 
   const availableWallets = wallets.data || [];
@@ -66,6 +70,19 @@ export function AccountSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
+        {onAddAccount && (
+          <>
+            <DropdownMenuItem
+              onClick={onAddAccount}
+              className="flex items-center gap-2 cursor-pointer text-primary"
+              data-testid="add-account-from-switcher"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Account</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuLabel className="text-xs text-muted-foreground font-normal">
           Switch Account
         </DropdownMenuLabel>

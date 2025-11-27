@@ -96,7 +96,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <AccountSwitcher />
+              <AccountSwitcher onAddAccount={() => setShowConnectModal(true)} />
             </div>
             <div className="flex items-center gap-2">
               {rlusdPrice && (
