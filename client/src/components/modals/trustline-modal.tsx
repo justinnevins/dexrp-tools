@@ -241,7 +241,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   return (
     <>
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md mx-auto bottom-0 translate-y-0 rounded-t-3xl data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-md mx-auto max-h-[80vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-border sticky top-0 bg-background">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-lg font-semibold">Trustline Manager</DialogTitle>
