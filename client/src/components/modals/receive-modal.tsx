@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useWallet } from '@/hooks/use-wallet';
 import { useToast } from '@/hooks/use-toast';
+import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
 import QRCodeLib from 'qrcode';
 
 interface ReceiveModalProps {
@@ -16,6 +17,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
   const { toast } = useToast();
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showFullscreen, setShowFullscreen] = useState(false);
 
   useEffect(() => {
     const generateQRCode = async () => {
@@ -98,7 +100,11 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
         
         <div className="pt-4 text-center pb-6">
           {/* QR Code */}
-          <div className="w-64 h-64 mx-auto bg-white rounded-xl mb-4 flex items-center justify-center p-4">
+          <div 
+            className="w-64 h-64 mx-auto bg-white rounded-xl mb-4 flex items-center justify-center p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            onClick={() => qrCodeUrl && setShowFullscreen(true)}
+            title="Tap to view fullscreen"
+          >
             {isGenerating ? (
               <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
             ) : qrCodeUrl ? (
@@ -142,6 +148,17 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
           </div>
         </div>
       </DialogContent>
+
+      <FullscreenQRViewer isOpen={showFullscreen} onClose={() => setShowFullscreen(false)}>
+        {qrCodeUrl && (
+          <img 
+            src={qrCodeUrl} 
+            alt="Account Address QR Code" 
+            className="w-full h-full object-contain"
+            data-testid="fullscreen-qr-image"
+          />
+        )}
+      </FullscreenQRViewer>
     </Dialog>
   );
 }

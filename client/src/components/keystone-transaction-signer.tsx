@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { QrCode, CheckCircle, Camera, Loader2 } from 'lucide-react';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
+import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
 import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
 import { parseKeystoneSignature } from '@/lib/keystone-client';
@@ -34,6 +35,7 @@ export function KeystoneTransactionSigner({
   const [currentStep, setCurrentStep] = useState<SigningStep>('qr-display');
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFullscreen, setShowFullscreen] = useState(false);
   const { toast } = useToast();
 
   const handleQRDialogClose = () => {
@@ -203,7 +205,11 @@ export function KeystoneTransactionSigner({
           
           <div className="flex flex-col items-center space-y-4">
             {transactionUR && (
-              <div className="border-2 border-border rounded-lg p-4 bg-white">
+              <div 
+                className="border-2 border-border rounded-lg p-4 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                onClick={() => setShowFullscreen(true)}
+                title="Tap to view fullscreen"
+              >
                 <AnimatedQRCode 
                   type={transactionUR.type} 
                   cbor={transactionUR.cbor}
@@ -276,6 +282,15 @@ export function KeystoneTransactionSigner({
           title="Scan Signed Transaction"
           description="Scan the signed transaction QR code displayed on your Keystone 3 Pro"
         />
+      )}
+
+      {transactionUR && (
+        <FullscreenQRViewer isOpen={showFullscreen} onClose={() => setShowFullscreen(false)}>
+          <AnimatedQRCode 
+            type={transactionUR.type} 
+            cbor={transactionUR.cbor}
+          />
+        </FullscreenQRViewer>
       )}
     </>
   );
