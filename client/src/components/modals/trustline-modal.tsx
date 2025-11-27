@@ -170,24 +170,9 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const handleSigningSuccess = async (txHash: string) => {
     console.log('Trustline transaction successful:', txHash);
     
-    // Invalidate queries to refresh trustline data
-    await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
-    // Use predicate to match accountLines queries regardless of network parameter
-    await queryClient.invalidateQueries({ 
-      predicate: (query) => 
-        query.queryKey[0] === 'accountLines' && 
-        query.queryKey[1] === currentWallet?.address 
-    });
-    // Also invalidate account info to update reserve calculations
-    await queryClient.invalidateQueries({
-      predicate: (query) =>
-        query.queryKey[0] === 'accountInfo' &&
-        query.queryKey[1] === currentWallet?.address
-    });
-    
     const createdCurrency = currency; // Capture before resetting
     
-    // Reset form state
+    // Reset form state first
     setCurrency('');
     setIssuer('');
     setIssuerName('');
@@ -203,7 +188,24 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       description: `Trustline for ${createdCurrency} has been created successfully`,
     });
     
-    // Close the modal after successful trustline creation
+    // Force refetch queries BEFORE closing to ensure data is fresh
+    console.log('Refetching trustline queries for wallet:', currentWallet?.id);
+    
+    // Use refetchQueries instead of invalidateQueries to force immediate refetch
+    await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
+    await queryClient.refetchQueries({ 
+      predicate: (query) => 
+        query.queryKey[0] === 'accountLines' && 
+        query.queryKey[1] === currentWallet?.address 
+    });
+    await queryClient.refetchQueries({
+      predicate: (query) =>
+        query.queryKey[0] === 'accountInfo' &&
+        query.queryKey[1] === currentWallet?.address
+    });
+    console.log('Query refetch complete');
+    
+    // Close the modal after data is refreshed
     onClose();
   };
 

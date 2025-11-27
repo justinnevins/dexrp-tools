@@ -219,23 +219,22 @@ export default function Tokens() {
   const handleRemoveTrustlineSuccess = async () => {
     console.log('handleRemoveTrustlineSuccess called');
     
-    // Invalidate queries to refresh the trustline list
+    // Force refetch queries to refresh the trustline list
     if (currentWallet) {
-      console.log('Invalidating trustline queries for wallet:', currentWallet.id);
-      await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
-      // Use predicate to match accountLines queries regardless of network parameter
-      await queryClient.invalidateQueries({ 
+      console.log('Refetching trustline queries for wallet:', currentWallet.id);
+      // Use refetchQueries instead of invalidateQueries to force immediate refetch
+      await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
+      await queryClient.refetchQueries({ 
         predicate: (query) => 
           query.queryKey[0] === 'accountLines' && 
           query.queryKey[1] === currentWallet.address 
       });
-      // Also invalidate account info to update reserve calculations
-      await queryClient.invalidateQueries({
+      await queryClient.refetchQueries({
         predicate: (query) =>
           query.queryKey[0] === 'accountInfo' &&
           query.queryKey[1] === currentWallet.address
       });
-      console.log('Query invalidation complete');
+      console.log('Query refetch complete');
     }
     
     // Reset state
