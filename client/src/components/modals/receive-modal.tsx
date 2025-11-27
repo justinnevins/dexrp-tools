@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Copy, Share2, QrCode, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -18,6 +18,17 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const closeTimestampRef = useRef<number>(0);
+
+  const handleOpenFullscreen = () => {
+    if (Date.now() - closeTimestampRef.current < 300) return;
+    if (qrCodeUrl) setShowFullscreen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    closeTimestampRef.current = Date.now();
+    setShowFullscreen(false);
+  };
 
   useEffect(() => {
     const generateQRCode = async () => {
@@ -103,7 +114,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
             {/* QR Code */}
             <div 
               className="w-64 h-64 mx-auto bg-white rounded-xl mb-4 flex items-center justify-center p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-              onClick={() => qrCodeUrl && setShowFullscreen(true)}
+              onClick={handleOpenFullscreen}
               title="Tap to view fullscreen"
             >
               {isGenerating ? (
@@ -152,7 +163,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
       </Dialog>
 
       {showFullscreen && (
-        <FullscreenQRViewer onClose={() => setShowFullscreen(false)}>
+        <FullscreenQRViewer onClose={handleCloseFullscreen}>
           {qrCodeUrl && (
             <img 
               src={qrCodeUrl} 
