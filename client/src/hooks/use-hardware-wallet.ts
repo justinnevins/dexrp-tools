@@ -39,15 +39,10 @@ export function useHardwareWallet() {
     try {
       await hardwareWalletService.disconnect();
       setConnection(null);
-      
-      toast({
-        title: "Hardware Wallet Disconnected",
-        description: "Successfully disconnected from hardware wallet",
-      });
     } catch (error) {
       console.error('Error disconnecting hardware wallet:', error);
     }
-  }, [toast]);
+  }, []);
 
   const getAddress = useCallback(async (type?: HardwareWalletType): Promise<string> => {
     try {
