@@ -21,7 +21,13 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const [showConnectModal, setShowConnectModal] = useState(false);
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    if (theme === 'light') {
+      setTheme('dark');
+    } else if (theme === 'dark') {
+      setTheme('system');
+    } else {
+      setTheme('light');
+    }
   };
 
   // Fetch XRP/RLUSD price from DEX order book

@@ -1,10 +1,11 @@
-import { Shield, LogOut, Wallet, Check, Trash2, Edit2, Server } from 'lucide-react';
+import { Shield, LogOut, Wallet, Check, Trash2, Edit2, Server, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
+import { useTheme } from '@/lib/theme-provider';
 import { useState, useEffect } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +39,7 @@ export default function Profile() {
   const network = currentWallet?.network ?? 'mainnet';
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
   const [editName, setEditName] = useState('');
@@ -356,6 +358,55 @@ export default function Profile() {
           ) : (
             <p className="text-center text-muted-foreground py-4">No accounts added</p>
           )}
+        </div>
+      </div>
+
+      {/* Display & Theme Settings */}
+      <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Sun className="w-5 h-5 text-muted-foreground" />
+          Display & Theme
+        </h2>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Theme Mode</p>
+              <p className="text-sm text-muted-foreground">
+                {theme === 'system' ? 'Auto-detect from system' : theme === 'dark' ? 'Dark mode' : 'Light mode'}
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={theme === 'light' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTheme('light')}
+                className="flex items-center gap-1"
+                data-testid="theme-light"
+              >
+                <Sun className="w-4 h-4" />
+                Light
+              </Button>
+              <Button
+                variant={theme === 'dark' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTheme('dark')}
+                className="flex items-center gap-1"
+                data-testid="theme-dark"
+              >
+                <Moon className="w-4 h-4" />
+                Dark
+              </Button>
+              <Button
+                variant={theme === 'system' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setTheme('system')}
+                className="text-xs"
+                data-testid="theme-system"
+              >
+                Auto
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
