@@ -78,28 +78,53 @@ export function KeystoneTransactionSigner({
             // Use client-side Keystone SDK (no server dependency)
             const result = parseKeystoneSignature(signedQRData);
             console.log('Client decoded signature:', result);
+            console.log('Signature length:', result.signature?.length);
             
             if (!unsignedTransaction) {
               throw new Error('Original transaction not found');
             }
             
-            const signedTx = {
-              ...unsignedTransaction,
-              TxnSignature: result.signature
-            };
+            const { encode, decode } = await import('ripple-binary-codec');
             
-            console.log('Signed transaction assembled:', signedTx);
+            // Check if the result is a full signed transaction blob or just a signature
+            // A TxnSignature is typically 140-144 hex chars (70-72 bytes)
+            // A full signed transaction blob is much longer (300+ hex chars)
+            let txBlob: string;
             
-            const { encode } = await import('ripple-binary-codec');
-            const txBlob = encode(signedTx);
+            if (result.signature.length > 200) {
+              // This looks like a full signed transaction blob from Keystone
+              // Verify it's valid by trying to decode it
+              try {
+                const decodedTx = decode(result.signature);
+                console.log('Keystone returned full signed tx blob, decoded:', decodedTx);
+                txBlob = result.signature;
+              } catch (decodeErr) {
+                console.log('Not a valid tx blob, treating as signature...');
+                // Fall back to treating it as a signature
+                const signedTx = {
+                  ...unsignedTransaction,
+                  TxnSignature: result.signature
+                };
+                console.log('Signed transaction assembled:', signedTx);
+                txBlob = encode(signedTx);
+              }
+            } else {
+              // This is a signature, assemble with unsigned transaction
+              const signedTx = {
+                ...unsignedTransaction,
+                TxnSignature: result.signature
+              };
+              console.log('Signed transaction assembled:', signedTx);
+              txBlob = encode(signedTx);
+            }
             
             signedTransaction = {
               txBlob: txBlob,
               txHash: null
             };
             
-          } catch (decodeError) {
-            console.error('Client-side decoding failed:', decodeError);
+          } catch (decodeError: any) {
+            console.error('Client-side decoding failed:', decodeError?.message || decodeError);
             throw new Error('Failed to decode Keystone signature. Please try again.');
           }
           

@@ -152,21 +152,73 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
     // Create UR object - Keystone SDK expects Buffer, but we can use Uint8Array
     // Import buffer polyfill for browser compatibility
     const { Buffer } = require('buffer');
-    const ur = new UR(Buffer.from(cborHex, 'hex'), typeString);
+    const cborBuffer = Buffer.from(cborHex, 'hex');
+    const ur = new UR(cborBuffer, typeString);
     
     console.log('Client: Created UR object for parseSignature');
+    console.log('Client: UR type:', ur.type);
+    console.log('Client: UR cbor type:', typeof ur.cbor, ur.cbor?.constructor?.name);
+    console.log('Client: UR cbor length:', ur.cbor?.length);
     
-    const signature = keystoneSDK.xrp.parseSignature(ur);
-    
-    console.log('Client: Parsed signature:', signature);
-    
-    const parsedSignature: any = signature;
-    return {
-      signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
-      requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
-    };
-  } catch (error) {
-    console.error('Client: parseKeystoneSignature error:', error);
+    try {
+      console.log('Client: Calling keystoneSDK.xrp.parseSignature...');
+      const signature = keystoneSDK.xrp.parseSignature(ur);
+      
+      console.log('Client: Parsed signature result:', JSON.stringify(signature));
+      
+      const parsedSignature: any = signature;
+      return {
+        signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
+        requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
+      };
+    } catch (parseError: any) {
+      const errorMsg = parseError?.message || String(parseError) || 'Unknown error';
+      const errorStack = parseError?.stack || 'No stack trace';
+      console.error('Client: SDK parseSignature error message:', errorMsg);
+      console.error('Client: SDK parseSignature error stack:', errorStack);
+      console.error('Client: SDK parseSignature error object:', JSON.stringify(parseError, Object.getOwnPropertyNames(parseError)));
+      
+      // Keystone returns the signed transaction blob in CBOR format
+      // The CBOR contains the full signed binary transaction
+      // Try to extract it directly
+      console.log('Client: Attempting direct extraction from CBOR...');
+      console.log('Client: Full CBOR hex:', cborHex);
+      
+      // Check if this is a CBOR byte string (starts with 58 or 59 for length prefix)
+      if (cborHex.startsWith('58') || cborHex.startsWith('59')) {
+        // CBOR byte string - extract the payload
+        // 58 xx = byte string with 1-byte length
+        // 59 xx xx = byte string with 2-byte length
+        let signedTxBlob: string;
+        if (cborHex.startsWith('58')) {
+          // 1-byte length
+          const length = parseInt(cborHex.substring(2, 4), 16);
+          signedTxBlob = cborHex.substring(4, 4 + length * 2);
+          console.log('Client: Extracted signed tx blob (1-byte length):', signedTxBlob.substring(0, 50) + '...');
+        } else {
+          // 2-byte length
+          const length = parseInt(cborHex.substring(2, 6), 16);
+          signedTxBlob = cborHex.substring(6, 6 + length * 2);
+          console.log('Client: Extracted signed tx blob (2-byte length):', signedTxBlob.substring(0, 50) + '...');
+        }
+        
+        // The signed tx blob is the full XRPL serialized signed transaction
+        // We need to return this as the signature for the caller to handle
+        return {
+          signature: signedTxBlob,
+          requestId: crypto.randomUUID()
+        };
+      }
+      
+      // Fallback - return raw CBOR hex
+      return {
+        signature: cborHex,
+        requestId: crypto.randomUUID()
+      };
+    }
+  } catch (error: any) {
+    console.error('Client: parseKeystoneSignature error:', error?.message || error);
+    console.error('Client: Error stack:', error?.stack);
     throw error;
   }
 }
