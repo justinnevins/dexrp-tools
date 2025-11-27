@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Wallet, Shield, Plus, Globe } from 'lucide-react';
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
@@ -13,6 +14,7 @@ export function EmptyWalletState() {
   const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
+  const [walletName, setWalletName] = useState('');
   const { connect } = useHardwareWallet();
   const { createWallet } = useWallet();
 
@@ -30,10 +32,12 @@ export function EmptyWalletState() {
         publicKey,
         hardwareWalletType: 'Keystone 3 Pro',
         network: selectedNetwork,
+        name: walletName || undefined,
       });
       
       setShowScanner(false);
       setSelectedNetwork('mainnet'); // Reset to default
+      setWalletName('');
     } catch (error: any) {
       console.error('Connection failed:', error);
       alert(`Connection failed: ${error.message}`);
@@ -96,6 +100,20 @@ export function EmptyWalletState() {
             </DialogHeader>
 
             <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label htmlFor="wallet-name">Account Name (Optional)</Label>
+                <Input
+                  id="wallet-name"
+                  placeholder="e.g., My Main Account"
+                  value={walletName}
+                  onChange={(e) => setWalletName(e.target.value)}
+                  data-testid="input-wallet-name"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank for auto-generated name
+                </p>
+              </div>
+
               <RadioGroup value={selectedNetwork} onValueChange={(value: 'mainnet' | 'testnet') => setSelectedNetwork(value)}>
                 <div className="flex items-center space-x-2 border rounded-lg p-4 hover:bg-muted/50 cursor-pointer">
                   <RadioGroupItem value="mainnet" id="mainnet-empty" data-testid="radio-network-mainnet-empty" />
