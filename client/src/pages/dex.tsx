@@ -726,13 +726,15 @@ export default function DEX() {
       console.log('Saved offer to browser storage:', storedOffer);
     }
     
-    // Invalidate offers cache
+    // Wait 4 seconds for XRPL ledger validation, then refetch offers
     if (currentWallet) {
-      await queryClient.invalidateQueries({ 
-        predicate: (query) => 
-          query.queryKey[0] === 'accountOffers' && 
-          query.queryKey[1] === currentWallet.address 
-      });
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ 
+          predicate: (query) => 
+            query.queryKey[0] === 'accountOffers' && 
+            query.queryKey[1] === currentWallet.address 
+        });
+      }, 4000);
     }
     
     // Reset form
