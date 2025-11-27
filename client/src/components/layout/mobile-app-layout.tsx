@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart, Plus } from 'lucide-react';
+import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
@@ -105,15 +105,6 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
                   <span>XRP {formatPrice(rlusdPrice.price).replace('$', '')} (RLUSD)</span>
                 </div>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowConnectModal(true)}
-                className="p-2"
-                data-testid="add-account-header-button"
-              >
-                <Plus className="w-4 h-4" />
-              </Button>
               <Button
                 variant="ghost"
                 size="sm"
