@@ -34,11 +34,11 @@ export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProp
       <div 
         className="flex items-center justify-center p-4"
         style={{
-          width: 'min(100vw, 100vh)',
-          height: 'min(100vw, 100vh)',
+          width: 'min(calc(100vw - 32px), calc(100vh - 32px))',
+          height: 'min(calc(100vw - 32px), calc(100vh - 32px))',
         }}
       >
-        <div className="w-full h-full [&>*]:!w-full [&>*]:!h-full [&_img]:!w-full [&_img]:!h-full">
+        <div className="w-full h-full flex items-center justify-center [&>*]:!w-full [&>*]:!h-full [&>*]:!max-w-full [&>*]:!max-h-full [&_img]:!w-full [&_img]:!h-full [&_img]:!object-contain [&_svg]:!w-full [&_svg]:!h-full [&_canvas]:!w-full [&_canvas]:!h-full">
           {children}
         </div>
       </div>
