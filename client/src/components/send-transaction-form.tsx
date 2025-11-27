@@ -17,6 +17,7 @@ import { useAccountInfo, useAccountLines, useServerInfo } from '@/hooks/use-xrpl
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { SimpleQRScanner } from '@/components/simple-qr-scanner';
+import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
 import { encode } from 'ripple-binary-codec';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
@@ -101,6 +102,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [pendingTransactionData, setPendingTransactionData] = useState<TransactionFormData | null>(null);
   const [pendingUnsignedTx, setPendingUnsignedTx] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFullscreen, setShowFullscreen] = useState(false);
   const processingSignatureRef = useRef(false);
   
   const { toast } = useToast();
@@ -926,7 +928,11 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           
           <div className="flex flex-col items-center space-y-4">
             {keystoneUR && (
-              <div className="border-2 border-border rounded-lg p-4 bg-white">
+              <div 
+                className="border-2 border-border rounded-lg p-4 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                onClick={() => setShowFullscreen(true)}
+                title="Tap to view fullscreen"
+              >
                 <AnimatedQRCode 
                   type={keystoneUR.type} 
                   cbor={keystoneUR.cbor}
@@ -1021,6 +1027,16 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           title="Scan Destination Address"
           description="Scan the QR code containing the destination XRP address"
         />
+      )}
+
+      {/* Fullscreen QR Viewer */}
+      {keystoneUR && (
+        <FullscreenQRViewer isOpen={showFullscreen} onClose={() => setShowFullscreen(false)}>
+          <AnimatedQRCode 
+            type={keystoneUR.type} 
+            cbor={keystoneUR.cbor}
+          />
+        </FullscreenQRViewer>
       )}
     </>
   );
