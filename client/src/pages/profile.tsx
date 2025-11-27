@@ -26,6 +26,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 
 export default function Profile() {
   const { currentWallet, wallets, setCurrentWallet, updateWallet } = useWallet();
@@ -353,112 +359,122 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Network Settings */}
-      <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Server className="w-5 h-5 text-muted-foreground" />
-          <h2 className="text-lg font-semibold">Network Settings</h2>
-        </div>
-        <p className="text-sm text-muted-foreground mb-4">
-          Configure custom XRPL node endpoints (JSON-RPC or WebSocket). Supports custom ports. Leave empty to use defaults.
-        </p>
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="mainnet-node">
-              Mainnet Node URL
-              <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
-            </Label>
-            <Input
-              id="mainnet-node"
-              type="text"
-              placeholder="https://s1.ripple.com:51234"
-              value={customMainnetNode}
-              onChange={(e) => setCustomMainnetNode(e.target.value)}
-              data-testid="input-mainnet-node"
-            />
-            <p className="text-xs text-muted-foreground">
-              Examples: https://s1.ripple.com:51234 or wss://xrplcluster.com
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Default: {xrplClient.getEndpoint('mainnet')}
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="testnet-node">
-              Testnet Node URL
-              <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
-            </Label>
-            <Input
-              id="testnet-node"
-              type="text"
-              placeholder="https://s.altnet.rippletest.net:51234"
-              value={customTestnetNode}
-              onChange={(e) => setCustomTestnetNode(e.target.value)}
-              data-testid="input-testnet-node"
-            />
-            <p className="text-xs text-muted-foreground">
-              Examples: https://s.altnet.rippletest.net:51234 or wss://s.altnet.rippletest.net:51233
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Default: {xrplClient.getEndpoint('testnet')}
-            </p>
-          </div>
+      {/* Advanced Settings */}
+      <div className="bg-white dark:bg-card border border-border rounded-xl mb-6">
+        <Accordion type="single" collapsible className="w-full">
+          <AccordionItem value="network-settings" className="border-0">
+            <AccordionTrigger className="px-6 py-4 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <Server className="w-5 h-5 text-muted-foreground" />
+                <h2 className="text-lg font-semibold">Advanced Settings</h2>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 pt-0">
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Configure custom XRPL node endpoints (JSON-RPC or WebSocket). Supports custom ports. Leave empty to use defaults.
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="mainnet-node">
+                    Mainnet Node URL
+                    <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+                  </Label>
+                  <Input
+                    id="mainnet-node"
+                    type="text"
+                    placeholder="https://s1.ripple.com:51234"
+                    value={customMainnetNode}
+                    onChange={(e) => setCustomMainnetNode(e.target.value)}
+                    data-testid="input-mainnet-node"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Examples: https://s1.ripple.com:51234 or wss://xrplcluster.com
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Default: {xrplClient.getEndpoint('mainnet')}
+                  </p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="testnet-node">
+                    Testnet Node URL
+                    <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+                  </Label>
+                  <Input
+                    id="testnet-node"
+                    type="text"
+                    placeholder="https://s.altnet.rippletest.net:51234"
+                    value={customTestnetNode}
+                    onChange={(e) => setCustomTestnetNode(e.target.value)}
+                    data-testid="input-testnet-node"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Examples: https://s.altnet.rippletest.net:51234 or wss://s.altnet.rippletest.net:51233
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Default: {xrplClient.getEndpoint('testnet')}
+                  </p>
+                </div>
 
-          <div className="border-t border-border pt-4 mt-4">
-            <h3 className="text-sm font-medium mb-3">Full History Servers (Optional)</h3>
-            <p className="text-xs text-muted-foreground mb-4">
-              Separate servers are used for transaction history queries. Leave blank to use default full history servers.
-            </p>
-            
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="full-history-mainnet-node">
-                  Mainnet Full History Server
-                  <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
-                </Label>
-                <Input
-                  id="full-history-mainnet-node"
-                  type="text"
-                  placeholder="https://s1.ripple.com:51234"
-                  value={fullHistoryMainnetNode}
-                  onChange={(e) => setFullHistoryMainnetNode(e.target.value)}
-                  data-testid="input-full-history-mainnet-node"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Default: https://s1.ripple.com:51234
-                </p>
+                <div className="border-t border-border pt-4 mt-4">
+                  <h3 className="text-sm font-medium mb-3">Full History Servers (Optional)</h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Separate servers are used for transaction history queries. Leave blank to use default full history servers.
+                  </p>
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="full-history-mainnet-node">
+                        Mainnet Full History Server
+                        <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="full-history-mainnet-node"
+                        type="text"
+                        placeholder="https://s1.ripple.com:51234"
+                        value={fullHistoryMainnetNode}
+                        onChange={(e) => setFullHistoryMainnetNode(e.target.value)}
+                        data-testid="input-full-history-mainnet-node"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Default: https://s1.ripple.com:51234
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="full-history-testnet-node">
+                        Testnet Full History Server
+                        <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
+                      </Label>
+                      <Input
+                        id="full-history-testnet-node"
+                        type="text"
+                        placeholder="https://s.altnet.rippletest.net:51234"
+                        value={fullHistoryTestnetNode}
+                        onChange={(e) => setFullHistoryTestnetNode(e.target.value)}
+                        data-testid="input-full-history-testnet-node"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Default: https://s.altnet.rippletest.net:51234
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <Button
+                  onClick={handleSaveCustomNodes}
+                  className="w-full"
+                  data-testid="button-save-nodes"
+                >
+                  Save Network Settings
+                </Button>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="full-history-testnet-node">
-                  Testnet Full History Server
-                  <span className="text-xs text-muted-foreground ml-2">(Optional)</span>
-                </Label>
-                <Input
-                  id="full-history-testnet-node"
-                  type="text"
-                  placeholder="https://s.altnet.rippletest.net:51234"
-                  value={fullHistoryTestnetNode}
-                  onChange={(e) => setFullHistoryTestnetNode(e.target.value)}
-                  data-testid="input-full-history-testnet-node"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Default: https://s.altnet.rippletest.net:51234
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <Button
-            onClick={handleSaveCustomNodes}
-            className="w-full"
-            data-testid="button-save-nodes"
-          >
-            Save Network Settings
-          </Button>
-        </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </div>
 
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
