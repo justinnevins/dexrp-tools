@@ -49,8 +49,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      window.scrollTo(0, 0);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Restore body scroll when modal is closed
+      document.body.style.overflow = 'unset';
     }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [isOpen]);
 
   const { currentWallet } = useWallet();
