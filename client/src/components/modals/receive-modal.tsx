@@ -89,65 +89,67 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md mx-auto">
-        <DialogHeader className="pb-4 border-b border-border">
-          <DialogTitle className="text-lg font-semibold">Receive XRP</DialogTitle>
-          <DialogDescription className="sr-only">
-            Share your XRP address with others to receive payments.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="pt-4 text-center pb-6">
-          {/* QR Code */}
-          <div 
-            className="w-64 h-64 mx-auto bg-white rounded-xl mb-4 flex items-center justify-center p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-            onClick={() => qrCodeUrl && setShowFullscreen(true)}
-            title="Tap to view fullscreen"
-          >
-            {isGenerating ? (
-              <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
-            ) : qrCodeUrl ? (
-              <img 
-                src={qrCodeUrl} 
-                alt="Account Address QR Code" 
-                className="w-full h-full"
-                data-testid="qr-code-image"
-              />
-            ) : (
-              <QrCode className="w-16 h-16 text-muted-foreground" />
-            )}
-          </div>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-md mx-auto">
+          <DialogHeader className="pb-4 border-b border-border">
+            <DialogTitle className="text-lg font-semibold">Receive XRP</DialogTitle>
+            <DialogDescription className="sr-only">
+              Share your XRP address with others to receive payments.
+            </DialogDescription>
+          </DialogHeader>
           
-          <p className="text-sm text-muted-foreground mb-4">Scan to send XRP to this address</p>
-          
-          <div className="bg-muted rounded-xl p-4 mb-4">
-            <p className="font-mono text-sm break-all">
-              {currentWallet?.address || 'No account selected'}
-            </p>
-          </div>
-          
-          <div className="flex space-x-3">
-            <Button
-              onClick={copyAddress}
-              variant="outline"
-              className="flex-1 py-3 touch-target"
-              disabled={!currentWallet?.address}
+          <div className="pt-4 text-center pb-6">
+            {/* QR Code */}
+            <div 
+              className="w-64 h-64 mx-auto bg-white rounded-xl mb-4 flex items-center justify-center p-4 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+              onClick={() => qrCodeUrl && setShowFullscreen(true)}
+              title="Tap to view fullscreen"
             >
-              <Copy className="w-4 h-4 mr-2" />
-              Copy Address
-            </Button>
-            <Button
-              onClick={shareAddress}
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
-              disabled={!currentWallet?.address}
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
+              {isGenerating ? (
+                <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+              ) : qrCodeUrl ? (
+                <img 
+                  src={qrCodeUrl} 
+                  alt="Account Address QR Code" 
+                  className="w-full h-full"
+                  data-testid="qr-code-image"
+                />
+              ) : (
+                <QrCode className="w-16 h-16 text-muted-foreground" />
+              )}
+            </div>
+            
+            <p className="text-sm text-muted-foreground mb-4">Scan to send XRP to this address</p>
+            
+            <div className="bg-muted rounded-xl p-4 mb-4">
+              <p className="font-mono text-sm break-all">
+                {currentWallet?.address || 'No account selected'}
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <Button
+                onClick={copyAddress}
+                variant="outline"
+                className="flex-1 py-3 touch-target"
+                disabled={!currentWallet?.address}
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy Address
+              </Button>
+              <Button
+                onClick={shareAddress}
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
+                disabled={!currentWallet?.address}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
+            </div>
           </div>
-        </div>
-      </DialogContent>
+        </DialogContent>
+      </Dialog>
 
       {showFullscreen && (
         <FullscreenQRViewer onClose={() => setShowFullscreen(false)}>
@@ -155,12 +157,12 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
             <img 
               src={qrCodeUrl} 
               alt="Account Address QR Code" 
-              className="w-full h-full object-contain cursor-pointer"
+              className="w-full h-full object-contain"
               data-testid="fullscreen-qr-image"
             />
           )}
         </FullscreenQRViewer>
       )}
-    </Dialog>
+    </>
   );
 }
