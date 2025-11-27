@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Coins, Trash2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Plus, Coins, Trash2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -25,6 +25,7 @@ export default function Tokens() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [trustlineToDelete, setTrustlineToDelete] = useState<any>(null);
   const [removeTrustlineData, setRemoveTrustlineData] = useState<any>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentWallet } = useWallet();
@@ -34,6 +35,33 @@ export default function Tokens() {
   const { data: accountInfo, isLoading: accountLoading } = useAccountInfo(currentWallet?.address || null, network);
 
   const isLoading = dbLoading || xrplLoading || accountLoading;
+
+  // Manual refresh function
+  const handleRefresh = useCallback(async () => {
+    if (!currentWallet || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    console.log('Manual refresh triggered');
+    
+    try {
+      await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
+      await queryClient.refetchQueries({ 
+        predicate: (query) => 
+          query.queryKey[0] === 'accountLines' && 
+          query.queryKey[1] === currentWallet.address 
+      });
+      await queryClient.refetchQueries({
+        predicate: (query) =>
+          query.queryKey[0] === 'accountInfo' &&
+          query.queryKey[1] === currentWallet.address
+      });
+      console.log('Manual refresh complete');
+    } catch (error) {
+      console.error('Refresh failed:', error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [currentWallet, isRefreshing, queryClient]);
 
   // Combine trustlines from database and XRPL
   const trustlines = [];
@@ -219,32 +247,40 @@ export default function Tokens() {
   const handleRemoveTrustlineSuccess = async () => {
     console.log('handleRemoveTrustlineSuccess called');
     
-    // Force refetch queries to refresh the trustline list
-    if (currentWallet) {
-      console.log('Refetching trustline queries for wallet:', currentWallet.id);
-      // Use refetchQueries instead of invalidateQueries to force immediate refetch
-      await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
-      await queryClient.refetchQueries({ 
-        predicate: (query) => 
-          query.queryKey[0] === 'accountLines' && 
-          query.queryKey[1] === currentWallet.address 
-      });
-      await queryClient.refetchQueries({
-        predicate: (query) =>
-          query.queryKey[0] === 'accountInfo' &&
-          query.queryKey[1] === currentWallet.address
-      });
-      console.log('Query refetch complete');
-    }
-    
-    // Reset state
+    // Reset state immediately
     setRemoveTrustlineData(null);
     setTrustlineToDelete(null);
     
     toast({
       title: "Trustline Removed",
-      description: "Your trustline has been successfully removed from the XRPL network.",
+      description: "Your trustline has been removed. Refreshing data...",
     });
+    
+    // Wait for XRPL ledger to validate the transaction (typically 3-5 seconds)
+    console.log('Waiting for ledger validation before refresh...');
+    await new Promise(resolve => setTimeout(resolve, 4000));
+    
+    // Force refetch queries to refresh the trustline list
+    if (currentWallet) {
+      console.log('Refetching trustline queries for wallet:', currentWallet.id);
+      setIsRefreshing(true);
+      try {
+        await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
+        await queryClient.refetchQueries({ 
+          predicate: (query) => 
+            query.queryKey[0] === 'accountLines' && 
+            query.queryKey[1] === currentWallet.address 
+        });
+        await queryClient.refetchQueries({
+          predicate: (query) =>
+            query.queryKey[0] === 'accountInfo' &&
+            query.queryKey[1] === currentWallet.address
+        });
+        console.log('Query refetch complete');
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
   };
 
   if (isLoading) {
@@ -282,15 +318,26 @@ export default function Tokens() {
     <div className="px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">My Tokens</h1>
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => setTrustlineModalOpen(true)}
-          data-testid="button-add-token"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Token
-        </Button>
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            data-testid="button-refresh-tokens"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => setTrustlineModalOpen(true)}
+            data-testid="button-add-token"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Token
+          </Button>
+        </div>
       </div>
 
       {trustlines.length === 1 ? (

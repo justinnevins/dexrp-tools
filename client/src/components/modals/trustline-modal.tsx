@@ -185,13 +185,19 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
     
     toast({
       title: "Trustline Created",
-      description: `Trustline for ${createdCurrency} has been created successfully`,
+      description: `Trustline for ${createdCurrency} has been created. Refreshing data...`,
     });
     
-    // Force refetch queries BEFORE closing to ensure data is fresh
+    // Close the modal immediately
+    onClose();
+    
+    // Wait for XRPL ledger to validate the transaction (typically 3-5 seconds)
+    console.log('Waiting for ledger validation before refresh...');
+    await new Promise(resolve => setTimeout(resolve, 4000));
+    
+    // Force refetch queries to ensure data is fresh
     console.log('Refetching trustline queries for wallet:', currentWallet?.id);
     
-    // Use refetchQueries instead of invalidateQueries to force immediate refetch
     await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
     await queryClient.refetchQueries({ 
       predicate: (query) => 
@@ -204,9 +210,6 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         query.queryKey[1] === currentWallet?.address
     });
     console.log('Query refetch complete');
-    
-    // Close the modal after data is refreshed
-    onClose();
   };
 
   const handleSignerClose = () => {
