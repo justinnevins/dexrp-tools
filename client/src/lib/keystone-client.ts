@@ -70,76 +70,103 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
 export function parseKeystoneSignature(urString: string): SignatureResult {
   console.log('Client: Decoding Keystone signature from UR:', urString.substring(0, 50) + '...');
   
-  const keystoneSDK = new KeystoneSDK();
-  
-  const isSinglePart = !urString.match(/ur:[^/]+\/\d+-\d+\//);
-  
-  let decodedType: Buffer | Uint8Array | string;
-  let decodedCbor: Buffer | Uint8Array;
-  
-  if (isSinglePart) {
-    console.log('Client: Decoding single-part UR');
+  try {
+    const keystoneSDK = new KeystoneSDK();
     
-    const match = urString.match(/^ur:([^/]+)\/(.+)$/);
-    if (!match) {
-      throw new Error('Invalid UR format');
-    }
+    const isSinglePart = !urString.match(/ur:[^/]+\/\d+-\d+\//i);
     
-    const [, type, payload] = match;
+    let decodedUR: any;
     
-    const isHex = /^[0-9a-f]+$/i.test(payload);
-    
-    if (isHex) {
-      console.log('Client: Detected hex-encoded UR (minimal encoding)');
-      decodedType = Buffer.from(type);
-      decodedCbor = Buffer.from(payload, 'hex');
-    } else {
-      console.log('Client: Detected Bytewords-encoded UR');
-      const decoder = new URDecoder();
-      decoder.receivePart(urString);
+    if (isSinglePart) {
+      console.log('Client: Decoding single-part UR');
       
-      if (!decoder.isComplete()) {
-        throw new Error('UR decoding incomplete');
+      const match = urString.toLowerCase().match(/^ur:([^/]+)\/(.+)$/);
+      if (!match) {
+        throw new Error('Invalid UR format');
       }
       
-      const result = decoder.resultUR();
-      decodedType = result.type;
-      decodedCbor = result.cbor;
+      const [, type, payload] = match;
+      
+      // Check if payload is pure hex (only 0-9, a-f characters)
+      const isHex = /^[0-9a-f]+$/i.test(payload);
+      
+      if (isHex) {
+        console.log('Client: Detected hex-encoded UR (minimal encoding)');
+        // Convert hex payload to Uint8Array for CBOR
+        const cborBytes = new Uint8Array(payload.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+        decodedUR = {
+          type: type,
+          cbor: cborBytes
+        };
+      } else {
+        console.log('Client: Detected Bytewords-encoded UR');
+        // Use URDecoder for Bytewords-encoded URs
+        const decoder = new URDecoder();
+        decoder.receivePart(urString.toUpperCase()); // URDecoder expects uppercase
+        
+        if (!decoder.isComplete()) {
+          throw new Error('UR decoding incomplete');
+        }
+        
+        decodedUR = decoder.resultUR();
+      }
+    } else {
+      console.log('Client: Decoding multi-part UR');
+      const decoder = new URDecoder();
+      decoder.receivePart(urString.toUpperCase());
+      
+      if (!decoder.isComplete()) {
+        throw new Error('UR decoding incomplete - multi-part UR requires all fragments');
+      }
+      
+      decodedUR = decoder.resultUR();
     }
-  } else {
-    console.log('Client: Decoding multi-part UR');
-    const decoder = new URDecoder();
-    decoder.receivePart(urString);
     
-    if (!decoder.isComplete()) {
-      throw new Error('UR decoding incomplete - multi-part UR requires all fragments');
+    // Get type as string
+    let typeString: string;
+    if (typeof decodedUR.type === 'string') {
+      typeString = decodedUR.type;
+    } else if (decodedUR.type instanceof Uint8Array || ArrayBuffer.isView(decodedUR.type)) {
+      typeString = new TextDecoder().decode(decodedUR.type);
+    } else {
+      typeString = String(decodedUR.type);
     }
     
-    const result = decoder.resultUR();
-    decodedType = result.type;
-    decodedCbor = result.cbor;
+    // Get CBOR as Uint8Array
+    let cborBytes: Uint8Array;
+    if (decodedUR.cbor instanceof Uint8Array) {
+      cborBytes = decodedUR.cbor;
+    } else if (ArrayBuffer.isView(decodedUR.cbor)) {
+      cborBytes = new Uint8Array(decodedUR.cbor.buffer, decodedUR.cbor.byteOffset, decodedUR.cbor.byteLength);
+    } else {
+      cborBytes = new Uint8Array(decodedUR.cbor);
+    }
+    
+    console.log('Client: Decoded UR type:', typeString);
+    console.log('Client: Decoded CBOR length:', cborBytes.length);
+    
+    // Convert to hex string for UR construction
+    const cborHex = Array.from(cborBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    console.log('Client: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
+    
+    // Create UR object - Keystone SDK expects Buffer, but we can use Uint8Array
+    // Import buffer polyfill for browser compatibility
+    const { Buffer } = require('buffer');
+    const ur = new UR(Buffer.from(cborHex, 'hex'), typeString);
+    
+    console.log('Client: Created UR object for parseSignature');
+    
+    const signature = keystoneSDK.xrp.parseSignature(ur);
+    
+    console.log('Client: Parsed signature:', signature);
+    
+    const parsedSignature: any = signature;
+    return {
+      signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
+      requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
+    };
+  } catch (error) {
+    console.error('Client: parseKeystoneSignature error:', error);
+    throw error;
   }
-  
-  console.log('Client: Decoded UR type:', decodedType);
-  console.log('Client: Decoded CBOR length:', decodedCbor.length);
-  
-  const cborHex = Buffer.from(decodedCbor).toString('hex');
-  const typeString = typeof decodedType === 'string' ? decodedType : decodedType.toString();
-  
-  console.log('Client: Type string:', typeString);
-  console.log('Client: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
-  
-  const ur = new UR(Buffer.from(cborHex, 'hex'), typeString);
-  
-  console.log('Client: Created UR object for parseSignature');
-  
-  const signature = keystoneSDK.xrp.parseSignature(ur);
-  
-  console.log('Client: Parsed signature:', signature);
-  
-  const parsedSignature: any = signature;
-  return {
-    signature: typeof parsedSignature === 'string' ? parsedSignature : parsedSignature.signature,
-    requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
-  };
 }
