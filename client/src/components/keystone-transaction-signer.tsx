@@ -84,35 +84,27 @@ export function KeystoneTransactionSigner({
               throw new Error('Original transaction not found');
             }
             
-            const { encode, decode } = await import('ripple-binary-codec');
+            const { encode } = await import('ripple-binary-codec');
             
-            // Check if the result is a full signed transaction blob or just a signature
-            // A TxnSignature is typically 140-144 hex chars (70-72 bytes)
-            // A full signed transaction blob is much longer (300+ hex chars)
+            // Check if Keystone returned a full signed transaction blob or just a signature
+            // A full signed tx blob starts with "1200" (Payment), "1400" (TrustSet), etc.
+            // and is much longer than a bare signature (which is typically 140-144 hex chars)
+            const signatureData = result.signature;
+            console.log('Signature data length:', signatureData.length);
+            
             let txBlob: string;
             
-            if (result.signature.length > 200) {
-              // This looks like a full signed transaction blob from Keystone
-              // Verify it's valid by trying to decode it
-              try {
-                const decodedTx = decode(result.signature);
-                console.log('Keystone returned full signed tx blob, decoded:', decodedTx);
-                txBlob = result.signature;
-              } catch (decodeErr) {
-                console.log('Not a valid tx blob, treating as signature...');
-                // Fall back to treating it as a signature
-                const signedTx = {
-                  ...unsignedTransaction,
-                  TxnSignature: result.signature
-                };
-                console.log('Signed transaction assembled:', signedTx);
-                txBlob = encode(signedTx);
-              }
+            // Check if this is a full XRPL serialized transaction (starts with transaction type)
+            // XRPL serialized transactions start with field type codes like 1200 (Payment), 1400 (TrustSet), etc.
+            if (signatureData.length > 200 && /^1[0-9a-f]00/i.test(signatureData)) {
+              // This is a full signed transaction blob from Keystone - use it directly
+              console.log('Keystone returned full signed transaction blob, using directly');
+              txBlob = signatureData.toUpperCase();
             } else {
-              // This is a signature, assemble with unsigned transaction
+              // This is just a signature - combine with unsigned transaction
               const signedTx = {
                 ...unsignedTransaction,
-                TxnSignature: result.signature
+                TxnSignature: signatureData
               };
               console.log('Signed transaction assembled:', signedTx);
               txBlob = encode(signedTx);
