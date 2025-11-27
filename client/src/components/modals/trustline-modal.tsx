@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Plus, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,12 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const [transactionUR, setTransactionUR] = useState<{ type: string; cbor: string } | null>(null);
   const [unsignedTransaction, setUnsignedTransaction] = useState<any>(null);
   const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      window.scrollTo(0, 0);
+    }
+  }, [isOpen]);
 
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
