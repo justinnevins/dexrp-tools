@@ -124,7 +124,10 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const getAvailableBalance = (currency?: string, issuer?: string) => {
     // For XRP, use dynamic reserve calculation
     if (!currency || currency === 'XRP') {
+      console.log('[Balance Debug] accountInfo:', accountInfo);
+      console.log('[Balance Debug] isAccountInfoLoading:', isAccountInfoLoading);
       const balanceInfo = calculateAvailableBalance(accountInfo);
+      console.log('[Balance Debug] balanceInfo:', balanceInfo);
       return balanceInfo.availableMinusFees;
     }
     
