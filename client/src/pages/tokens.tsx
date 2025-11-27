@@ -217,8 +217,11 @@ export default function Tokens() {
   };
 
   const handleRemoveTrustlineSuccess = async () => {
+    console.log('handleRemoveTrustlineSuccess called');
+    
     // Invalidate queries to refresh the trustline list
     if (currentWallet) {
+      console.log('Invalidating trustline queries for wallet:', currentWallet.id);
       await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
       // Use predicate to match accountLines queries regardless of network parameter
       await queryClient.invalidateQueries({ 
@@ -232,6 +235,7 @@ export default function Tokens() {
           query.queryKey[0] === 'accountInfo' &&
           query.queryKey[1] === currentWallet.address
       });
+      console.log('Query invalidation complete');
     }
     
     // Reset state

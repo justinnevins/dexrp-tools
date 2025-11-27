@@ -154,13 +154,20 @@ export function KeystoneTransactionSigner({
         title: "Transaction Successful",
         description: transactionType === 'Payment' 
           ? "Your payment has been sent successfully" 
-          : "Trustline created successfully",
+          : transactionType === 'TrustSet'
+          ? "Trustline updated successfully"
+          : "Transaction completed successfully",
       });
 
+      // Call onSuccess immediately to trigger query invalidation
+      console.log('Calling onSuccess callback with hash:', submitResult.hash);
+      onSuccess?.(submitResult.hash || '');
+      
+      // Close dialog after a short delay for user to see success state
       setTimeout(() => {
-        onSuccess?.(submitResult.hash || '');
+        console.log('Closing dialog after success');
         handleQRDialogClose();
-      }, 2000);
+      }, 1500);
 
     } catch (error) {
       console.error('Transaction signing/submission failed:', error);
