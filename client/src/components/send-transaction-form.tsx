@@ -417,22 +417,40 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             const result = parseKeystoneSignature(signedQRData);
             console.log('Client decoded signature:', result);
             
-            // Combine the unsigned transaction with the signature
-            if (!pendingUnsignedTx) {
-              throw new Error('Original transaction not found');
+            // Check if Keystone returned a full signed transaction blob or just a signature
+            // A full signed tx blob starts with "1200" (Payment) or similar transaction type prefix
+            // and is much longer than a bare signature (which is typically 140-144 hex chars)
+            const signatureData = result.signature;
+            console.log('Signature data length:', signatureData.length);
+            
+            let txBlob: string;
+            
+            // Check if this is a full XRPL serialized transaction (starts with transaction type)
+            // XRPL serialized transactions start with field type codes like 1200 (Payment), 1400 (TrustSet), etc.
+            if (signatureData.length > 200 && /^1[0-9a-f]00/i.test(signatureData)) {
+              // This is a full signed transaction blob from Keystone - use it directly
+              console.log('Keystone returned full signed transaction blob, using directly');
+              txBlob = signatureData.toUpperCase();
+            } else {
+              // This is just a signature - combine with unsigned transaction
+              if (!pendingUnsignedTx) {
+                throw new Error('Original transaction not found');
+              }
+              
+              // Create the signed transaction by adding the signature
+              const signedTx = {
+                ...pendingUnsignedTx,
+                TxnSignature: signatureData
+              };
+              
+              console.log('Combining transaction with signature:', signedTx);
+              
+              // Encode the signed transaction to get the final blob
+              txBlob = encode(signedTx);
+              console.log('Encoded signed transaction blob:', txBlob);
             }
             
-            // Create the signed transaction by adding the signature
-            const signedTx = {
-              ...pendingUnsignedTx,
-              TxnSignature: result.signature
-            };
-            
-            console.log('Combining transaction with signature:', signedTx);
-            
-            // Encode the signed transaction to get the final blob
-            const txBlob = encode(signedTx);
-            console.log('Final signed transaction blob:', txBlob);
+            console.log('Final transaction blob:', txBlob.substring(0, 50) + '...');
             
             signedTransaction = {
               txBlob: txBlob,
