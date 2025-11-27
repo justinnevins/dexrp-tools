@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { QrCode, CheckCircle, Camera, Loader2 } from 'lucide-react';
@@ -36,7 +36,18 @@ export function KeystoneTransactionSigner({
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
+  const closeTimestampRef = useRef<number>(0);
   const { toast } = useToast();
+
+  const handleOpenFullscreen = () => {
+    if (Date.now() - closeTimestampRef.current < 300) return;
+    if (transactionUR) setShowFullscreen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    closeTimestampRef.current = Date.now();
+    setShowFullscreen(false);
+  };
 
   const handleQRDialogClose = () => {
     if (currentStep !== 'submitting') {
