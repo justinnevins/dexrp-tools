@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, ArrowUp, Shield } from 'lucide-react';
+import { ArrowUp, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -95,19 +95,9 @@ export function SendModal({ isOpen, onClose, onSecurityConfirm }: SendModalProps
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md mx-auto bottom-0 translate-y-0 rounded-t-3xl data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom">
+      <DialogContent className="max-w-md mx-auto">
         <DialogHeader className="pb-4 border-b border-border">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg font-semibold">Send XRP</DialogTitle>
-            <Button
-              onClick={handleClose}
-              variant="ghost"
-              size="sm"
-              className="p-2 text-muted-foreground"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-lg font-semibold">Send XRP</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 pt-4 pb-6">
