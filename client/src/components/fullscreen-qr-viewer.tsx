@@ -1,13 +1,22 @@
+import { useCallback } from 'react';
+
 interface FullscreenQRViewerProps {
   onClose: () => void;
   children: React.ReactNode;
 }
 
 export function FullscreenQRViewer({ onClose, children }: FullscreenQRViewerProps) {
+  const handleClose = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClose();
+  }, [onClose]);
+
   return (
     <div 
       className="fixed inset-0 z-[100] bg-white flex items-center justify-center cursor-pointer"
-      onClick={onClose}
+      onClick={handleClose}
+      onTouchEnd={handleClose}
       data-testid="fullscreen-qr-viewer"
     >
       <div 
