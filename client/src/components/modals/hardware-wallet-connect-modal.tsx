@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -38,6 +38,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [showQRScanner, setShowQRScanner] = useState(false);
   const { connection, isConnecting, connect, disconnect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
+  const isCreatingWalletRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -51,6 +52,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       setShowKeystoneScanner(false);
       setShowKeystoneModal(false);
       setShowQRScanner(false);
+      isCreatingWalletRef.current = false; // Reset the guard when modal opens
     }
   }, [isOpen, disconnect]);
 
@@ -68,6 +70,13 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   };
 
   const handleKeystoneAccountScan = async (address: string, publicKey: string) => {
+    // Prevent duplicate wallet creation
+    if (isCreatingWalletRef.current) {
+      console.log('Already creating wallet, ignoring duplicate call');
+      return;
+    }
+    isCreatingWalletRef.current = true;
+    
     try {
       console.log('Keystone 3 Pro account scanned:', { address, publicKey, network: selectedNetwork, name: walletName });
       
@@ -91,10 +100,18 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       console.error('Keystone 3 Pro connection failed:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
       alert(`Failed to add account: ${errorMessage}`);
+      isCreatingWalletRef.current = false; // Reset on error so user can retry
     }
   };
 
   const handleKeystoneConfirm = async (address: string) => {
+    // Prevent duplicate wallet creation
+    if (isCreatingWalletRef.current) {
+      console.log('Already creating wallet, ignoring duplicate call');
+      return;
+    }
+    isCreatingWalletRef.current = true;
+    
     try {
       await connect('Keystone 3 Pro');
       
@@ -114,6 +131,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       console.error('Keystone 3 Pro connection failed:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
       alert(`Failed to add account: ${errorMessage}`);
+      isCreatingWalletRef.current = false; // Reset on error so user can retry
     }
   };
 
