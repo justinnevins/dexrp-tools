@@ -12,28 +12,14 @@ import { KeystoneTransactionSigner } from '@/components/keystone-transaction-sig
 import { queryClient } from '@/lib/queryClient';
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
-  console.log('=== ENCODING TRUSTSET TRANSACTION ===');
+  console.log('=== ENCODING TRUSTSET TRANSACTION (CLIENT-SIDE) ===');
   console.log('Transaction object:', transactionTemplate);
   
   try {
-    const { apiFetch } = await import('@/lib/queryClient');
-    const response = await apiFetch('/api/keystone/xrp/sign-request', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        transaction: transactionTemplate
-      })
-    });
+    // Use client-side Keystone SDK (no server dependency)
+    const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
+    const result = prepareXrpSignRequest(transactionTemplate);
     
-    if (!response.ok) {
-      const error = await response.json();
-      console.error('Backend error:', error);
-      throw new Error(error.details || 'Failed to generate Keystone sign request');
-    }
-    
-    const result = await response.json();
     console.log('✓ SDK generated type:', result.type);
     console.log('✓ CBOR hex length:', result.cbor.length);
     

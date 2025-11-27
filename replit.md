@@ -37,31 +37,26 @@ Preferred communication style: Simple, everyday language.
 
 **Keystone 3 Pro (Exclusive)**: Utilizes QR code-based air-gapped communication via `@keystonehq/keystone-sdk` and `@ngraveio/bc-ur`. Unsigned transactions are displayed as QR codes, scanned by the Keystone 3 Pro, signed offline, and the signed transaction QR is scanned back into the app for submission to the XRPL.
 
+**Fully Client-Side Architecture**: All Keystone SDK operations (sign request generation and signature parsing) are performed entirely in the browser/app, with no backend dependencies. This enables:
+- Offline transaction preparation capability
+- Better security (transaction data stays on device)
+- Native mobile apps operate independently without server connection
+- Consistent behavior across web and mobile platforms
+
 **Camera Integration**: `qr-scanner` library and `getUserMedia` API for QR code scanning, supporting multi-part QR codes for large transaction signatures.
 
-**Critical Implementation Detail - Signature Decoding**: 
+**Client-Side Implementation** (`client/src/lib/keystone-client.ts`):
 
-The Keystone device returns signed transactions as UR (Uniform Resource) strings in the format `ur:bytes/<encoded_data>`. The `<encoded_data>` portion appears to be hexadecimal but is actually valid Bytewords encoding that URDecoder can parse natively. 
+`prepareXrpSignRequest(transaction)`: Generates the unsigned transaction QR code data using Keystone SDK. Formats the XRPL transaction for Keystone and returns the UR type and CBOR hex data for AnimatedQRCode display.
 
-**Correct decoding flow** (`/api/keystone/xrp/decode-signature` endpoint):
-1. Use `URDecoder` from `@ngraveio/bc-ur` to parse the raw UR string
-   - `decoder.receivePart(urString)` handles both hex-like and Bytewords-encoded URs
-   - DO NOT manually parse, uppercase, or attempt to detect encoding type
-2. Extract the decoded result with `decoder.resultUR()`
-   - Returns `type` (as Buffer) and `cbor` (as Uint8Array)
-3. Reconstruct a UR object for Keystone SDK:
-   - Convert cbor to hex: `Buffer.from(decodedUR.cbor).toString('hex')`
-   - Convert type to string: `decodedUR.type.toString()`
-   - Create UR: `new UR(Buffer.from(cborHex, 'hex'), typeString)`
-4. Parse signature: `keystoneSDK.xrp.parseSignature(ur)`
+`parseKeystoneSignature(urString)`: Decodes signed transaction QR codes from Keystone device. The Keystone returns UR strings in the format `ur:bytes/<encoded_data>`. The function handles both hex-encoded (minimal encoding) and Bytewords-encoded URs:
+1. Detects encoding type by checking if payload contains only hex characters
+2. For hex-encoded URs: directly parses the type and CBOR payload
+3. For Bytewords-encoded URs: uses URDecoder from `@ngraveio/bc-ur`
+4. Reconstructs the UR object for Keystone SDK parsing
+5. Returns the signature hex string for transaction assembly
 
-**Why this works**: URDecoder internally handles the UR format parsing and encoding detection. The Keystone SDK's `parseSignature()` method expects a UR object constructed from hex-encoded CBOR and a type string. The intermediate step of using URDecoder ensures proper decoding of the Keystone device's output format, regardless of how the data appears visually.
-
-**Previous failed approaches**:
-- Treating `ur:bytes/58d2...` as hex and manually decoding: Failed because URDecoder expects the full UR string
-- Uppercasing the UR string: Broke hex-like encodings that are actually Bytewords
-- Manual CBOR parsing without URDecoder: Missed the UR format structure
-- Attempting to construct UR objects with raw type strings: Type validation failed
+**Transaction Submission**: After signing, transactions are submitted directly to XRPL nodes using `xrplClient.submitTransaction()`, bypassing the backend entirely
 
 ### XRPL Integration
 
@@ -107,5 +102,5 @@ The Keystone device returns signed transactions as UR (Uniform Resource) strings
 **Development Tools**: TypeScript, Vite, ESBuild, Drizzle Kit.
 
 **Mobile App Packaging**: Capacitor for building native Android and iOS applications from the same codebase.
-- **Hybrid Architecture**: Native apps connect directly to XRPL nodes for blockchain queries (no backend dependency), while using the backend for Keystone SDK operations requiring Node.js libraries
+- **Hybrid Architecture**: Native apps connect directly to XRPL nodes (bypassing CORS), while web apps use the backend proxy (`/api/xrpl-proxy`) for CORS compliance
 - **Platform-Aware API**: `apiFetch` helper automatically uses absolute URLs (`VITE_API_BASE_URL`) for native apps while using relative paths for web

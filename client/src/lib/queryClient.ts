@@ -1,29 +1,16 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { isNativeApp, getPlatform } from "./platform";
+import { isNativeApp } from "./platform";
 
 function getApiBaseUrl(): string {
-  const platform = getPlatform();
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  const isNative = isNativeApp();
-  
-  console.log('[API Debug] Platform:', platform);
-  console.log('[API Debug] isNativeApp:', isNative);
-  console.log('[API Debug] VITE_API_BASE_URL:', envUrl);
-  console.log('[API Debug] window.location.origin:', window.location.origin);
-  
-  if (isNative) {
-    const baseUrl = envUrl || window.location.origin;
-    console.log('[API Debug] Using base URL:', baseUrl);
-    return baseUrl;
+  if (isNativeApp()) {
+    return import.meta.env.VITE_API_BASE_URL || window.location.origin;
   }
   return '';
 }
 
 function resolveApiUrl(path: string): string {
   const baseUrl = getApiBaseUrl();
-  const resolvedUrl = path.startsWith('/') ? baseUrl + path : path;
-  console.log('[API Debug] Resolved URL:', resolvedUrl);
-  return resolvedUrl;
+  return path.startsWith('/') ? baseUrl + path : path;
 }
 
 export async function apiFetch(

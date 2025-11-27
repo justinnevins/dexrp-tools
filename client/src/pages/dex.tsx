@@ -404,19 +404,9 @@ export default function DEX() {
   };
 
   const encodeOfferTransaction = async (transaction: any): Promise<{ type: string; cbor: string }> => {
-    const { apiFetch } = await import('@/lib/queryClient');
-    const response = await apiFetch('/api/keystone/xrp/sign-request', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transaction })
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.details || 'Failed to encode transaction');
-    }
-    
-    return await response.json();
+    // Use client-side Keystone SDK (no server dependency)
+    const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
+    return prepareXrpSignRequest(transaction);
   };
 
   const handleCreateOffer = async (e: React.FormEvent) => {

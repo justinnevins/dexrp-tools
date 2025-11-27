@@ -5,9 +5,8 @@ import { QrCode, CheckCircle, Camera, Loader2 } from 'lucide-react';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
 import { useToast } from '@/hooks/use-toast';
-import { decode as cborDecode } from 'cbor-web';
 import { xrplClient } from '@/lib/xrpl-client';
-import { apiFetch } from '@/lib/queryClient';
+import { parseKeystoneSignature } from '@/lib/keystone-client';
 
 interface KeystoneTransactionSignerProps {
   isOpen: boolean;
@@ -76,24 +75,9 @@ export function KeystoneTransactionSigner({
           console.log('Keystone UR format detected');
           
           try {
-            const response = await apiFetch('/api/keystone/xrp/decode-signature', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                ur: signedQRData
-              })
-            });
-            
-            if (!response.ok) {
-              const error = await response.json();
-              console.error('Backend decode error:', error);
-              throw new Error(error.details || 'Failed to decode signature');
-            }
-            
-            const result = await response.json();
-            console.log('Backend decoded signature:', result);
+            // Use client-side Keystone SDK (no server dependency)
+            const result = parseKeystoneSignature(signedQRData);
+            console.log('Client decoded signature:', result);
             
             if (!unsignedTransaction) {
               throw new Error('Original transaction not found');
@@ -111,11 +95,11 @@ export function KeystoneTransactionSigner({
             
             signedTransaction = {
               txBlob: txBlob,
-              txHash: result.txHash || null
+              txHash: null
             };
             
-          } catch (backendError) {
-            console.error('Backend decoding failed:', backendError);
+          } catch (decodeError) {
+            console.error('Client-side decoding failed:', decodeError);
             throw new Error('Failed to decode Keystone signature. Please try again.');
           }
           
@@ -139,48 +123,13 @@ export function KeystoneTransactionSigner({
       console.log(`🌐 Transaction will be submitted to: ${customEndpoint} (${network})`);
       console.log(`Transaction type: ${transactionType}`);
 
-      // Prepare transaction data based on type
-      const transactionData = transactionType === 'Payment' 
-        ? {
-            type: 'payment',
-            amount: unsignedTransaction.Amount || '0',
-            currency: 'XRP',
-            fromAddress: unsignedTransaction.Account,
-            toAddress: unsignedTransaction.Destination,
-            destinationTag: unsignedTransaction.DestinationTag
-          }
-        : {
-            type: 'trustline',
-            amount: '0',
-            currency: unsignedTransaction.LimitAmount?.currency || 'Unknown',
-            fromAddress: unsignedTransaction.Account,
-            toAddress: unsignedTransaction.LimitAmount?.issuer || '',
-            destinationTag: undefined
-          };
-
-      const submitResponse = await apiFetch('/api/transactions/submit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          walletId: walletId,
-          txBlob: signedTransaction.txBlob,
-          txHash: signedTransaction.txHash || null,
-          transactionData,
-          network,
-          endpoint: customEndpoint
-        })
-      });
-
-      if (!submitResponse.ok) {
-        const errorData = await submitResponse.json();
-        console.error('Transaction submission failed:', errorData);
-        throw new Error(errorData.details || 'Failed to submit transaction to XRPL');
-      }
-
-      const submitResult = await submitResponse.json();
+      // Submit directly to XRPL using client-side connection (no server dependency)
+      const submitResult = await xrplClient.submitTransaction(signedTransaction.txBlob, network);
       console.log('✓ Transaction submitted successfully:', submitResult);
+      
+      if (!submitResult.success) {
+        throw new Error(submitResult.engineResultMessage || 'Transaction submission failed');
+      }
 
       setCurrentStep('complete');
 
@@ -192,7 +141,7 @@ export function KeystoneTransactionSigner({
       });
 
       setTimeout(() => {
-        onSuccess?.(submitResult.hash || submitResult.tx_json?.hash || '');
+        onSuccess?.(submitResult.hash || '');
         handleQRDialogClose();
       }, 2000);
 

@@ -170,24 +170,9 @@ export default function Tokens() {
 
         console.log('Preparing TrustSet transaction to remove trustline:', trustSetTx);
 
-        // Encode the transaction for Keystone
-        const { apiFetch } = await import('@/lib/queryClient');
-        const response = await apiFetch('/api/keystone/xrp/sign-request', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            transaction: trustSetTx
-          })
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.details || 'Failed to encode transaction');
-        }
-
-        const { type, cbor } = await response.json();
+        // Encode the transaction for Keystone using client-side SDK (no server dependency)
+        const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
+        const { type, cbor } = prepareXrpSignRequest(trustSetTx);
 
         // Close the confirmation dialog and open the hardware wallet signer
         setDeleteDialogOpen(false);

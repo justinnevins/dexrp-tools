@@ -775,6 +775,57 @@ class XRPLClient {
       };
     }
   }
+
+  async submitTransaction(txBlob: string, network: XRPLNetwork): Promise<{
+    success: boolean;
+    hash?: string;
+    engineResult: string;
+    engineResultMessage?: string;
+  }> {
+    await this.connect(network);
+    const state = this.clients.get(network);
+    if (!state) {
+      throw new Error(`Client not initialized for network: ${network}`);
+    }
+    
+    console.log(`Submitting transaction to XRPL ${network}...`);
+    console.log('Transaction blob:', txBlob.substring(0, 50) + '...');
+    
+    try {
+      const response = await state.connector.request({
+        command: 'submit',
+        tx_blob: txBlob
+      });
+      
+      const result = response.result;
+      console.log('Transaction submitted:', JSON.stringify(result, null, 2));
+      
+      const engineResult = result.engine_result || 'unknown';
+      const engineResultMessage = result.engine_result_message || '';
+      
+      // Check submission result
+      const isSuccess = engineResult === 'tesSUCCESS' || 
+                        engineResult.startsWith('ter') || 
+                        engineResult.startsWith('tec');
+      
+      if (!isSuccess) {
+        console.error('Transaction submission failed with result:', engineResult);
+        throw new Error(`Transaction failed: ${engineResultMessage || engineResult}`);
+      }
+      
+      console.log('Transaction submitted successfully with result:', engineResult);
+      
+      return {
+        success: isSuccess,
+        hash: result.tx_json?.hash || result.hash,
+        engineResult,
+        engineResultMessage
+      };
+    } catch (error: any) {
+      console.error('Error submitting transaction:', error);
+      throw error;
+    }
+  }
 }
 
 export const xrplClient = new XRPLClient();
