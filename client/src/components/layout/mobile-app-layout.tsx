@@ -59,7 +59,10 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div 
+      className="flex h-screen overflow-hidden bg-background"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-white dark:bg-card">
         <div className="p-4 border-b border-border">
@@ -128,7 +131,10 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto pb-20 lg:pb-6">
+        <main 
+          className="flex-1 overflow-y-auto pb-20 lg:pb-6"
+          style={{ overscrollBehavior: 'none' }}
+        >
           {children}
         </main>
 

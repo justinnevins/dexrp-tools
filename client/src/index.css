@@ -55,17 +55,18 @@
     @apply border-border;
   }
 
-  html {
-    /* Account for status bar and notch on mobile */
-    padding-top: max(0px, env(safe-area-inset-top));
-    padding-left: max(0px, env(safe-area-inset-left));
-    padding-right: max(0px, env(safe-area-inset-right));
-    padding-bottom: max(0px, env(safe-area-inset-bottom));
+  html, body, #root {
+    /* Prevent overscroll/bounce effect on mobile */
+    overscroll-behavior: none;
+    /* Prevent pull-to-refresh on mobile */
+    overflow: hidden;
+    height: 100%;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+    /* Safe area padding handled by layout component */
   }
 
   .touch-target {
