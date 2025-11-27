@@ -170,6 +170,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const handleSigningSuccess = async (txHash: string) => {
     console.log('Trustline transaction successful:', txHash);
     
+    // Invalidate queries to refresh trustline data
     await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
     // Use predicate to match accountLines queries regardless of network parameter
     await queryClient.invalidateQueries({ 
@@ -177,7 +178,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         query.queryKey[0] === 'accountLines' && 
         query.queryKey[1] === currentWallet?.address 
     });
+    // Also invalidate account info to update reserve calculations
+    await queryClient.invalidateQueries({
+      predicate: (query) =>
+        query.queryKey[0] === 'accountInfo' &&
+        query.queryKey[1] === currentWallet?.address
+    });
     
+    const createdCurrency = currency; // Capture before resetting
+    
+    // Reset form state
     setCurrency('');
     setIssuer('');
     setIssuerName('');
@@ -190,8 +200,11 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
     
     toast({
       title: "Trustline Created",
-      description: `Trustline for ${currency} has been created successfully`,
+      description: `Trustline for ${createdCurrency} has been created successfully`,
     });
+    
+    // Close the modal after successful trustline creation
+    onClose();
   };
 
   const handleSignerClose = () => {

@@ -216,15 +216,21 @@ export default function Tokens() {
     }
   };
 
-  const handleRemoveTrustlineSuccess = () => {
+  const handleRemoveTrustlineSuccess = async () => {
     // Invalidate queries to refresh the trustline list
     if (currentWallet) {
-      queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
+      await queryClient.invalidateQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
       // Use predicate to match accountLines queries regardless of network parameter
-      queryClient.invalidateQueries({ 
+      await queryClient.invalidateQueries({ 
         predicate: (query) => 
           query.queryKey[0] === 'accountLines' && 
           query.queryKey[1] === currentWallet.address 
+      });
+      // Also invalidate account info to update reserve calculations
+      await queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === 'accountInfo' &&
+          query.queryKey[1] === currentWallet.address
       });
     }
     
