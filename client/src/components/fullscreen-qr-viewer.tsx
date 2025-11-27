@@ -22,8 +22,9 @@ export function FullscreenQRViewer({ isOpen, onClose, children }: FullscreenQRVi
         onClick={onClose}
       >
         <div 
-          className="flex items-center justify-center [&>*]:!w-full [&>*]:!h-full [&>*]:!max-w-full [&>*]:!max-h-full [&_img]:!w-full [&_img]:!h-full [&_canvas]:!w-full [&_canvas]:!h-full [&_svg]:!w-full [&_svg]:!h-full"
+          className="flex items-center justify-center [&>*]:!w-full [&>*]:!h-full [&>*]:!max-w-full [&>*]:!max-h-full [&_img]:!w-full [&_img]:!h-full [&_canvas]:!w-full [&_canvas]:!h-full [&_svg]:!w-full [&_svg]:!h-full cursor-pointer"
           style={{ width: '100%', height: '100%' }}
+          onClick={onClose}
         >
           {children}
         </div>
