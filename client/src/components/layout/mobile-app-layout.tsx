@@ -95,21 +95,21 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         {/* App Header */}
         <header className="bg-white dark:bg-card shadow-sm border-b border-border px-4 py-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0 max-w-[50%] md:max-w-none">
               <AccountSwitcher onAddAccount={() => setShowConnectModal(true)} />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {rlusdPrice && (
-                <div className="hidden md:flex items-center gap-1 text-sm text-muted-foreground mr-2">
-                  <TrendingUp className="w-3 h-3" />
-                  <span>XRP {formatPrice(rlusdPrice.price).replace('$', '')} (RLUSD)</span>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground mr-2">
+                  <TrendingUp className="w-3 h-3 flex-shrink-0" />
+                  <span className="whitespace-nowrap">XRP {formatPrice(rlusdPrice.price).replace('$', '')} (RLUSD)</span>
                 </div>
               )}
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleTheme}
-                className="p-2 rounded-full bg-muted"
+                className="p-2 rounded-full bg-muted flex-shrink-0"
                 data-testid="theme-toggle"
               >
                 {theme === 'dark' ? (

@@ -40,33 +40,33 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className="flex items-center gap-2 h-auto py-2 px-3 border-border"
+          className="flex items-center gap-2 h-auto py-2 px-3 border-border w-full max-w-full"
           data-testid="account-switcher-trigger"
         >
-          <Wallet className="w-4 h-4 text-muted-foreground" />
+          <Wallet className="w-4 h-4 text-muted-foreground flex-shrink-0" />
           {currentWallet ? (
-            <div className="flex flex-col items-start gap-0.5 min-w-0">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1 overflow-hidden">
+              <div className="flex items-center gap-2 max-w-full">
                 <span className="text-sm font-medium truncate">
                   {currentWallet.name || formatAddress(currentWallet.address)}
                 </span>
                 <span 
                   className={cn(
-                    "text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase",
+                    "text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase flex-shrink-0",
                     getNetworkBadgeColor(currentWallet.network)
                   )}
                 >
                   {currentWallet.network === 'testnet' ? 'Test' : 'Main'}
                 </span>
               </div>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground truncate max-w-full">
                 {formatAddress(currentWallet.address)}
               </span>
             </div>
           ) : (
             <span className="text-sm font-medium">Select Account</span>
           )}
-          <ChevronDown className="w-4 h-4 text-muted-foreground ml-1" />
+          <ChevronDown className="w-4 h-4 text-muted-foreground ml-1 flex-shrink-0" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-64">
