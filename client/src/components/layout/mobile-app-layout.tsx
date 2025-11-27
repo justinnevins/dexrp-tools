@@ -61,7 +61,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <Coins className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-semibold">XRPL Wallet</h1>
+            <h1 className="text-lg font-semibold">DEXrp Wallet</h1>
           </div>
         </div>
         
@@ -86,7 +86,6 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
           </div>
         </nav>
       </aside>
-
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col max-w-md lg:max-w-4xl mx-auto w-full">
         {/* Testnet Banner */}
