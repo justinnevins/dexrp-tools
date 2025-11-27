@@ -218,7 +218,7 @@ export function KeystoneTransactionSigner({
             {transactionUR && (
               <div 
                 className="border-2 border-border rounded-lg p-4 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-                onClick={() => setShowFullscreen(true)}
+                onClick={handleOpenFullscreen}
                 title="Tap to view fullscreen"
               >
                 <AnimatedQRCode 
@@ -295,8 +295,8 @@ export function KeystoneTransactionSigner({
         />
       )}
 
-      {transactionUR && (
-        <FullscreenQRViewer isOpen={showFullscreen} onClose={() => setShowFullscreen(false)}>
+      {showFullscreen && transactionUR && (
+        <FullscreenQRViewer onClose={handleCloseFullscreen}>
           <AnimatedQRCode 
             type={transactionUR.type} 
             cbor={transactionUR.cbor}

@@ -104,8 +104,19 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFullscreen, setShowFullscreen] = useState(false);
   const processingSignatureRef = useRef(false);
+  const closeTimestampRef = useRef<number>(0);
   
   const { toast } = useToast();
+
+  const handleOpenFullscreen = () => {
+    if (Date.now() - closeTimestampRef.current < 300) return;
+    if (keystoneUR) setShowFullscreen(true);
+  };
+
+  const handleCloseFullscreen = () => {
+    closeTimestampRef.current = Date.now();
+    setShowFullscreen(false);
+  };
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading: isAccountInfoLoading } = useAccountInfo(currentWallet?.address || null, network);
@@ -930,7 +941,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             {keystoneUR && (
               <div 
                 className="border-2 border-border rounded-lg p-4 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-                onClick={() => setShowFullscreen(true)}
+                onClick={handleOpenFullscreen}
                 title="Tap to view fullscreen"
               >
                 <AnimatedQRCode 
@@ -1030,8 +1041,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       )}
 
       {/* Fullscreen QR Viewer */}
-      {keystoneUR && (
-        <FullscreenQRViewer isOpen={showFullscreen} onClose={() => setShowFullscreen(false)}>
+      {showFullscreen && keystoneUR && (
+        <FullscreenQRViewer onClose={handleCloseFullscreen}>
           <AnimatedQRCode 
             type={keystoneUR.type} 
             cbor={keystoneUR.cbor}
