@@ -1,5 +1,6 @@
 import KeystoneSDK from '@keystonehq/keystone-sdk';
 import { URDecoder, UR } from '@ngraveio/bc-ur';
+import { Buffer } from 'buffer';
 
 interface XrpTransaction {
   TransactionType: string;
@@ -149,9 +150,7 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
     const cborHex = Array.from(cborBytes).map(b => b.toString(16).padStart(2, '0')).join('');
     console.log('Client: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
     
-    // Create UR object - Keystone SDK expects Buffer, but we can use Uint8Array
-    // Import buffer polyfill for browser compatibility
-    const { Buffer } = require('buffer');
+    // Create UR object - Keystone SDK expects Buffer
     const cborBuffer = Buffer.from(cborHex, 'hex');
     const ur = new UR(cborBuffer, typeString);
     
