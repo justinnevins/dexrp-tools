@@ -5,10 +5,19 @@ import { useAccountTransactions } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 import { extractOfferFills, calculateBalanceChanges, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function Transactions() {
+  const [filterType, setFilterType] = useState<'all' | 'sent' | 'received' | 'dex'>('all');
+  
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTransactions, isLoading: dbLoading } = useTransactions(currentWallet?.id || null);
@@ -409,7 +418,16 @@ export default function Transactions() {
     return transactions.sort((a, b) => b.time.getTime() - a.time.getTime());
   };
 
-  const transactions = formatTransactions();
+  const allTransactions = formatTransactions();
+
+  // Apply filter
+  const transactions = allTransactions.filter(tx => {
+    if (filterType === 'all') return true;
+    if (filterType === 'sent') return tx.type === 'sent';
+    if (filterType === 'received') return tx.type === 'received';
+    if (filterType === 'dex') return tx.isDEXFill || tx.type === 'exchange';
+    return true;
+  });
 
   const formatAddress = (address: string) => {
     if (address.length > 10) {
@@ -484,9 +502,18 @@ export default function Transactions() {
     <div className="px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Transaction History</h1>
-        <Button variant="outline" size="sm">
-          <Filter className="w-4 h-4" />
-        </Button>
+        <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
+          <SelectTrigger className="w-40">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Transactions</SelectItem>
+            <SelectItem value="sent">Sent</SelectItem>
+            <SelectItem value="received">Received</SelectItem>
+            <SelectItem value="dex">DEX Trades</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {transactions.length === 0 ? (
