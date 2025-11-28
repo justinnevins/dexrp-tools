@@ -1,7 +1,16 @@
 /**
  * DEX Utilities
  * 
- * Parse XRPL transaction metadata to detect offer fills and calculate statistics
+ * Parses XRPL transaction metadata to detect DEX offer fills and calculate statistics.
+ * Used for tracking maker-side offer execution, partial fills, and order history.
+ * 
+ * Key concepts:
+ * - Maker orders: Orders placed on the DEX order book (OfferCreate that doesn't immediately fill)
+ * - Taker orders: Orders that consume existing order book offers (immediate execution)
+ * - Partial fills: When only part of a maker order is consumed by a taker
+ * - AffectedNodes: XRPL transaction metadata containing balance/offer changes
+ * 
+ * @module dex-utils
  */
 
 import type { StoredOffer, OfferFill, Amount, OfferWithStatus } from './dex-types';
@@ -11,13 +20,34 @@ const isDev = import.meta.env.DEV;
 const log = (...args: any[]) => isDev && console.log('[DEXUtils]', ...args);
 
 /**
- * Parse transaction metadata to detect if this transaction filled any offers
- * Returns array of offer fills extracted from AffectedNodes
+ * Extended OfferFill with the sequence number of the filled offer.
+ * Used to match fills to specific offers in the user's offer history.
  */
 export interface OfferFillWithSequence extends OfferFill {
-  offerSequence: number; // The sequence number of the offer that was filled
+  /** The sequence number of the offer that was partially or fully filled */
+  offerSequence: number;
 }
 
+/**
+ * Extracts offer fill information from XRPL transaction metadata.
+ * 
+ * Parses AffectedNodes to detect when offers belonging to the wallet were
+ * partially or fully consumed. Handles both:
+ * 1. Immediate partial fills when creating an offer (OfferCreate that crosses existing offers)
+ * 2. Later fills when other users take from our resting offers
+ * 
+ * @param tx - XRPL transaction object containing meta.AffectedNodes
+ * @param walletAddress - The wallet address to find fills for
+ * @returns Array of fill events with amounts, prices, and offer sequence numbers
+ * 
+ * @example
+ * ```typescript
+ * const fills = extractOfferFills(transaction, 'rWalletAddress...');
+ * fills.forEach(fill => {
+ *   console.log(`Offer ${fill.offerSequence} filled at price ${fill.executionPrice}`);
+ * });
+ * ```
+ */
 export function extractOfferFills(
   tx: any,
   walletAddress: string
@@ -140,8 +170,13 @@ export function extractOfferFills(
 }
 
 /**
- * Calculate the difference between two amounts (previous - current)
- * Returns the amount that was consumed
+ * Calculates the difference between two XRPL amounts (previous - current).
+ * Used to determine how much of an offer was consumed in a transaction.
+ * 
+ * @param previous - The amount before the transaction (string for XRP drops, Amount object for tokens)
+ * @param current - The amount after the transaction
+ * @returns The consumed amount, or null if no consumption occurred
+ * @internal
  */
 function calculateAmountDifference(
   previous: Amount | string | undefined,
@@ -175,7 +210,13 @@ function calculateAmountDifference(
 }
 
 /**
- * Calculate execution price from amounts
+ * Calculates the execution price from TakerGets and TakerPays amounts.
+ * Price is expressed as takerPays/takerGets (how much paid per unit received).
+ * 
+ * @param takerGets - Amount the offer maker receives (string for XRP drops, Amount for tokens)
+ * @param takerPays - Amount the offer maker pays
+ * @returns Execution price as a number, or undefined if calculation fails
+ * @internal
  */
 function calculateExecutionPrice(
   takerGets: Amount | string,
@@ -208,7 +249,22 @@ function calculateExecutionPrice(
 }
 
 /**
- * Enrich stored offer with current status and calculated fields
+ * Enriches a stored offer with current on-chain status and calculated fields.
+ * 
+ * Combines persisted offer data (from browser storage) with live XRPL data
+ * to provide a complete view of an offer's execution status.
+ * 
+ * @param storedOffer - The offer from browser storage with fill history
+ * @param currentOffer - Current offer data from XRPL account_offers (undefined if no longer active)
+ * @returns Enhanced offer with fill percentage, execution prices, and status flags
+ * 
+ * @example
+ * ```typescript
+ * const enriched = enrichOfferWithStatus(storedOffer, currentLiveOffer);
+ * if (enriched.isFullyExecuted) {
+ *   console.log(`Offer fully filled at avg price ${enriched.averageExecutionPrice}`);
+ * }
+ * ```
  */
 export function enrichOfferWithStatus(
   storedOffer: StoredOffer,
@@ -251,7 +307,12 @@ export function enrichOfferWithStatus(
 }
 
 /**
- * Calculate total filled amount from fills
+ * Calculates the total filled amount from an array of fill events.
+ * 
+ * @param fills - Array of fill events from offer history
+ * @param field - Which amount field to sum ('takerGotAmount' or 'takerPaidAmount')
+ * @returns Total filled amount as a formatted string
+ * @internal
  */
 function calculateTotalFilled(fills: OfferFill[], field: 'takerGotAmount' | 'takerPaidAmount'): string {
   let total = 0;
@@ -271,7 +332,12 @@ function calculateTotalFilled(fills: OfferFill[], field: 'takerGotAmount' | 'tak
 }
 
 /**
- * Calculate fill percentage
+ * Calculates what percentage of an offer has been filled.
+ * 
+ * @param original - The original offer amount when created
+ * @param filled - The total amount that has been filled
+ * @returns Fill percentage (0-100), capped at 100
+ * @internal
  */
 function calculateFillPercentage(original: Amount | string, filled: string): number {
   try {
@@ -296,7 +362,13 @@ function calculateFillPercentage(original: Amount | string, filled: string): num
 }
 
 /**
- * Calculate weighted average execution price from fills
+ * Calculates the volume-weighted average execution price from fill events.
+ * 
+ * Weights each fill by its quantity to get the true average price paid/received.
+ * 
+ * @param fills - Array of fill events with execution prices
+ * @returns Weighted average price, or undefined if no fills have prices
+ * @internal
  */
 function calculateAverageExecutionPrice(fills: OfferFill[]): number | undefined {
   if (fills.length === 0) return undefined;
@@ -319,7 +391,12 @@ function calculateAverageExecutionPrice(fills: OfferFill[]): number | undefined 
 }
 
 /**
- * Format amount for display
+ * Formats an XRPL amount for display in the UI.
+ * 
+ * Handles both XRP (drops as string) and token amounts (Amount objects).
+ * 
+ * @param amount - The amount to format (string for XRP drops, Amount for tokens)
+ * @returns Formatted string like "123.456789 XRP" or "1000.000000 USD"
  */
 export function formatOfferAmount(amount: Amount | string): string {
   if (typeof amount === 'string') {
@@ -329,8 +406,25 @@ export function formatOfferAmount(amount: Amount | string): string {
 }
 
 /**
- * Calculate the wallet's actual balance changes from transaction metadata
- * Returns { xrpChange, tokenChanges } where changes are positive for increases, negative for decreases
+ * Calculates the wallet's actual balance changes from transaction metadata.
+ * 
+ * Parses AffectedNodes to determine exact XRP and token balance changes
+ * for a specific wallet address. Useful for displaying transaction impact.
+ * 
+ * @param tx - XRPL transaction object containing meta.AffectedNodes
+ * @param walletAddress - The wallet address to calculate changes for
+ * @returns Object with XRP change (signed string) and array of token changes
+ * 
+ * @example
+ * ```typescript
+ * const changes = calculateBalanceChanges(tx, walletAddress);
+ * if (changes.xrpChange) {
+ *   console.log(`XRP changed by ${changes.xrpChange}`);
+ * }
+ * changes.tokenChanges.forEach(tc => {
+ *   console.log(`${tc.currency} changed by ${tc.change}`);
+ * });
+ * ```
  */
 export function calculateBalanceChanges(tx: any, walletAddress: string): {
   xrpChange: string | null;
