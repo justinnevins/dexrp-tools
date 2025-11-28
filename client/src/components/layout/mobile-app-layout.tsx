@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
@@ -8,6 +8,7 @@ import { AccountSwitcher } from '@/components/account-switcher';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 import { fetchXRPToRLUSDPrice, formatPrice, type DEXPriceData } from '@/lib/xrp-price';
 import { useWallet } from '@/hooks/use-wallet';
+import { useFormSubmission } from '@/hooks/use-form-submission';
 
 function ThemeToggleIcon({ theme }: { theme: 'light' | 'dark' | 'system' }) {
   const [systemPrefersDark, setSystemPrefersDark] = useState(
@@ -53,6 +54,9 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const { currentWallet } = useWallet();
   const [rlusdPrice, setRLUSDPrice] = useState<DEXPriceData | null>(null);
   const [showConnectModal, setShowConnectModal] = useState(false);
+  const mainContentRef = useRef<HTMLElement>(null);
+  const { isSubmitting } = useFormSubmission();
+  const touchStartYRef = useRef<number>(0);
 
   const toggleTheme = () => {
     if (theme === 'light') {
@@ -63,6 +67,40 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       setTheme('light');
     }
   };
+
+  // Handle pull-to-refresh on mobile
+  useEffect(() => {
+    const mainContent = mainContentRef.current;
+    if (!mainContent) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartYRef.current = e.touches[0].clientY;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isSubmitting) return;
+
+      const currentY = e.touches[0].clientY;
+      const scrollTop = mainContent.scrollTop;
+
+      // Only detect pull-to-refresh when at the top
+      if (scrollTop === 0 && currentY > touchStartYRef.current) {
+        const pullDistance = currentY - touchStartYRef.current;
+        // Refresh when pulled down by 100px or more
+        if (pullDistance > 100) {
+          window.location.reload();
+        }
+      }
+    };
+
+    mainContent.addEventListener('touchstart', handleTouchStart);
+    mainContent.addEventListener('touchmove', handleTouchMove);
+
+    return () => {
+      mainContent.removeEventListener('touchstart', handleTouchStart);
+      mainContent.removeEventListener('touchmove', handleTouchMove);
+    };
+  }, [isSubmitting]);
 
   // Fetch XRP/RLUSD price from DEX order book
   useEffect(() => {
@@ -162,6 +200,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
         {/* Main Content */}
         <main 
+          ref={mainContentRef}
           className="flex-1 overflow-y-auto pb-20 lg:pb-6"
           style={{ overscrollBehavior: 'none' }}
         >

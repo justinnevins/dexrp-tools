@@ -72,12 +72,14 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="xrpl-wallet-theme">
         <WalletProvider>
-          <TooltipProvider>
-            <Toaster />
-            <MobileAppLayout>
-              <Router />
-            </MobileAppLayout>
-          </TooltipProvider>
+          <FormSubmissionProvider>
+            <TooltipProvider>
+              <Toaster />
+              <MobileAppLayout>
+                <Router />
+              </MobileAppLayout>
+            </TooltipProvider>
+          </FormSubmissionProvider>
         </WalletProvider>
       </ThemeProvider>
     </QueryClientProvider>
