@@ -477,6 +477,34 @@ class XRPLClient {
         return { transactions: [], account: address, marker: undefined };
       }
       
+      // If we were using the temporary connector and it failed, fall back to regular endpoint
+      if (usingTemporaryConnector) {
+        warn(`Full history server request failed, falling back to regular endpoint`);
+        try {
+          await this.connect(network);
+          const state = this.clients.get(network);
+          if (!state) {
+            throw new Error(`Client not initialized for network: ${network}`);
+          }
+          
+          const fallbackResponse = await state.connector.request({
+            command: 'account_tx',
+            account: address,
+            limit,
+            ledger_index_min: -1,
+            ledger_index_max: -1
+          });
+          return fallbackResponse.result;
+        } catch (fallbackError: any) {
+          // If fallback also fails, throw the original error
+          if (fallbackError.data?.error === 'actNotFound' || fallbackError.error === 'actNotFound') {
+            return { transactions: [], account: address, marker: undefined };
+          }
+          console.error('[XRPL] Error fetching transactions (both endpoints failed):', fallbackError);
+          throw fallbackError;
+        }
+      }
+      
       console.error('[XRPL] Error fetching transactions:', error);
       throw error;
     } finally {
