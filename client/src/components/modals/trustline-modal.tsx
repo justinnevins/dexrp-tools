@@ -11,22 +11,22 @@ import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { queryClient } from '@/lib/queryClient';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[Trustline]', ...args);
+
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
-  console.log('=== ENCODING TRUSTSET TRANSACTION (CLIENT-SIDE) ===');
-  console.log('Transaction object:', transactionTemplate);
+  log('Encoding TrustSet transaction');
   
   try {
-    // Use client-side Keystone SDK (no server dependency)
     const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
     const result = prepareXrpSignRequest(transactionTemplate);
     
-    console.log('✓ SDK generated type:', result.type);
-    console.log('✓ CBOR hex length:', result.cbor.length);
+    log('SDK generated type:', result.type);
     
     return { type: result.type, cbor: result.cbor };
     
   } catch (error) {
-    console.error('❌ Keystone encoding failed:', error);
+    console.error('[Trustline] Keystone encoding failed:', error);
     throw new Error('Failed to encode transaction. Please try again.');
   }
 }
@@ -140,7 +140,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         // Check both possible ledger index fields (current or validated ledger)
         transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
         
-        console.log('Using real XRPL network data:', {
+        log('Using real XRPL network data:', {
           sequence: transactionSequence,
           currentLedger: transactionLedger,
           accountBalance: accountInfo.account_data.Balance
@@ -162,7 +162,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         SigningPubKey: currentWallet.publicKey || ""
       };
 
-      console.log('Creating TrustSet transaction:', trustSetTransaction);
+      log('Creating TrustSet transaction');
 
       const keystoneUR = await encodeKeystoneUR(trustSetTransaction);
       
@@ -171,7 +171,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       setShowSigner(true);
 
     } catch (error) {
-      console.error('Failed to create trustline transaction:', error);
+      console.error('[Trustline] Failed to create trustline transaction:', error);
       setIsCreating(false);
       toast({
         title: "Error",
@@ -182,7 +182,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   };
 
   const handleSigningSuccess = async (txHash: string) => {
-    console.log('Trustline transaction successful:', txHash);
+    log('Trustline transaction successful');
     
     const createdCurrency = currency; // Capture before resetting
     
@@ -206,11 +206,11 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
     onClose();
     
     // Wait for XRPL ledger to validate the transaction (typically 3-5 seconds)
-    console.log('Waiting for ledger validation before refresh...');
+    log('Waiting for ledger validation before refresh...');
     await new Promise(resolve => setTimeout(resolve, 4000));
     
     // Force refetch queries to ensure data is fresh
-    console.log('Refetching trustline queries for wallet:', currentWallet?.id);
+    log('Refetching trustline queries');
     
     await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet?.id] });
     await queryClient.refetchQueries({ 
@@ -223,7 +223,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         query.queryKey[0] === 'accountInfo' &&
         query.queryKey[1] === currentWallet?.address
     });
-    console.log('Query refetch complete');
+    log('Query refetch complete');
   };
 
   const handleSignerClose = () => {

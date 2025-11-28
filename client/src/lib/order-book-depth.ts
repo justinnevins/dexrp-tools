@@ -138,7 +138,7 @@ export async function analyzeOrderBookDepth(
       worstPrice: processedOffers.length > 0 ? processedOffers[processedOffers.length - 1].price : null
     };
   } catch (error) {
-    console.error('Error analyzing order book depth:', error);
+    console.error('[OrderBook] Error analyzing order book depth:', error);
     throw error;
   }
 }

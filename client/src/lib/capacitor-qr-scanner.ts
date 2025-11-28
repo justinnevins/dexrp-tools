@@ -23,7 +23,7 @@ export async function scanQRCode(): Promise<QRScanResult | null> {
       
       return null;
     } catch (error) {
-      console.error('Native QR scan failed:', error);
+      console.error('[QRScanner] Native QR scan failed:', error);
       throw error;
     }
   } else {

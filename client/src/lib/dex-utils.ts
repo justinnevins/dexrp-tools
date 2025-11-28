@@ -7,6 +7,9 @@
 import type { StoredOffer, OfferFill, Amount, OfferWithStatus } from './dex-types';
 import { xrplClient } from './xrpl-client';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[DEXUtils]', ...args);
+
 /**
  * Parse transaction metadata to detect if this transaction filled any offers
  * Returns array of offer fills extracted from AffectedNodes
@@ -88,7 +91,7 @@ export function extractOfferFills(
     // Get the offer sequence number (try both FinalFields and PreviousFields)
     const offerSequence = finalFields?.Sequence || previousFields?.Sequence;
     if (!offerSequence) {
-      console.warn('Offer node missing Sequence field:', nodeData);
+      log('Offer node missing Sequence field');
       continue;
     }
     
@@ -198,7 +201,7 @@ function calculateExecutionPrice(
       return paysValue / getsValue;
     }
   } catch (error) {
-    console.error('Error calculating execution price:', error);
+    console.error('[DEXUtils] Error calculating execution price:', error);
   }
   
   return undefined;
@@ -286,7 +289,7 @@ function calculateFillPercentage(original: Amount | string, filled: string): num
       return Math.min(100, (filledValue / originalValue) * 100);
     }
   } catch (error) {
-    console.error('Error calculating fill percentage:', error);
+    console.error('[DEXUtils] Error calculating fill percentage:', error);
   }
   
   return 0;

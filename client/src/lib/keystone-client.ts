@@ -34,7 +34,7 @@ interface SignatureResult {
 }
 
 export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestResult {
-  log('Creating sign request for:', transaction);
+  log('Creating sign request for:', transaction.TransactionType);
   
   const keystoneSDK = new KeystoneSDK();
   
@@ -57,7 +57,7 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     }
   }
   
-  log('Formatted transaction:', xrpTransaction);
+  log('Transaction formatted for Keystone SDK');
   
   const ur = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
   
@@ -72,7 +72,7 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
 }
 
 export function parseKeystoneSignature(urString: string): SignatureResult {
-  log('Decoding signature from UR:', urString.substring(0, 50) + '...');
+  log('Decoding signature from UR');
   
   try {
     const keystoneSDK = new KeystoneSDK();
@@ -147,7 +147,7 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
     log('Decoded CBOR length:', cborBytes.length);
     
     const cborHex = Array.from(cborBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    log('CBOR hex (first 50 chars):', cborHex.substring(0, 50));
+    log('CBOR hex length:', cborHex.length);
     
     const cborBuffer = Buffer.from(cborHex, 'hex');
     const ur = new UR(cborBuffer, typeString);

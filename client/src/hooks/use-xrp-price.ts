@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchXRPToRLUSDPrice, DEXPriceData } from '@/lib/xrp-price';
 
+const isDev = import.meta.env.DEV;
+const warn = (...args: any[]) => isDev && console.warn('[XRPPrice]', ...args);
+
 export function useXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet') {
   return useQuery<DEXPriceData | null>({
     queryKey: ['xrp-price-dex', network],
@@ -9,7 +12,7 @@ export function useXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet') {
         const priceData = await fetchXRPToRLUSDPrice(network);
         return priceData;
       } catch (error) {
-        console.warn('Failed to fetch XRP price from DEX:', error);
+        warn('Failed to fetch XRP price from DEX:', error);
         return null;
       }
     },

@@ -39,7 +39,7 @@ export function EmptyWalletState() {
       setSelectedNetwork('mainnet'); // Reset to default
       setWalletName('');
     } catch (error: any) {
-      console.error('Connection failed:', error);
+      console.error('[EmptyWallet] Connection failed:', error);
       alert(`Connection failed: ${error.message}`);
     }
   };

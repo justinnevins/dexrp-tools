@@ -15,6 +15,9 @@ import {
 
 import { useEffect, useState } from 'react';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[Transactions]', ...args);
+
 export default function Transactions() {
   const [filterType, setFilterType] = useState<'all' | 'sent' | 'received' | 'dex'>('all');
   
@@ -63,7 +66,7 @@ export default function Transactions() {
       const offerFills = extractOfferFills(tx, currentWallet.address);
       if (offerFills.length > 0) {
         offerFills.forEach(fill => {
-          console.log('Processing DEX fill for offer sequence:', fill.offerSequence, fill.txHash);
+          log('Processing DEX fill for offer sequence:', fill.offerSequence);
           browserStorage.addOfferFill(currentWallet.address, network, fill.offerSequence, {
             txHash: fill.txHash,
             timestamp: fill.timestamp,

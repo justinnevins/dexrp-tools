@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, CameraOff, X } from 'lucide-react';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[QRScanner]', ...args);
+
 interface QRScannerProps {
   onScan: (data: string) => void;
   onClose: () => void;
@@ -51,7 +54,7 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
 
   const requestPermission = async () => {
     try {
-      console.log('Requesting camera permission...');
+      log('Requesting camera permission...');
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: { 
           facingMode: 'environment',
@@ -69,7 +72,7 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
       // Try to initialize scanner again
       initScanner();
     } catch (err) {
-      console.error('Permission request failed:', err);
+      console.error('[QRScanner] Permission request failed:', err);
       setError('Camera permission denied. Please allow camera access in your browser settings.');
       setHasPermission(false);
     }
@@ -82,7 +85,7 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
     }
 
     try {
-      console.log('Starting camera stream...');
+      log('Starting camera stream...');
       
       // Get camera stream
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -110,13 +113,13 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
       setIsScanning(true);
       setHasPermission(true);
       setError(null);
-      console.log('Camera feed started and visible');
+      log('Camera feed started and visible');
       
       // Start QR scanning
       scannerRef.current = new QrScanner(
         video,
         (result) => {
-          console.log('QR Code detected:', result.data);
+          log('QR Code detected');
           onScan(result.data);
           stopScanning();
         },
@@ -129,10 +132,10 @@ export function QRScanner({ onScan, onClose, title = "Scan QR Code", description
 
       // Let QR scanner handle its own stream
       await scannerRef.current.start();
-      console.log('QR scanner active');
+      log('QR scanner active');
 
     } catch (err) {
-      console.error('Failed to start camera/scanner:', err);
+      console.error('[QRScanner] Failed to start camera/scanner:', err);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
           setError('Camera permission denied. Please allow camera access and try again.');

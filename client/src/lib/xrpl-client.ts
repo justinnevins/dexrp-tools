@@ -2,6 +2,10 @@ import { Client, Wallet as XRPLWallet } from 'xrpl';
 import { browserStorage } from './browser-storage';
 import { isNativeApp } from './platform';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[XRPL]', ...args);
+const warn = (...args: any[]) => isDev && console.warn('[XRPL]', ...args);
+
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
 interface XRPLConnector {
@@ -49,11 +53,11 @@ class JsonRpcConnector implements XRPLConnector {
 
   constructor(endpoint: string) {
     this.endpoint = endpoint.endsWith('/') ? endpoint : endpoint + '/';
-    console.log(`Created JSON-RPC connector for endpoint: ${this.endpoint}`);
+    log(`Created JSON-RPC connector for endpoint: ${this.endpoint}`);
   }
 
   async connect(): Promise<void> {
-    console.log(`Testing JSON-RPC connection to: ${this.endpoint}`);
+    log(`Testing JSON-RPC connection to: ${this.endpoint}`);
     try {
       const response = await this.request({ command: 'server_info' });
       
@@ -62,10 +66,9 @@ class JsonRpcConnector implements XRPLConnector {
       }
       
       this.connected = true;
-      console.log(`JSON-RPC connection successful to: ${this.endpoint}`);
+      log(`JSON-RPC connection successful to: ${this.endpoint}`);
     } catch (error) {
-      console.error(`JSON-RPC connection test failed for ${this.endpoint}:`, error);
-      console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+      console.error(`[XRPL] JSON-RPC connection test failed for ${this.endpoint}:`, error);
       this.connected = false;
       throw error;
     }
@@ -234,10 +237,7 @@ class XRPLClient {
     const existingState = this.clients.get(network);
     if (existingState) {
       // Ensure proper cleanup by handling disconnect promise
-      // Using .catch to handle async errors without changing method signature
-      existingState.connector.disconnect().catch((error) => {
-        console.debug(`Cleanup error during client reinitialization for ${network}:`, error);
-      });
+      existingState.connector.disconnect().catch(() => {});
     }
     
     const endpoint = this.getNetworkEndpoint(network);
@@ -326,7 +326,7 @@ class XRPLClient {
       await state.connector.connect();
       state.isConnected = true;
     } catch (error) {
-      console.error(`Failed to connect to XRPL ${network}:`, error);
+      console.error(`[XRPL] Failed to connect to ${network}:`, error);
       state.isConnected = false;
       throw error;
     } finally {
@@ -345,7 +345,7 @@ class XRPLClient {
         await state.connector.disconnect();
       }
     } catch (error) {
-      console.error(`Error during disconnect from ${network}:`, error);
+      console.error(`[XRPL] Error during disconnect from ${network}:`, error);
     } finally {
       state.isConnected = false;
       state.connectionPromise = null;
@@ -383,7 +383,7 @@ class XRPLClient {
           error: 'Account not found on the ledger'
         };
       }
-      console.error('Error fetching account info:', error);
+      console.error('[XRPL] Error fetching account info:', error);
       throw error;
     }
   }
@@ -402,7 +402,7 @@ class XRPLClient {
       
       const validatedLedger = response.result?.info?.validated_ledger;
       if (!validatedLedger) {
-        console.warn('No validated_ledger in server_info, using fallback reserves');
+        warn('No validated_ledger in server_info, using fallback reserves');
         return { reserve_base_xrp: 1, reserve_inc_xrp: 0.2 };
       }
       
@@ -411,30 +411,25 @@ class XRPLClient {
         reserve_inc_xrp: validatedLedger.reserve_inc_xrp || 0.2
       };
     } catch (error) {
-      console.error('Error fetching server info:', error);
+      console.error('[XRPL] Error fetching server info:', error);
       return { reserve_base_xrp: 1, reserve_inc_xrp: 0.2 };
     }
   }
 
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
-    // Determine which full history endpoint to use
-    // Priority: custom full history endpoint > default full history endpoint
     const fullHistoryEndpoint = this.fullHistoryEndpoints[network] || this.defaultFullHistoryEndpoints[network];
     
     let connector: XRPLConnector | null = null;
     let usingTemporaryConnector = false;
     
-    // Always use a full history endpoint for transaction queries
-    console.log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
+    log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
     
     try {
       connector = this.createConnector(fullHistoryEndpoint);
       usingTemporaryConnector = true;
-      
-      // Connect to the full history server
       await connector.connect();
     } catch (error) {
-      console.warn(`Failed to connect to full history server, falling back to regular endpoint:`, error);
+      warn(`Failed to connect to full history server, falling back to regular endpoint`);
       
       // Fall back to regular endpoint if full history server fails
       await this.connect(network);
@@ -465,16 +460,14 @@ class XRPLClient {
         return { transactions: [], account: address, marker: undefined };
       }
       
-      console.error('Error fetching transactions:', error);
+      console.error('[XRPL] Error fetching transactions:', error);
       throw error;
     } finally {
-      // Clean up temporary connector if we created one
       if (usingTemporaryConnector && connector) {
         try {
           await connector.disconnect();
-          console.log('Disconnected temporary full history server connector');
-        } catch (error) {
-          console.debug('Error disconnecting temporary connector:', error);
+          log('Disconnected temporary full history server connector');
+        } catch {
         }
       }
     }
@@ -500,11 +493,10 @@ class XRPLClient {
         return { lines: [], account: address, marker: undefined };
       }
       
-      console.error('Error fetching account lines:', error);
+      console.error('[XRPL] Error fetching account lines:', error);
       
-      // Retry once on disconnection errors
       if (error.name === 'DisconnectedError' || error.message?.includes('disconnected')) {
-        console.log('Retrying account lines fetch after disconnection...');
+        log('Retrying account lines fetch after disconnection...');
         await this.connect(network);
         const response = await state.connector.request({
           command: 'account_lines',
@@ -537,7 +529,7 @@ class XRPLClient {
       if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return { offers: [], account: address };
       }
-      console.error('Error fetching account offers:', error);
+      console.error('[XRPL] Error fetching account offers:', error);
       throw error;
     }
   }
@@ -559,7 +551,7 @@ class XRPLClient {
       });
       return response.result;
     } catch (error: any) {
-      console.error('Error fetching order book:', error);
+      console.error('[XRPL] Error fetching order book:', error);
       throw error;
     }
   }
@@ -659,8 +651,7 @@ class XRPLClient {
         
         // If decoding failed, return truncated hex as fallback
         return currencyCode.slice(0, 8) + '...';
-      } catch (error) {
-        console.error('Error decoding currency:', error);
+      } catch {
         return currencyCode.slice(0, 8) + '...';
       }
     }
@@ -760,7 +751,7 @@ class XRPLClient {
 
       return { bidPrice, askPrice, spread };
     } catch (error) {
-      console.error('Error fetching order book:', error);
+      console.error('[XRPL] Error fetching order book:', error);
       return { bidPrice: null, askPrice: null, spread: null };
     }
   }
@@ -777,8 +768,6 @@ class XRPLClient {
       
       if (response?.result?.state?.validated_ledger) {
         const ledger = response.result.state.validated_ledger;
-        
-        // Reserve values are in drops (1 XRP = 1,000,000 drops)
         const baseReserveDrops = ledger.reserve_base || ledger.reserve_base_xrp * 1000000;
         const incrementReserveDrops = ledger.reserve_inc || ledger.reserve_inc_xrp * 1000000;
         
@@ -788,15 +777,13 @@ class XRPLClient {
         };
       }
       
-      // Fallback to current known values if server_state doesn't return expected data
-      console.warn('Unable to fetch reserve requirements from XRPL, using fallback values');
+      warn('Unable to fetch reserve requirements from XRPL, using fallback values');
       return {
-        baseReserve: 20, // Current XRPL base reserve
-        incrementReserve: 2 // Current XRPL increment reserve  
+        baseReserve: 20,
+        incrementReserve: 2
       };
     } catch (error) {
-      console.error('Error fetching reserve requirements:', error);
-      // Return current known values as fallback
+      console.error('[XRPL] Error fetching reserve requirements:', error);
       return {
         baseReserve: 20,
         incrementReserve: 2
@@ -816,8 +803,7 @@ class XRPLClient {
       throw new Error(`Client not initialized for network: ${network}`);
     }
     
-    console.log(`Submitting transaction to XRPL ${network}...`);
-    console.log('Transaction blob:', txBlob.substring(0, 50) + '...');
+    log(`Submitting transaction to XRPL ${network}...`);
     
     try {
       const response = await state.connector.request({
@@ -826,22 +812,21 @@ class XRPLClient {
       });
       
       const result = response.result;
-      console.log('Transaction submitted:', JSON.stringify(result, null, 2));
+      log('Transaction submitted');
       
       const engineResult = result.engine_result || 'unknown';
       const engineResultMessage = result.engine_result_message || '';
       
-      // Check submission result
       const isSuccess = engineResult === 'tesSUCCESS' || 
                         engineResult.startsWith('ter') || 
                         engineResult.startsWith('tec');
       
       if (!isSuccess) {
-        console.error('Transaction submission failed with result:', engineResult);
+        console.error('[XRPL] Transaction submission failed with result:', engineResult);
         throw new Error(`Transaction failed: ${engineResultMessage || engineResult}`);
       }
       
-      console.log('Transaction submitted successfully with result:', engineResult);
+      log('Transaction submitted successfully with result:', engineResult);
       
       return {
         success: isSuccess,
@@ -850,7 +835,7 @@ class XRPLClient {
         engineResultMessage
       };
     } catch (error: any) {
-      console.error('Error submitting transaction:', error);
+      console.error('[XRPL] Error submitting transaction:', error);
       throw error;
     }
   }

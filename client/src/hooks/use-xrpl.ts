@@ -39,7 +39,7 @@ export function useAccountTransactions(address: string | null, network: XRPLNetw
       try {
         return await xrplClient.getAccountTransactions(address, network, limit);
       } catch (error: any) {
-        console.error('Error fetching transactions:', error);
+        console.error('[XRPL] Error fetching transactions:', error);
         // Return empty result instead of throwing to prevent UI errors
         return { transactions: [] };
       }
@@ -59,7 +59,7 @@ export function useAccountLines(address: string | null, network: XRPLNetwork) {
       try {
         return await xrplClient.getAccountLines(address, network);
       } catch (error: any) {
-        console.error('Error fetching account lines:', error);
+        console.error('[XRPL] Error fetching account lines:', error);
         // Return empty result instead of throwing to prevent UI errors
         return { lines: [] };
       }
@@ -79,7 +79,7 @@ export function useAccountOffers(address: string | null, network: XRPLNetwork) {
       try {
         return await xrplClient.getAccountOffers(address, network);
       } catch (error: any) {
-        console.error('Error fetching account offers:', error);
+        console.error('[XRPL] Error fetching account offers:', error);
         // Return empty result instead of throwing to prevent UI errors
         return { offers: [] };
       }

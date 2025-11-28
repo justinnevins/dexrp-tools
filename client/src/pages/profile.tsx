@@ -188,7 +188,7 @@ export default function Profile() {
       // Force immediate page reload
       window.location.href = '/';
     } catch (error) {
-      console.error('Error clearing server data:', error);
+      console.error('[Profile] Error clearing server data:', error);
       // Still proceed with local cleanup
       localStorage.clear();
       localStorage.setItem('xrpl_target_network', 'mainnet');

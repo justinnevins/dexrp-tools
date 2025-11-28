@@ -40,7 +40,7 @@ export function useHardwareWallet() {
       await hardwareWalletService.disconnect();
       setConnection(null);
     } catch (error) {
-      console.error('Error disconnecting hardware wallet:', error);
+      console.error('[HWWallet] Error disconnecting hardware wallet:', error);
     }
   }, []);
 

@@ -4,6 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Camera, X, Scan } from 'lucide-react';
 import QrScanner from 'qr-scanner';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[WalletScanner]', ...args);
+
 interface WalletAddressScannerProps {
   onScan: (data: string) => void;
   onClose: () => void;
@@ -31,7 +34,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
 
   const initCamera = async () => {
     try {
-      console.log('Requesting camera access for account scanning...');
+      log('Requesting camera access for account scanning...');
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -51,21 +54,21 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
           video.play().then(() => {
             setIsActive(true);
             setError(null);
-            console.log('Camera ready for account address scanning');
+            log('Camera ready for account address scanning');
             
             // Start QR detection after camera is ready
             setTimeout(() => {
               startQRDetection();
             }, 1000);
           }).catch(err => {
-            console.error('Video play failed:', err);
+            console.error('[WalletScanner] Video play failed:', err);
             setError('Failed to start camera playback');
           });
         });
       }
 
     } catch (err) {
-      console.error('Camera access failed:', err);
+      console.error('[WalletScanner] Camera access failed:', err);
       setError(`Camera access failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
@@ -95,11 +98,11 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
       try {
         // Use QrScanner to scan the canvas
         QrScanner.scanImage(canvas).then(result => {
-          console.log('Canvas QR detection found:', result);
+          log('Canvas QR detection found');
           const qrData = typeof result === 'string' ? result : String(result);
           
           if (qrData && qrData.startsWith('r') && qrData.length >= 25 && qrData.length <= 34) {
-            console.log('Valid XRPL address from canvas analysis:', qrData);
+            log('Valid XRPL address from canvas analysis');
             onScan(qrData);
             cleanup();
             return;
@@ -116,7 +119,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
     };
 
     frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
-    console.log('Canvas-based QR analysis started');
+    log('Canvas-based QR analysis started');
   };
 
   const startQRDetection = () => {
@@ -126,19 +129,19 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result: any) => {
-          console.log('QR Code detected via QrScanner:', result);
+          log('QR Code detected via QrScanner');
           
           // Handle the result data
           const qrData = typeof result === 'string' ? result : String(result);
-          console.log('Extracted QR data:', qrData);
+          log('Extracted QR data');
           
           // Validate XRPL address format
           if (qrData && qrData.startsWith('r') && qrData.length >= 25 && qrData.length <= 34) {
-            console.log('Valid XRPL address detected:', qrData);
+            log('Valid XRPL address detected');
             onScan(qrData);
             cleanup();
           } else {
-            console.log('QR detected but not a valid XRPL address:', qrData);
+            log('QR detected but not a valid XRPL address');
             // Continue scanning for valid address
           }
         },
@@ -157,13 +160,13 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
-        console.log('QR scanner actively processing video feed');
+        log('QR scanner actively processing video feed');
         
         // Start fallback canvas analysis immediately
         startCanvasAnalysis();
         
       }).catch(err => {
-        console.error('QR scanner failed to start:', err);
+        console.error('[WalletScanner] QR scanner failed to start:', err);
         setError('QR detection failed to initialize');
         
         // Use canvas analysis as fallback
@@ -171,7 +174,7 @@ export function WalletAddressScanner({ onScan, onClose, title = "Scan Account Ad
       });
 
     } catch (err) {
-      console.error('QR scanner setup error:', err);
+      console.error('[WalletScanner] QR scanner setup error:', err);
       setError('Failed to setup QR detection');
       
       // Use canvas analysis as fallback

@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
 import QrScanner from 'qr-scanner';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[KeystoneScanner]', ...args);
+
 interface KeystoneAccountScannerProps {
   onScan: (address: string, publicKey: string) => void;
   onClose: () => void;
@@ -29,8 +32,8 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     try {
       setError(null);
       setIsScanning(true);
-      hasScannedRef.current = false; // Reset scan flag when starting new scan
-      console.log('Starting Keystone account QR scanner...');
+      hasScannedRef.current = false;
+      log('Starting Keystone account QR scanner...');
 
       scannerRef.current = new QrScanner(
         videoRef.current,
@@ -43,9 +46,9 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       );
 
       await scannerRef.current.start();
-      console.log('Camera stream active for Keystone account scanning');
+      log('Camera stream active');
     } catch (err) {
-      console.error('Failed to start camera:', err);
+      console.error('[KeystoneScanner] Failed to start camera:', err);
       setError('Failed to access camera. Please ensure camera permissions are granted.');
       setIsScanning(false);
     }
@@ -61,58 +64,54 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   };
 
   const handleScanResult = async (data: string) => {
-    // Prevent multiple scans from triggering duplicate wallet creation
     if (hasScannedRef.current) {
-      console.log('Already processed a scan, ignoring duplicate');
+      log('Already processed a scan, ignoring duplicate');
       return;
     }
     
-    console.log('Scanned QR data:', data);
+    log('Scanned QR data received');
 
     try {
       // Handle Keystone UR format (case insensitive)
       const upperData = data.toUpperCase();
       
       if (upperData.startsWith('UR:BYTES/') || upperData.startsWith('UR:XRP-ACCOUNT/')) {
-        console.log('Keystone UR detected, decoding...');
+        log('Keystone UR detected, decoding...');
         
         // Parse the UR data to extract address and public key
         const urData = await parseKeystoneAccountUR(data);
         if (urData) {
-          console.log('Successfully parsed Keystone account:', urData);
+          log('Successfully parsed Keystone account');
           // Mark as scanned BEFORE stopping and calling onScan to prevent race conditions
           hasScannedRef.current = true;
           stopScanning();
           onScan(urData.address, urData.publicKey);
           return;
         } else {
-          console.log('Failed to parse Keystone UR data');
+          log('Failed to parse Keystone UR data');
           setError('Could not parse the Keystone UR data. Please ensure your device is displaying the account QR code.');
           return;
         }
       }
 
       // Only accept proper Keystone UR codes
-      console.log('QR code is not a valid Keystone UR format');
+      log('QR code is not a valid Keystone UR format');
       setError('Please scan the account QR code from your Keystone 3 Pro device. Looking for UR:BYTES/ format.');
     } catch (err) {
-      console.error('Error parsing QR data:', err);
+      console.error('[KeystoneScanner] Error parsing QR data:', err);
       setError('Invalid QR code format. Please scan the account QR from Keystone 3 Pro.');
     }
   };
 
   const parseKeystoneAccountUR = async (urData: string): Promise<{ address: string; publicKey: string } | null> => {
     try {
-      console.log('Parsing Keystone UR:', urData);
+      log('Parsing Keystone UR');
       
-      // Handle the actual Keystone UR format
       const upperData = urData.toUpperCase();
       
       if (upperData.startsWith('UR:BYTES/') || upperData.startsWith('UR:XRP-ACCOUNT/')) {
-        // Extract the UR content
         const urContent = urData.substring(urData.indexOf('/') + 1);
-        console.log('UR content to decode:', urContent.substring(0, 50) + '...');
-        console.log('Decoding UR using Bytewords minimal format...');
+        log('Decoding UR using Bytewords minimal format...');
         
         // @ts-ignore - cbor-web doesn't have TypeScript types
         const { decode: cborDecode } = await import('cbor-web');
@@ -170,7 +169,6 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
           const byteValue = minimalLookup[pair];
           
           if (byteValue === undefined) {
-            console.log('Unknown byteword pair:', pair, 'at position', i);
             continue;
           }
           
@@ -178,51 +176,38 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         }
         
         const decodedBytes = new Uint8Array(bytes);
-        console.log('Decoded bytes length:', decodedBytes.length);
-        console.log('First 20 bytes:', Array.from(decodedBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
+        log('Decoded bytes length:', decodedBytes.length);
         
-        // Strip CRC32 checksum (last 4 bytes) if present
         const dataWithoutCRC = decodedBytes.length >= 4 
           ? decodedBytes.slice(0, -4) 
           : decodedBytes;
         
-        console.log('Data without CRC length:', dataWithoutCRC.length);
-        
-        // First try to decode as UTF-8 JSON (most common for Keystone account QRs)
         try {
           const textDecoder = new TextDecoder();
           let jsonString = textDecoder.decode(dataWithoutCRC);
-          console.log('Decoded as UTF-8 text:', jsonString);
           
-          // Skip any leading bytes that aren't JSON (like length prefixes)
-          // Find the first '{' character which starts JSON
           const jsonStart = jsonString.indexOf('{');
           if (jsonStart > 0) {
             jsonString = jsonString.substring(jsonStart);
-            console.log('Trimmed to JSON:', jsonString);
           }
           
           const parsed = JSON.parse(jsonString);
-          console.log('Parsed as JSON:', parsed);
+          log('Parsed as JSON');
           
-          // Extract address and public key (try both "pubkey" and "publicKey")
           const address = parsed.address || parsed.Address || parsed.classic_address;
           const publicKey = parsed.pubkey || parsed.publicKey || parsed.PublicKey || parsed.pubKey || parsed.public_key || parsed.key;
           
           if (address && publicKey) {
-            console.log('Successfully extracted from JSON:', { address, publicKey });
+            log('Successfully extracted from JSON');
             return { address, publicKey };
           }
         } catch (jsonError) {
-          console.log('Not valid UTF-8 JSON, trying CBOR:', jsonError);
+          log('Not valid UTF-8 JSON, trying CBOR');
         }
         
-        // Try CBOR decoding as fallback
         try {
           const cborData = cborDecode(dataWithoutCRC);
-          console.log('CBOR decoded successfully:', cborData);
-          console.log('CBOR data type:', typeof cborData, Array.isArray(cborData) ? 'array' : '');
-          console.log('CBOR data keys:', cborData && typeof cborData === 'object' ? Object.keys(cborData) : 'N/A');
+          log('CBOR decoded successfully');
           
           // Try to extract address and public key from CBOR data
           const extractFromData = (data: any): { address: string; publicKey: string } | null => {
@@ -269,17 +254,17 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
           
           const extracted = extractFromData(cborData);
           if (extracted) {
-            console.log('Successfully extracted account info:', extracted);
+            log('Successfully extracted account info');
             return extracted;
           }
         } catch (cborError) {
-          console.log('CBOR decode also failed:', cborError);
+          log('CBOR decode also failed');
         }
       }
 
       return null;
     } catch (error) {
-      console.error('Failed to parse Keystone UR:', error);
+      console.error('[KeystoneScanner] Failed to parse Keystone UR:', error);
       return null;
     }
   };

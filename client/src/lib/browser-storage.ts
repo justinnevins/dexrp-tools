@@ -8,6 +8,9 @@ import type {
 } from "@shared/schema";
 import type { StoredOffer, OfferFill } from './dex-types';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[Storage]', ...args);
+
 export interface XRPLSettings {
   customMainnetNode?: string;
   customTestnetNode?: string;
@@ -63,12 +66,12 @@ class BrowserStorage {
         const legacyNetwork = localStorage.getItem('xrpl-network') as 'mainnet' | 'testnet' | null;
         const inferredNetwork = legacyNetwork || 'mainnet';
         
-        console.warn(`Found ${legacyWallets.length} legacy wallet(s) without network field. Inferring network as '${inferredNetwork}' from old global setting.`);
-        console.warn('If this is incorrect, please edit each wallet to set the correct network from the Profile page.');
+        log(`Found ${legacyWallets.length} legacy wallet(s) without network field. Inferring network as '${inferredNetwork}' from old global setting.`);
+        log('If this is incorrect, please edit each wallet to set the correct network from the Profile page.');
         
         const migratedWallets = wallets.map(wallet => {
           if (!wallet.network) {
-            console.log(`Migrating wallet ${wallet.id} (${wallet.address}) to ${inferredNetwork}`);
+            log(`Migrating wallet ${wallet.id} to ${inferredNetwork}`);
             return {
               ...wallet,
               network: inferredNetwork
@@ -79,7 +82,7 @@ class BrowserStorage {
         
         this.saveData(this.STORAGE_KEYS.WALLETS, migratedWallets);
         localStorage.setItem('xrpl_wallet_network_migration_v1', 'completed');
-        console.log('Legacy wallet migration completed');
+        log('Legacy wallet migration completed');
         
         return migratedWallets;
       } else {
@@ -111,7 +114,7 @@ class BrowserStorage {
       w.address === insertWallet.address && w.network === network
     );
     if (existingWallet) {
-      console.log('Wallet with this address and network already exists:', existingWallet);
+      log('Wallet with this address and network already exists');
       throw new Error(`Account with address ${insertWallet.address} already exists on ${network}`);
     }
     
@@ -136,7 +139,7 @@ class BrowserStorage {
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
     this.saveCounters(counters);
     
-    console.log('Wallet created successfully:', wallet);
+    log('Wallet created successfully');
     return wallet;
   }
 
@@ -170,7 +173,7 @@ class BrowserStorage {
     };
     
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
-    console.log('Wallet updated successfully:', wallets[index]);
+    log('Wallet updated successfully');
     return wallets[index];
   }
 
@@ -370,7 +373,7 @@ class BrowserStorage {
     
     // If offer doesn't exist, create a placeholder (historical fill before we tracked the offer)
     if (!offer) {
-      console.log(`Creating placeholder offer for historical fill: ${walletAddress} ${network} ${sequence}`);
+      log(`Creating placeholder offer for historical fill`);
       offer = {
         sequence,
         walletAddress,
@@ -388,7 +391,7 @@ class BrowserStorage {
     // Check if this fill already exists (by txHash)
     const existingFill = offer.fills.find(f => f.txHash === fill.txHash);
     if (existingFill) {
-      console.log(`Fill already recorded for offer ${sequence}: ${fill.txHash}`);
+      log(`Fill already recorded for offer ${sequence}`);
       return;
     }
     

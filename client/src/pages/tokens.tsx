@@ -20,6 +20,9 @@ import { browserStorage } from '@/lib/browser-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[Tokens]', ...args);
+
 export default function Tokens() {
   const [trustlineModalOpen, setTrustlineModalOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -41,7 +44,7 @@ export default function Tokens() {
     if (!currentWallet || isRefreshing) return;
     
     setIsRefreshing(true);
-    console.log('Manual refresh triggered');
+    log('Manual refresh triggered');
     
     try {
       await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
@@ -55,9 +58,9 @@ export default function Tokens() {
           query.queryKey[0] === 'accountInfo' &&
           query.queryKey[1] === currentWallet.address
       });
-      console.log('Manual refresh complete');
+      log('Manual refresh complete');
     } catch (error) {
-      console.error('Refresh failed:', error);
+      console.error('[Tokens] Refresh failed:', error);
     } finally {
       setIsRefreshing(false);
     }
@@ -176,7 +179,7 @@ export default function Tokens() {
         // The XRPL library will handle the encoding automatically
         const currencyCode = trustlineToDelete.rawCurrency || trustlineToDelete.currency;
 
-        console.log('Currency for TrustSet:', {
+        log('Currency for TrustSet:', {
           currency: currencyCode,
           issuer: trustlineToDelete.issuer
         });
@@ -196,7 +199,7 @@ export default function Tokens() {
           SigningPubKey: currentWallet.publicKey || ""
         };
 
-        console.log('Preparing TrustSet transaction to remove trustline:', trustSetTx);
+        log('Preparing TrustSet transaction to remove trustline');
 
         // Encode the transaction for Keystone using client-side SDK (no server dependency)
         const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
@@ -245,7 +248,7 @@ export default function Tokens() {
   };
 
   const handleRemoveTrustlineSuccess = async () => {
-    console.log('handleRemoveTrustlineSuccess called');
+    log('handleRemoveTrustlineSuccess called');
     
     // Reset state immediately
     setRemoveTrustlineData(null);
@@ -257,12 +260,12 @@ export default function Tokens() {
     });
     
     // Wait for XRPL ledger to validate the transaction (typically 3-5 seconds)
-    console.log('Waiting for ledger validation before refresh...');
+    log('Waiting for ledger validation before refresh...');
     await new Promise(resolve => setTimeout(resolve, 4000));
     
     // Force refetch queries to refresh the trustline list
     if (currentWallet) {
-      console.log('Refetching trustline queries for wallet:', currentWallet.id);
+      log('Refetching trustline queries for wallet:', currentWallet.id);
       setIsRefreshing(true);
       try {
         await queryClient.refetchQueries({ queryKey: ['browser-trustlines', currentWallet.id] });
@@ -276,7 +279,7 @@ export default function Tokens() {
             query.queryKey[0] === 'accountInfo' &&
             query.queryKey[1] === currentWallet.address
         });
-        console.log('Query refetch complete');
+        log('Query refetch complete');
       } finally {
         setIsRefreshing(false);
       }

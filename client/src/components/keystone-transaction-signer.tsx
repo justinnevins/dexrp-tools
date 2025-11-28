@@ -9,6 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
 import { parseKeystoneSignature } from '@/lib/keystone-client';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[KeystoneSigner]', ...args);
+
 interface KeystoneTransactionSignerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -58,40 +61,35 @@ export function KeystoneTransactionSigner({
   };
 
   const handleSignedQRScan = async (signedQRData: string) => {
-    console.log('=== HANDLE SIGNED QR SCAN STARTED ===');
-    console.log('Transaction type:', transactionType);
+    log('Handle signed QR scan started, type:', transactionType);
     
     if (!unsignedTransaction) {
-      console.error('Missing unsigned transaction data');
+      console.error('[KeystoneSigner] Missing unsigned transaction data');
       return;
     }
 
     if (currentStep === 'submitting' || isSubmitting) {
-      console.log('Already processing a signed transaction, ignoring...');
+      log('Already processing a signed transaction, ignoring...');
       return;
     }
 
     try {
-      console.log('Setting step to submitting and closing scanner...');
+      log('Setting step to submitting and closing scanner...');
       setCurrentStep('submitting');
       setIsSubmitting(true);
       setShowSignedQRScanner(false);
 
-      console.log('Processing signed QR from Keystone:', signedQRData.substring(0, 50) + '...');
+      log('Processing signed QR from Keystone');
 
       let signedTransaction;
       try {
-        console.log('Raw signed QR data:', signedQRData.substring(0, 100) + '...');
-        
         if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/') || 
             signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
-          console.log('Keystone UR format detected');
+          log('Keystone UR format detected');
           
           try {
-            // Use client-side Keystone SDK (no server dependency)
             const result = parseKeystoneSignature(signedQRData);
-            console.log('Client decoded signature:', result);
-            console.log('Signature length:', result.signature?.length);
+            log('Client decoded signature, length:', result.signature?.length);
             
             if (!unsignedTransaction) {
               throw new Error('Original transaction not found');
@@ -103,7 +101,7 @@ export function KeystoneTransactionSigner({
             // A full signed tx blob starts with "1200" (Payment), "1400" (TrustSet), etc.
             // and is much longer than a bare signature (which is typically 140-144 hex chars)
             const signatureData = result.signature;
-            console.log('Signature data length:', signatureData.length);
+            log('Signature data length:', signatureData.length);
             
             let txBlob: string;
             
@@ -111,7 +109,7 @@ export function KeystoneTransactionSigner({
             // XRPL serialized transactions start with field type codes like 1200 (Payment), 1400 (TrustSet), etc.
             if (signatureData.length > 200 && /^1[0-9a-f]00/i.test(signatureData)) {
               // This is a full signed transaction blob from Keystone - use it directly
-              console.log('Keystone returned full signed transaction blob, using directly');
+              log('Keystone returned full signed transaction blob, using directly');
               txBlob = signatureData.toUpperCase();
             } else {
               // This is just a signature - combine with unsigned transaction
@@ -119,7 +117,7 @@ export function KeystoneTransactionSigner({
                 ...unsignedTransaction,
                 TxnSignature: signatureData
               };
-              console.log('Signed transaction assembled:', signedTx);
+              log('Signed transaction assembled');
               txBlob = encode(signedTx);
             }
             
@@ -129,7 +127,7 @@ export function KeystoneTransactionSigner({
             };
             
           } catch (decodeError: any) {
-            console.error('Client-side decoding failed:', decodeError?.message || decodeError);
+            console.error('[KeystoneSigner] Client-side decoding failed:', decodeError?.message || decodeError);
             throw new Error('Failed to decode Keystone signature. Please try again.');
           }
           
@@ -137,7 +135,7 @@ export function KeystoneTransactionSigner({
           throw new Error('Invalid QR code format. Please scan the signed transaction from your Keystone device.');
         }
       } catch (parseError) {
-        console.error('Failed to parse signed transaction:', parseError);
+        console.error('[KeystoneSigner] Failed to parse signed transaction:', parseError);
         throw parseError;
       }
 
@@ -145,17 +143,13 @@ export function KeystoneTransactionSigner({
         throw new Error('No valid transaction blob found in signed data');
       }
 
-      console.log('Submitting signed transaction to XRPL...');
-      console.log('Transaction blob:', signedTransaction.txBlob);
+      log('Submitting signed transaction to XRPL...');
 
-      // Get the custom endpoint configured for this network
       const customEndpoint = xrplClient.getEndpoint(network);
-      console.log(`🌐 Transaction will be submitted to: ${customEndpoint} (${network})`);
-      console.log(`Transaction type: ${transactionType}`);
+      log(`Transaction will be submitted to: ${customEndpoint} (${network})`);
 
-      // Submit directly to XRPL using client-side connection (no server dependency)
       const submitResult = await xrplClient.submitTransaction(signedTransaction.txBlob, network);
-      console.log('✓ Transaction submitted successfully:', submitResult);
+      log('Transaction submitted successfully');
       
       if (!submitResult.success) {
         throw new Error(submitResult.engineResultMessage || 'Transaction submission failed');
@@ -172,18 +166,16 @@ export function KeystoneTransactionSigner({
           : "Transaction completed successfully",
       });
 
-      // Call onSuccess immediately to trigger query invalidation
-      console.log('Calling onSuccess callback with hash:', submitResult.hash);
+      log('Calling onSuccess callback');
       onSuccess?.(submitResult.hash || '');
       
-      // Close dialog after a short delay for user to see success state
       setTimeout(() => {
-        console.log('Closing dialog after success');
+        log('Closing dialog after success');
         handleQRDialogClose();
       }, 1500);
 
     } catch (error) {
-      console.error('Transaction signing/submission failed:', error);
+      console.error('[KeystoneSigner] Transaction signing/submission failed:', error);
       setCurrentStep('qr-display');
       setIsSubmitting(false);
       
@@ -196,7 +188,7 @@ export function KeystoneTransactionSigner({
   };
 
   const handleMarkSigned = () => {
-    console.log('User ready to scan signed transaction from Keystone');
+    log('User ready to scan signed transaction from Keystone');
     setShowSignedQRScanner(true);
   };
 

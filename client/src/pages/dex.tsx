@@ -43,6 +43,9 @@ import {
   type ExecutionEstimate
 } from '@/lib/order-book-depth';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[DEX]', ...args);
+
 // Common XRPL tokens with mainnet/testnet issuers
 interface CommonToken {
   name: string;
@@ -205,7 +208,7 @@ export default function DEX() {
         setBaseReserve(reserves.baseReserve);
         setIncrementReserve(reserves.incrementReserve);
       } catch (error) {
-        console.error('Failed to fetch reserve requirements:', error);
+        console.error('[DEX] Failed to fetch reserve requirements:', error);
         // Keep using the default fallback values (20/2)
       }
     };
@@ -316,7 +319,7 @@ export default function DEX() {
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
 
-    console.log('MAX clicked:', {
+    log('MAX clicked:', {
       orderSide,
       baseAsset,
       quoteAsset,
@@ -330,7 +333,7 @@ export default function DEX() {
         ? parseFloat(getXRPBalance())
         : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
 
-      console.log('Buy MAX calculation:', {
+      log('Buy MAX calculation:', {
         quoteBalance,
         price,
         isQuoteXRP: quoteInfo.currency === 'XRP'
@@ -346,7 +349,7 @@ export default function DEX() {
         incrementReserve
       );
 
-      console.log('Buy MAX result:', maxCalc);
+      log('Buy MAX result');
 
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
@@ -358,7 +361,7 @@ export default function DEX() {
         ? parseFloat(getXRPBalance())
         : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
 
-      console.log('Sell MAX calculation:', {
+      log('Sell MAX calculation:', {
         baseBalance,
         price,
         isBaseXRP: baseInfo.currency === 'XRP'
@@ -374,7 +377,7 @@ export default function DEX() {
         incrementReserve
       );
 
-      console.log('Sell MAX result:', maxCalc);
+      log('Sell MAX result');
 
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
@@ -453,7 +456,7 @@ export default function DEX() {
       );
       effectivePrice = slippageProtectedPrice.toString();
       
-      console.log('Market order pricing:', {
+      log('Market order pricing:', {
         marketPrice,
         slippageTolerance: slippageTolerance * 100 + '%',
         slippageProtectedPrice,
@@ -641,7 +644,7 @@ export default function DEX() {
         transaction.Expiration = expirationTime - rippleEpoch;
       }
 
-      console.log('Creating OfferCreate transaction:', transaction);
+      log('Creating OfferCreate transaction');
 
       const keystoneUR = await encodeOfferTransaction(transaction);
       
@@ -651,7 +654,7 @@ export default function DEX() {
       setShowSigner(true);
 
     } catch (error) {
-      console.error('Failed to create offer transaction:', error);
+      console.error('[DEX] Failed to create offer transaction:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create offer",
@@ -683,7 +686,7 @@ export default function DEX() {
         SigningPubKey: currentWallet.publicKey || ''
       };
 
-      console.log('Creating OfferCancel transaction:', transaction);
+      log('Creating OfferCancel transaction');
 
       const keystoneUR = await encodeOfferTransaction(transaction);
       
@@ -694,7 +697,7 @@ export default function DEX() {
       setShowSigner(true);
 
     } catch (error) {
-      console.error('Failed to create cancel transaction:', error);
+      console.error('[DEX] Failed to create cancel transaction:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to cancel offer",
@@ -704,7 +707,7 @@ export default function DEX() {
   };
 
   const handleSigningSuccess = async (txHash: string) => {
-    console.log('Offer transaction successful:', txHash);
+    log('Offer transaction successful');
     
     // Save offer to browser storage if it's an OfferCreate
     if (transactionType === 'OfferCreate' && unsignedTransaction && currentWallet) {
@@ -723,7 +726,7 @@ export default function DEX() {
       };
       
       browserStorage.saveOffer(storedOffer);
-      console.log('Saved offer to browser storage:', storedOffer);
+      log('Saved offer to browser storage');
     }
     
     // Wait 4 seconds for XRPL ledger validation, then refetch offers
@@ -804,11 +807,11 @@ export default function DEX() {
         ? { currency: 'XRP' }
         : { currency: quoteInfo.currency, issuer: quoteInfo.issuer };
 
-      console.log('Fetching order book price for:', { baseAsset, quoteAsset, takerGets, takerPays });
+      log('Fetching order book price');
       
       const priceData = await xrplClient.getOrderBookPrice(currentNetwork, takerGets, takerPays);
       
-      console.log('Order book price data:', priceData);
+      log('Order book price data received');
 
       // Use mid-market price (average of bid and ask) if both are available
       if (priceData.bidPrice && priceData.askPrice) {
@@ -828,7 +831,7 @@ export default function DEX() {
         setPriceError('No liquidity found for this trading pair');
       }
     } catch (error: any) {
-      console.error('Failed to fetch order book price:', error);
+      console.error('[DEX] Failed to fetch order book price:', error);
       setMarketPrice(null);
       setPriceError(error.message || 'Failed to load price data');
     } finally {
@@ -875,9 +878,9 @@ export default function DEX() {
       const estimate = estimateExecution(depth, orderSize, slippageTolerance);
       setExecutionEstimate(estimate);
 
-      console.log('Order book depth analysis:', { depth, estimate });
+      log('Order book depth analysis');
     } catch (error: any) {
-      console.error('Failed to analyze order book depth:', error);
+      console.error('[DEX] Failed to analyze order book depth:', error);
       setOrderBookDepth(null);
       setExecutionEstimate(null);
     } finally {

@@ -124,7 +124,7 @@ class NotificationService {
           this.previousTransactionCount = transactions.length;
         }
       } catch (error) {
-        console.error('Error monitoring transactions:', error);
+        console.error('[Notifications] Error monitoring transactions:', error);
       }
     }, 30000);
   }
@@ -138,7 +138,7 @@ class NotificationService {
         this.previousTransactionCount = transactions.length;
       }
     } catch (error) {
-      console.error('Error initializing transaction count:', error);
+      console.error('[Notifications] Error initializing transaction count:', error);
     }
   }
 

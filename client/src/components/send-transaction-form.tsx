@@ -23,6 +23,9 @@ import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
 import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[SendTx]', ...args);
+
 const transactionSchema = z.object({
   destination: z.string().min(1, 'Destination address is required').regex(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/, 'Invalid XRP address format'),
   amount: z.string().min(1, 'Amount is required').refine((val) => {
@@ -42,21 +45,18 @@ interface SendTransactionFormProps {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
-  console.log('=== USING KEYSTONE SDK (CLIENT-SIDE) ===');
-  console.log('Transaction object:', transactionTemplate);
+  log('Encoding transaction for Keystone');
   
   try {
-    // Use client-side Keystone SDK (no server dependency)
     const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
     const result = prepareXrpSignRequest(transactionTemplate);
     
-    console.log('✓ SDK generated type:', result.type);
-    console.log('✓ CBOR hex length:', result.cbor.length);
+    log('SDK generated type:', result.type, 'CBOR length:', result.cbor.length);
     
     return { type: result.type, cbor: result.cbor };
     
   } catch (error) {
-    console.error('❌ Keystone encoding failed:', error);
+    console.error('[SendTx] Keystone encoding failed:', error);
     throw new Error('Failed to encode transaction. Please try again.');
   }
 }
@@ -153,9 +153,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   };
 
   const handleAddressQRScan = (scannedAddress: string) => {
-    console.log('Scanned address:', scannedAddress);
+    log('Address scanned from QR code');
     
-    // Extract XRP address from QR code data
     // QR codes might contain formats like: ripple:rAddress or just rAddress
     let address = scannedAddress.trim();
     
@@ -214,11 +213,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Check both possible ledger index fields (current or validated ledger)
       transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       
-      console.log('Using real XRPL network data:', {
-        sequence: transactionSequence,
-        currentLedger: transactionLedger,
-        accountBalance: accountInfo.account_data.Balance
-      });
+      log('Using real XRPL network data:', { sequence: transactionSequence, currentLedger: transactionLedger });
     }
     
     // Create transaction for Keystone 3 Pro using actual form data
@@ -248,13 +243,10 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }];
     }
 
-    console.log('Creating Keystone transaction object:', xrpTransaction);
+    log('Creating Keystone transaction object');
 
     try {
-      console.log('=== USING KEYSTONE-COMPATIBLE UR ENCODER ===');
-      
-      // Keep SigningPubKey as shown in the working example
-      console.log('Transaction for Keystone:', xrpTransaction);
+      log('Using Keystone-compatible UR encoder');
       
       // Create proper transaction JSON template with actual form data
       const transactionTemplate = {
@@ -274,20 +266,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         (transactionTemplate as any).DestinationTag = parseInt(txData.destinationTag);
       }
       
-      // Convert to formatted JSON string for Keystone
       const txStr = JSON.stringify(transactionTemplate, null, 2);
       
-      console.log('=== TRANSACTION JSON TEMPLATE ===');
-      console.log('Template object:', transactionTemplate);
-      console.log('Formatted JSON for Keystone:', txStr);
-      console.log('Amount in drops:', transactionTemplate.Amount);
-      console.log('Original XRP amount:', txData.amount);
+      log('Transaction template created');
       
-      // Generate Keystone UR using SDK
       const urResult = await encodeKeystoneUR(transactionTemplate);
       
-      console.log('Keystone UR type:', urResult.type);
-      console.log('CBOR length:', urResult.cbor.length);
+      log('Keystone UR type:', urResult.type, 'CBOR length:', urResult.cbor.length);
       
       // Store the unsigned transaction so we can combine it with the signature later
       setPendingUnsignedTx(transactionTemplate);
@@ -295,7 +280,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       return urResult;
       
     } catch (error) {
-      console.error('Keystone encoding failed:', error);
+      console.error('[SendTx] Keystone encoding failed:', error);
       throw new Error('Failed to encode transaction for Keystone 3 Pro');
     }
   };
@@ -360,22 +345,17 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Wait for user to scan QR code and sign with Keystone device
       setCurrentStep('signing');
       
-      console.log('QR code displayed for Keystone 3 Pro signing');
+      log('QR code displayed for Keystone 3 Pro signing');
       
-      // Store transaction data and wait for signed QR scan
       setPendingTransactionData(data);
       
-      // Update QR dialog to show "Scan Signed Transaction" button
       toast({
         title: "Waiting for Signature",
         description: "After signing on your Keystone device, scan the signed transaction QR code",
       });
 
     } catch (error) {
-      console.error('Failed to send transaction:', error);
-      console.error('Transaction data:', data);
-      console.error('Current wallet:', currentWallet);
-      console.error('Current step:', currentStep);
+      console.error('[SendTx] Failed to send transaction:', error);
       
       toast({
         title: "Transaction Failed",
@@ -389,81 +369,64 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   };
 
   const handleSignedQRScan = async (signedQRData: string) => {
-    console.log('=== HANDLE SIGNED QR SCAN STARTED ===');
-    console.log('Current wallet:', !!currentWallet);
-    console.log('Pending transaction data:', !!pendingTransactionData);
+    log('Handle signed QR scan started');
     
     if (!currentWallet || !pendingTransactionData) {
-      console.error('Missing current wallet or pending transaction data');
+      console.error('[SendTx] Missing current wallet or pending transaction data');
       return;
     }
 
-    // Prevent duplicate processing using ref for immediate feedback
     if (processingSignatureRef.current) {
-      console.log('Already processing a signed transaction (ref check), ignoring...');
+      log('Already processing a signed transaction, ignoring...');
       return;
     }
 
     try {
-      console.log('Setting processing flag and closing scanner...');
+      log('Setting processing flag and closing scanner...');
       processingSignatureRef.current = true;
       setCurrentStep('submitting');
       setIsSubmitting(true);
       setShowSignedQRScanner(false);
 
-      console.log('Processing signed QR from Keystone:', signedQRData.substring(0, 50) + '...');
+      log('Processing signed QR from Keystone');
 
-      // Parse the signed transaction QR code from Keystone device
       let signedTransaction;
       try {
-        console.log('Raw signed QR data:', signedQRData.substring(0, 100) + '...');
-        
-        // Handle Keystone signed transaction UR format
         if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/') || 
             signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
-          console.log('Keystone UR format detected');
+          log('Keystone UR format detected');
           
           try {
-            // Use client-side Keystone SDK to decode signature (no server dependency)
-            console.log('Decoding signature using client-side Keystone SDK...');
+            log('Decoding signature using client-side Keystone SDK...');
             const { parseKeystoneSignature } = await import('@/lib/keystone-client');
             const result = parseKeystoneSignature(signedQRData);
-            console.log('Client decoded signature:', result);
+            log('Client decoded signature');
             
-            // Check if Keystone returned a full signed transaction blob or just a signature
-            // A full signed tx blob starts with "1200" (Payment) or similar transaction type prefix
-            // and is much longer than a bare signature (which is typically 140-144 hex chars)
             const signatureData = result.signature;
-            console.log('Signature data length:', signatureData.length);
+            log('Signature data length:', signatureData.length);
             
             let txBlob: string;
             
-            // Check if this is a full XRPL serialized transaction (starts with transaction type)
-            // XRPL serialized transactions start with field type codes like 1200 (Payment), 1400 (TrustSet), etc.
             if (signatureData.length > 200 && /^1[0-9a-f]00/i.test(signatureData)) {
-              // This is a full signed transaction blob from Keystone - use it directly
-              console.log('Keystone returned full signed transaction blob, using directly');
+              log('Keystone returned full signed transaction blob, using directly');
               txBlob = signatureData.toUpperCase();
             } else {
-              // This is just a signature - combine with unsigned transaction
               if (!pendingUnsignedTx) {
                 throw new Error('Original transaction not found');
               }
               
-              // Create the signed transaction by adding the signature
               const signedTx = {
                 ...pendingUnsignedTx,
                 TxnSignature: signatureData
               };
               
-              console.log('Combining transaction with signature:', signedTx);
+              log('Combining transaction with signature');
               
-              // Encode the signed transaction to get the final blob
               txBlob = encode(signedTx);
-              console.log('Encoded signed transaction blob:', txBlob);
+              log('Encoded signed transaction blob');
             }
             
-            console.log('Final transaction blob:', txBlob.substring(0, 50) + '...');
+            log('Final transaction blob ready');
             
             signedTransaction = {
               txBlob: txBlob,
@@ -471,141 +434,16 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             };
             
           } catch (error) {
-            console.error('Keystone signature decoding failed:', error);
+            console.error('[SendTx] Keystone signature decoding failed:', error);
             throw error;
           }
           
-        } else if (false) {  // Disabled - all Keystone QRs should be handled above
-          console.log('Keystone BC-UR bytes format detected');
-          
-          const urContent = signedQRData.substring(9); // Remove 'UR:BYTES/'
-          
-          try {
-            // Keystone 3 Pro uses CBOR-encoded signed transactions in UR format
-            console.log('Attempting CBOR-based decoding for Keystone signed transaction...');
-            
-            // Import CBOR decoder
-            const { decode: cborDecode } = await import('cbor-web');
-            
-            // Try to decode the UR content using base32 decoding (simplified approach)
-            // Keystone encodes the CBOR data in the UR content
-            const urBytes = decodeBase32Like(urContent);
-            
-            console.log('Decoded UR bytes length:', urBytes.length);
-            console.log('UR bytes preview:', Array.from(urBytes.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '));
-            
-            // Decode CBOR data
-            const decodedData = cborDecode(urBytes);
-            console.log('CBOR decoded data:', decodedData);
-            
-            // Extract the signed transaction blob
-            let txBlob = null;
-            if (typeof decodedData === 'object' && decodedData !== null) {
-              // Look for common Keystone signature fields
-              txBlob = decodedData.signature || decodedData.signedTransaction || decodedData.txBlob || decodedData.blob;
-              
-              // If it's nested, check deeper
-              if (!txBlob && decodedData.request) {
-                txBlob = decodedData.request.signature || decodedData.request.signedTransaction;
-              }
-            } else if (typeof decodedData === 'string') {
-              txBlob = decodedData;
-            }
-            
-            if (txBlob && typeof txBlob === 'string' && /^[0-9A-Fa-f]+$/i.test(txBlob)) {
-              console.log('Valid signed transaction blob extracted:', txBlob.substring(0, 50) + '...');
-              signedTransaction = {
-                txBlob: txBlob.toUpperCase(),
-                txHash: null
-              };
-            } else {
-              throw new Error('No valid transaction blob found in decoded CBOR data');
-            }
-            
-          } catch (cborError) {
-            console.error('CBOR decoding failed:', cborError);
-            
-            // Enhanced direct pattern extraction for Keystone UR format
-            try {
-              console.log('Attempting enhanced Keystone UR pattern extraction...');
-              console.log('Raw UR content length:', urContent.length);
-              
-              // The issue is that Keystone's UR format contains CBOR-encoded data
-              // but the current decoding produces invalid XRPL transaction format
-              
-              // Method 1: Look for embedded hex patterns that could be XRPL transactions
-              // XRPL Payment transactions typically start with 0x12 (18 decimal)
-              let extractedTx = '';
-              
-              // Try to find valid XRPL transaction patterns in different ways
-              const patterns = [
-                /12[0-9A-Fa-f]{40,}/g,  // Payment transactions (type 0x12)
-                /00[0-9A-Fa-f]{40,}/g,  // Payment transactions (type 0x00) 
-                /01[0-9A-Fa-f]{40,}/g,  // EscrowCreate transactions
-                /02[0-9A-Fa-f]{40,}/g,  // EscrowFinish transactions
-              ];
-              
-              for (const pattern of patterns) {
-                const matches = urContent.match(pattern);
-                if (matches && matches.length > 0) {
-                  for (const match of matches) {
-                    if (match.length >= 60) { // Minimum reasonable transaction length
-                      console.log(`Found potential XRPL transaction (pattern ${pattern}):`, match.substring(0, 50) + '...');
-                      extractedTx = match;
-                      break;
-                    }
-                  }
-                  if (extractedTx) break;
-                }
-              }
-              
-              // Method 2: If no direct hex pattern found, try decoding the UR content differently
-              if (!extractedTx) {
-                console.log('No direct hex pattern found, attempting alternative decoding...');
-                
-                // The UR content might need different interpretation
-                // Try converting character pairs to hex bytes
-                let alternativeHex = '';
-                for (let i = 0; i < urContent.length - 1; i += 2) {
-                  const pair = urContent.substring(i, i + 2);
-                  // Map character pairs to hex values based on Keystone's encoding
-                  const charSum = pair.charCodeAt(0) + pair.charCodeAt(1);
-                  const hexByte = (charSum % 256).toString(16).padStart(2, '0');
-                  alternativeHex += hexByte;
-                }
-                
-                // Look for XRPL patterns in the alternative hex
-                const altPattern = alternativeHex.match(/(12[0-9A-Fa-f]{60,})/);
-                if (altPattern) {
-                  extractedTx = altPattern[1];
-                  console.log('Found XRPL transaction via alternative decoding:', extractedTx.substring(0, 50) + '...');
-                }
-              }
-              
-              if (extractedTx && extractedTx.length >= 60) {
-                signedTransaction = {
-                  txBlob: extractedTx.toUpperCase(),
-                  txHash: null
-                };
-                console.log('Successfully extracted transaction blob');
-              } else {
-                throw new Error('Unable to extract valid XRPL transaction from Keystone UR data');
-              }
-              
-            } catch (enhancedError) {
-              console.error('Enhanced pattern extraction failed:', enhancedError);
-              throw new Error('Keystone signed transaction format is not compatible. Please ensure your device is using the latest firmware and XRPL app version.');
-            }
-          }
-          
         } else if (signedQRData.startsWith('{')) {
-          // Handle JSON format
-          console.log('JSON format detected');
+          log('JSON format detected');
           signedTransaction = JSON.parse(signedQRData);
           
         } else if (/^[0-9A-Fa-f]+$/.test(signedQRData)) {
-          // Handle raw hex transaction blob
-          console.log('Raw hex transaction blob detected');
+          log('Raw hex transaction blob detected');
           signedTransaction = {
             txBlob: signedQRData,
             txHash: null
@@ -620,52 +458,41 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           throw new Error('Signed transaction missing transaction blob');
         }
         
-        // Validate transaction blob format for XRPL
         const txBlob = signedTransaction.txBlob.toUpperCase();
-        console.log('Validating transaction blob format:', txBlob.substring(0, 50) + '...');
+        log('Validating transaction blob format');
         
         if (!txBlob || txBlob.length < 20 || !/^[0-9A-F]+$/.test(txBlob)) {
           throw new Error('Invalid transaction blob format. Must be valid hex.');
         }
         
-        // Check if this looks like a valid XRPL transaction
-        // XRPL transactions should start with valid transaction type codes
         const firstByte = txBlob.substring(0, 2);
         if (firstByte === '30' || firstByte === '31' || firstByte === '32') {
-          // This appears to be incorrectly decoded - try to find the actual transaction
-          console.warn('Transaction blob appears to be incorrectly decoded. Attempting to extract valid XRPL transaction...');
+          log('Attempting to extract valid XRPL transaction...');
           
-          // Look for common XRPL payment transaction patterns (type 0x00 = Payment)
           const paymentPattern = txBlob.match(/(12[0-9A-F]{40,})/);
           if (paymentPattern) {
-            console.log('Found payment transaction pattern:', paymentPattern[1].substring(0, 50) + '...');
+            log('Found payment transaction pattern');
             signedTransaction.txBlob = paymentPattern[1];
           } else {
             throw new Error('Unable to extract valid XRPL transaction from Keystone signed data. The device may be using an incompatible encoding format.');
           }
         }
         
-        console.log('Parsed signed transaction:', signedTransaction);
+        log('Parsed signed transaction');
         
       } catch (parseError) {
-        console.error('Failed to parse signed QR:', parseError);
+        console.error('[SendTx] Failed to parse signed QR:', parseError);
         throw new Error('Invalid signed transaction QR code format. Please ensure you scanned the signed transaction from your Keystone device.');
       }
 
-      // Get current network from wallet
       const submissionNetwork = currentWallet?.network || 'mainnet';
-      
-      // Get the custom endpoint configured for this network
       const customEndpoint = xrplClient.getEndpoint(submissionNetwork);
       
-      console.log('Submitting transaction to network:', submissionNetwork);
-      console.log('Using XRPL endpoint:', customEndpoint);
-      console.log('Transaction blob:', signedTransaction.txBlob);
+      log('Submitting transaction to network:', submissionNetwork);
       
-      // Submit directly to XRPL using client-side connection (no server dependency)
       const txBlob = signedTransaction.txBlob || signedTransaction.signedTransaction;
       const submitResult = await xrplClient.submitTransaction(txBlob, submissionNetwork);
-      console.log('Transaction submitted:', submitResult);
+      log('Transaction submitted');
       
       if (!submitResult.success) {
         throw new Error(submitResult.engineResultMessage || 'Failed to submit transaction to network');
@@ -689,7 +516,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }
 
     } catch (error) {
-      console.error('Failed to submit signed transaction:', error);
+      console.error('[SendTx] Failed to submit signed transaction:', error);
       toast({
         title: "Transaction Failed",
         description: error instanceof Error ? error.message : "Failed to submit signed transaction",
@@ -776,7 +603,6 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                       <FormLabel>Currency</FormLabel>
                       <Select 
                         onValueChange={(value) => {
-                          console.log('Currency selection changed:', value);
                           const [currency, issuer] = value.split('|');
                           field.onChange(currency);
                           form.setValue('issuer', issuer || '');

@@ -3,6 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[SimpleQR]', ...args);
+
 interface SimpleQRScannerProps {
   onScan: (data: string) => void;
   onClose: () => void;
@@ -33,7 +36,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
 
   const startCamera = async () => {
     try {
-      console.log('Requesting camera access...');
+      log('Requesting camera access...');
       
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -56,7 +59,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
               setIsActive(true);
               setPermissionGranted(true);
               setError(null);
-              console.log('Camera stream active and displaying');
+              log('Camera stream active and displaying');
               startQRScanning();
               
               // Force a re-render to ensure video is visible
@@ -67,7 +70,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
                 }
               }, 100);
             }).catch(err => {
-              console.error('Video play failed:', err);
+              console.error('[SimpleQR] Video play failed:', err);
               setError('Failed to play video stream');
             });
           }
@@ -75,7 +78,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
       }
 
     } catch (err) {
-      console.error('Camera access failed:', err);
+      console.error('[SimpleQR] Camera access failed:', err);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
           setError('Camera permission denied. Please allow camera access.');
@@ -97,7 +100,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
       const QrScanner = (await import('qr-scanner')).default;
       
       if (videoRef.current) {
-        console.log('Starting QR scanner...');
+        log('Starting QR scanner...');
         setIsScanning(true);
         
         // Scan every 500ms
@@ -108,7 +111,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
               
               if (result && result.data) {
                 const qrData = result.data.trim();
-                console.log('QR code detected:', qrData);
+                log('QR code detected');
                 
                 // Mark as scanned to prevent multiple scans
                 hasScannedRef.current = true;
@@ -129,7 +132,7 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
         }, 500);
       }
     } catch (error) {
-      console.error('Failed to initialize QR scanner:', error);
+      console.error('[SimpleQR] Failed to initialize QR scanner:', error);
       setError('Failed to initialize QR scanner');
     }
   };
@@ -154,11 +157,11 @@ export function SimpleQRScanner({ onScan, onClose, title = "Scan QR Code", descr
 
   const manualEntry = () => {
     try {
-      console.log('Manual entry clicked, title:', title);
+      log('Manual entry clicked');
       
       // Handle different types of manual entry based on title
       if (title.includes('Signed Transaction')) {
-        console.log('Opening signed transaction prompt...');
+        log('Opening signed transaction prompt...');
         
         // For signed transactions, create a more user-friendly input method
         const signedData = window.prompt(`Paste the signed transaction UR code from your Keystone device:
@@ -167,25 +170,25 @@ Format should be: UR:BYTES/[long string]
 
 Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
         
-        console.log('User entered data:', signedData ? 'data provided' : 'no data');
+        log('User entered data');
         
         if (signedData && signedData.trim()) {
           const trimmedData = signedData.trim();
-          console.log('Trimmed data starts with:', trimmedData.substring(0, 20));
+          log('Processing manual entry data');
           
           if (trimmedData.toUpperCase().startsWith('UR:')) {
-            console.log('Valid UR format, calling onScan...');
+            log('Valid UR format, calling onScan...');
             onScan(trimmedData);
           } else {
-            console.log('Invalid format detected');
+            log('Invalid format detected');
             alert('Invalid format. Please enter the complete UR code starting with "UR:"');
           }
         } else {
-          console.log('No data entered or empty string');
+          log('No data entered or empty string');
         }
       } else {
         // For account addresses
-        console.log('Opening address prompt...');
+        log('Opening address prompt...');
         const address = prompt('Enter XRPL account address (starting with "r"):');
         if (address && address.startsWith('r') && address.length >= 25) {
           onScan(address);
@@ -194,7 +197,7 @@ Example: UR:BYTES/HDRFBGAEAECPLAAEAE...`);
         }
       }
     } catch (error) {
-      console.error('Manual entry error:', error);
+      console.error('[SimpleQR] Manual entry error:', error);
       alert('Error opening input dialog. Please try again.');
     }
   };

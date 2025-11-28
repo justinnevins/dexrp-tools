@@ -4,6 +4,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Camera, X } from 'lucide-react';
 import QrScanner from 'qr-scanner';
 
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[CameraScanner]', ...args);
+
 interface CameraScannerProps {
   onScan: (data: string) => void;
   onClose: () => void;
@@ -28,7 +31,7 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
 
   const initCamera = async () => {
     try {
-      console.log('Requesting camera...');
+      log('Requesting camera...');
       
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -49,21 +52,21 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
           video.play().then(() => {
             setIsActive(true);
             setError(null);
-            console.log('Video playing successfully');
+            log('Video playing successfully');
             
             // Start QR scanner after video is playing
             setTimeout(() => {
               initQRScanner();
             }, 500);
           }).catch(err => {
-            console.error('Play failed:', err);
+            console.error('[CameraScanner] Play failed:', err);
             setError('Failed to start video playback');
           });
         });
       }
 
     } catch (err) {
-      console.error('Camera init failed:', err);
+      console.error('[CameraScanner] Camera init failed:', err);
       setError(`Camera access failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
@@ -76,10 +79,10 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result) => {
-          console.log('QR Code detected:', result);
+          log('QR Code detected');
           // Handle the result data
           const qrData = typeof result === 'string' ? result : String(result);
-          console.log('QR data:', qrData);
+          log('QR data received');
           
           // Extract address from QR data
           let address = qrData;
@@ -92,11 +95,11 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
           
           // Validate it looks like an XRPL address
           if (address && address.startsWith('r') && address.length >= 25) {
-            console.log('Valid XRPL address found:', address);
+            log('Valid XRPL address found');
             onScan(address);
             cleanup();
           } else {
-            console.log('Invalid address format:', address);
+            log('Invalid address format');
           }
         },
         {
@@ -108,14 +111,14 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
-        console.log('Enhanced QR scanner initialized and scanning');
+        log('Enhanced QR scanner initialized and scanning');
       }).catch(err => {
-        console.error('QR scanner start failed:', err);
+        console.error('[CameraScanner] QR scanner start failed:', err);
         setError('QR scanner could not start');
       });
 
     } catch (err) {
-      console.error('QR scanner setup failed:', err);
+      console.error('[CameraScanner] QR scanner setup failed:', err);
       setError('Failed to initialize QR scanner');
     }
   };
@@ -146,7 +149,7 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
   const testManualScan = async () => {
     if (!videoRef.current) return;
     
-    console.log('Testing manual QR scan...');
+    log('Testing manual QR scan...');
     
     try {
       // Create a canvas to capture the current video frame
@@ -163,26 +166,26 @@ export function CameraScanner({ onScan, onClose, title = "Scan QR Code", descrip
         // Try to scan the canvas image
         try {
           const result = await QrScanner.scanImage(canvas);
-          console.log('Manual scan success:', result);
+          log('Manual scan success');
           onScan(result);
           cleanup();
         } catch (scanErr) {
-          console.log('No QR code detected in current frame');
+          log('No QR code detected in current frame');
           
           // Also try scanning the video element directly
           try {
             const videoResult = await QrScanner.scanImage(video);
-            console.log('Video scan success:', videoResult);
+            log('Video scan success');
             onScan(videoResult);
             cleanup();
           } catch (videoErr) {
-            console.log('No QR code found in video element either');
+            log('No QR code found in video element either');
             alert('No QR code detected. Make sure the QR code is clearly visible and well-lit.');
           }
         }
       }
     } catch (err) {
-      console.error('Manual scan error:', err);
+      console.error('[CameraScanner] Manual scan error:', err);
       alert('Scan failed. Please try manual entry instead.');
     }
   };

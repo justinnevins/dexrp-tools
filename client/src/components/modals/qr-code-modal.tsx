@@ -39,7 +39,7 @@ export function QRCodeModal({
       setStream(mediaStream);
       setShowScanner(true);
     } catch (error) {
-      console.error('Camera access failed:', error);
+      console.error('[QRCode] Camera access failed:', error);
     }
   };
 
