@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { WalletProvider } from "@/contexts/wallet-context";
+import { FormSubmissionProvider } from "@/contexts/form-submission-context";
 import { MobileAppLayout } from "@/components/layout/mobile-app-layout";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Capacitor } from "@capacitor/core";
