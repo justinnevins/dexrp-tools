@@ -425,8 +425,12 @@ class XRPLClient {
   }
 
   /**
-   * Fetches transaction history for an account using full history servers.
-   * Automatically falls back to regular endpoint if full history server fails.
+   * Fetches transaction history for an account.
+   * 
+   * Priority order:
+   * 1. If custom full history server is configured → use it
+   * 2. If custom node URL is configured → try it first, fall back to default full history server if incomplete
+   * 3. Otherwise → use default full history server
    * 
    * @param address - The XRPL account address
    * @param network - The network to query (mainnet or testnet)
@@ -434,35 +438,23 @@ class XRPLClient {
    * @returns Array of account transactions with metadata
    */
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
-    const fullHistoryEndpoint = this.fullHistoryEndpoints[network] || this.defaultFullHistoryEndpoints[network];
+    const customFullHistory = this.fullHistoryEndpoints[network];
+    const customNode = this.customEndpoints[network];
+    const defaultFullHistory = this.defaultFullHistoryEndpoints[network];
     
-    let connector: XRPLConnector | null = null;
-    let usingTemporaryConnector = false;
+    // Helper to check if error indicates incomplete history
+    const isIncompleteHistoryError = (error: any): boolean => {
+      const errorCode = error.data?.error || error.error || '';
+      return errorCode === 'lgrNotFound' || 
+             errorCode === 'lgrIdxMalformed' ||
+             errorCode === 'lgrIdxsInvalid' ||
+             errorCode === 'noNetwork' ||
+             errorCode === 'noCurrent' ||
+             errorCode === 'noLedger';
+    };
     
-    log(`Using full history server for transactions: ${fullHistoryEndpoint}`);
-    
-    try {
-      connector = this.createConnector(fullHistoryEndpoint);
-      usingTemporaryConnector = true;
-      await connector.connect();
-    } catch (error) {
-      warn(`Failed to connect to full history server, falling back to regular endpoint`);
-      
-      // Fall back to regular endpoint if full history server fails
-      await this.connect(network);
-      const state = this.clients.get(network);
-      if (!state) {
-        throw new Error(`Client not initialized for network: ${network}`);
-      }
-      connector = state.connector;
-      usingTemporaryConnector = false;
-    }
-    
-    try {
-      if (!connector) {
-        throw new Error('No connector available for transaction query');
-      }
-      
+    // Helper to make account_tx request
+    const makeRequest = async (connector: XRPLConnector) => {
       const response = await connector.request({
         command: 'account_tx',
         account: address,
@@ -471,49 +463,89 @@ class XRPLClient {
         ledger_index_max: -1
       });
       return response.result;
-    } catch (error: any) {
-      // Handle account not found error (account not activated)
-      if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
-        return { transactions: [], account: address, marker: undefined };
+    };
+    
+    // Case 1: Custom full history server is configured - use it directly
+    if (customFullHistory) {
+      log(`Using custom full history server: ${customFullHistory}`);
+      let connector: XRPLConnector | null = null;
+      try {
+        connector = this.createConnector(customFullHistory);
+        await connector.connect();
+        return await makeRequest(connector);
+      } catch (error: any) {
+        if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
+          return { transactions: [], account: address, marker: undefined };
+        }
+        console.error('[XRPL] Error fetching transactions from custom full history server:', error);
+        throw error;
+      } finally {
+        if (connector) {
+          try { await connector.disconnect(); } catch {}
+        }
       }
-      
-      // If we were using the temporary connector and it failed, fall back to regular endpoint
-      if (usingTemporaryConnector) {
-        warn(`Full history server request failed, falling back to regular endpoint`);
+    }
+    
+    // Case 2: Custom node URL is configured - try it first, fall back to default full history
+    if (customNode) {
+      log(`Trying custom node for transactions: ${customNode}`);
+      try {
+        await this.connect(network);
+        const state = this.clients.get(network);
+        if (state) {
+          const result = await makeRequest(state.connector);
+          log(`Custom node returned transactions successfully`);
+          return result;
+        }
+      } catch (error: any) {
+        if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
+          return { transactions: [], account: address, marker: undefined };
+        }
+        
+        // If incomplete history error, fall back to default full history server
+        if (isIncompleteHistoryError(error)) {
+          warn(`Custom node has incomplete history, falling back to default full history server`);
+        } else {
+          warn(`Custom node request failed, falling back to default full history server`);
+        }
+        
+        // Fall back to default full history server
+        let fallbackConnector: XRPLConnector | null = null;
         try {
-          await this.connect(network);
-          const state = this.clients.get(network);
-          if (!state) {
-            throw new Error(`Client not initialized for network: ${network}`);
-          }
-          
-          const fallbackResponse = await state.connector.request({
-            command: 'account_tx',
-            account: address,
-            limit,
-            ledger_index_min: -1,
-            ledger_index_max: -1
-          });
-          return fallbackResponse.result;
+          log(`Using default full history server: ${defaultFullHistory}`);
+          fallbackConnector = this.createConnector(defaultFullHistory);
+          await fallbackConnector.connect();
+          return await makeRequest(fallbackConnector);
         } catch (fallbackError: any) {
-          // If fallback also fails, throw the original error
           if (fallbackError.data?.error === 'actNotFound' || fallbackError.error === 'actNotFound') {
             return { transactions: [], account: address, marker: undefined };
           }
           console.error('[XRPL] Error fetching transactions (both endpoints failed):', fallbackError);
           throw fallbackError;
+        } finally {
+          if (fallbackConnector) {
+            try { await fallbackConnector.disconnect(); log('Disconnected default full history server connector'); } catch {}
+          }
         }
       }
-      
+    }
+    
+    // Case 3: No custom endpoints - use default full history server
+    log(`Using default full history server: ${defaultFullHistory}`);
+    let connector: XRPLConnector | null = null;
+    try {
+      connector = this.createConnector(defaultFullHistory);
+      await connector.connect();
+      return await makeRequest(connector);
+    } catch (error: any) {
+      if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
+        return { transactions: [], account: address, marker: undefined };
+      }
       console.error('[XRPL] Error fetching transactions:', error);
       throw error;
     } finally {
-      if (usingTemporaryConnector && connector) {
-        try {
-          await connector.disconnect();
-          log('Disconnected temporary full history server connector');
-        } catch {
-        }
+      if (connector) {
+        try { await connector.disconnect(); log('Disconnected full history server connector'); } catch {}
       }
     }
   }
