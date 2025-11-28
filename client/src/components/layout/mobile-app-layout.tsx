@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
@@ -8,6 +8,40 @@ import { AccountSwitcher } from '@/components/account-switcher';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 import { fetchXRPToRLUSDPrice, formatPrice, type DEXPriceData } from '@/lib/xrp-price';
 import { useWallet } from '@/hooks/use-wallet';
+
+function ThemeToggleIcon({ theme }: { theme: 'light' | 'dark' | 'system' }) {
+  const [systemPrefersDark, setSystemPrefersDark] = useState(
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  const resolvedTheme = useMemo(() => {
+    if (theme === 'system') {
+      return systemPrefersDark ? 'dark' : 'light';
+    }
+    return theme;
+  }, [theme, systemPrefersDark]);
+
+  const isAuto = theme === 'system';
+  const Icon = resolvedTheme === 'dark' ? Sun : Moon;
+
+  return (
+    <div className="relative">
+      <Icon className="w-4 h-4" />
+      {isAuto && (
+        <span className="absolute -bottom-1 -right-1 text-[8px] font-bold bg-primary text-primary-foreground rounded-full w-3 h-3 flex items-center justify-center leading-none">
+          A
+        </span>
+      )}
+    </div>
+  );
+}
 
 interface MobileAppLayoutProps {
   children: React.ReactNode;
@@ -120,11 +154,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
                 className="p-2 rounded-full bg-muted flex-shrink-0"
                 data-testid="theme-toggle"
               >
-                {theme === 'dark' ? (
-                  <Sun className="w-4 h-4" />
-                ) : (
-                  <Moon className="w-4 h-4" />
-                )}
+                <ThemeToggleIcon theme={theme} />
               </Button>
             </div>
           </div>
