@@ -104,3 +104,19 @@ Preferred communication style: Simple, everyday language.
 **Mobile App Packaging**: Capacitor for building native Android and iOS applications from the same codebase.
 - **Hybrid Architecture**: Native apps connect directly to XRPL nodes (bypassing CORS), while web apps use the backend proxy (`/api/xrpl-proxy`) for CORS compliance
 - **Platform-Aware API**: `apiFetch` helper automatically uses absolute URLs (`VITE_API_BASE_URL`) for native apps while using relative paths for web
+
+## Security Architecture
+
+**Server Security**:
+- **Helmet Middleware**: HTTP security headers including X-XSS-Protection, X-Content-Type-Options, X-Frame-Options for clickjacking protection
+- **SSRF Protection**: XRPL proxy (`/api/xrpl-proxy`) includes comprehensive Server-Side Request Forgery protection blocking:
+  - IPv4 private networks (10.x.x.x, 172.16-31.x.x, 192.168.x.x, 127.x.x.x)
+  - IPv6-mapped IPv4 addresses (::ffff:192.168.x.x in dotted and hex formats)
+  - IPv6 loopback and private ranges (::1, fe80::, fc/fd ULA)
+  - Cloud metadata endpoints (169.254.169.254, metadata.google.internal)
+  - Reserved ranges (carrier-grade NAT, benchmarking, documentation)
+  - Private domain suffixes (.local, .internal, .localhost, .home.arpa)
+
+**Client-Side Security**:
+- **Conditional Debug Logging**: `keystone-client.ts` uses `import.meta.env.DEV` flag to only output debug logs in development mode
+- **No Sensitive Data in Logs**: Production builds suppress verbose transaction data logging
