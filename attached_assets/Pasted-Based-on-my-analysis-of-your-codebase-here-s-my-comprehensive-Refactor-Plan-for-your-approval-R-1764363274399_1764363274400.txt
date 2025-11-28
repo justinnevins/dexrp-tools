@@ -1,0 +1,47 @@
+Based on my analysis of your codebase, here's my comprehensive Refactor Plan for your approval:
+
+REFACTOR PLAN: DEXrp XRPL Trading Platform
+Priority 1: Security Fixes
+File	Issues Found	Proposed Changes
+server/routes.ts	SSRF vulnerability - XRPL proxy accepts any HTTP endpoint	Add allowlist of trusted XRPL endpoints; validate against known patterns
+server/index.ts	No security headers (helmet, CORS)	Add helmet middleware, configure CORS properly
+client/src/lib/xrpl-client.ts	Hardcoded default endpoints	Move to environment variables with fallbacks
+Priority 2: Remove Dead Code & Redundancy
+File(s)	Issue	Action
+client/src/lib/hardware-wallet.ts	Duplicate - nearly identical to real-hardware-wallet.ts	DELETE - consolidate into real-hardware-wallet.ts
+test-keystone-decode.html	Debug utility, not part of app	DELETE
+decode_keystone_ur.py	Python debug script	DELETE
+client/src/components/simple-qr-scanner.tsx	Overlapping with other scanners	Consolidate QR scanning logic into shared utility
+client/src/components/qr-scanner.tsx	Redundant scanner	Merge common logic with keystone-qr-scanner.tsx
+Priority 3: Code Quality & Cleanup
+File	Issues	Changes
+client/src/lib/utils.ts	clsx imported but used via twMerge	Clean up (clsx IS used inside cn function - verify)
+Multiple files	Excessive console.log statements	Replace with conditional debug logging
+client/src/lib/keystone-client.ts	Complex parsing, many console.log	Clean up logging, add proper error boundaries
+All components	Inconsistent error handling	Standardize error handling patterns
+Priority 4: Consolidation & Maintainability
+Area	Current State	Proposed
+QR Scanners	5 different implementations	Consolidate to 2: general + Keystone UR-specific
+Hardware wallet services	2 redundant services	Single unified service
+XRPL client	Inline endpoint handling	Centralized configuration
+Priority 5: Documentation & Cleanup
+Item	Action
+attached_assets/*.txt	Remove unused prompt/documentation files
+pyproject.toml, uv.lock	Remove if Python not needed for production
+replit.md	Update with final architecture after refactor
+Add JSDoc	Key functions in keystone-client.ts, xrpl-client.ts, dex-utils.ts
+Files to DELETE (no longer needed)
+test-keystone-decode.html - debug utility
+decode_keystone_ur.py - Python debug script
+client/src/lib/hardware-wallet.ts - duplicate of real-hardware-wallet
+pyproject.toml / uv.lock - Python only needed for debug scripts
+Estimated Impact
+~15% reduction in client bundle size from removing dead code
+Improved security from SSRF fix and proper headers
+Better maintainability from consolidated QR scanner code
+Do you want me to proceed with this refactor plan? I can work file-by-file and show you the changes for each. Let me know if you'd like to:
+
+Approve all - I'll work through systematically
+Modify priorities - Reorder what gets done first
+Exclude items - Skip certain changes
+Add items - Include additional refactoring

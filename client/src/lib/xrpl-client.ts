@@ -361,6 +361,14 @@ class XRPLClient {
     };
   }
 
+  /**
+   * Fetches account information from the XRPL network.
+   * Returns balance, sequence number, and other account details.
+   * 
+   * @param address - The XRPL account address to query
+   * @param network - The network to query (mainnet or testnet)
+   * @returns Account info including balance and sequence, or error if account not found
+   */
   async getAccountInfo(address: string, network: XRPLNetwork) {
     await this.connect(network);
     const state = this.clients.get(network);
@@ -416,6 +424,15 @@ class XRPLClient {
     }
   }
 
+  /**
+   * Fetches transaction history for an account using full history servers.
+   * Automatically falls back to regular endpoint if full history server fails.
+   * 
+   * @param address - The XRPL account address
+   * @param network - The network to query (mainnet or testnet)
+   * @param limit - Maximum number of transactions to return (default: 20)
+   * @returns Array of account transactions with metadata
+   */
   async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
     const fullHistoryEndpoint = this.fullHistoryEndpoints[network] || this.defaultFullHistoryEndpoints[network];
     
@@ -791,6 +808,15 @@ class XRPLClient {
     }
   }
 
+  /**
+   * Submits a signed transaction blob to the XRPL network.
+   * Used after Keystone hardware wallet signing to broadcast the transaction.
+   * 
+   * @param txBlob - The hex-encoded signed transaction blob from Keystone
+   * @param network - The network to submit to (mainnet or testnet)
+   * @returns Transaction result including hash and engine result code
+   * @throws Error if transaction fails with non-success engine result
+   */
   async submitTransaction(txBlob: string, network: XRPLNetwork): Promise<{
     success: boolean;
     hash?: string;

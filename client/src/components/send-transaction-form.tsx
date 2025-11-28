@@ -16,7 +16,7 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo, useAccountLines, useServerInfo } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneQRScanner } from '@/components/keystone-qr-scanner';
-import { SimpleQRScanner } from '@/components/simple-qr-scanner';
+import { GeneralQRScanner } from '@/components/general-qr-scanner';
 import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
 import { encode } from 'ripple-binary-codec';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
@@ -152,28 +152,14 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     return 0;
   };
 
-  const handleAddressQRScan = (scannedAddress: string) => {
+  const handleAddressQRScan = (validatedAddress: string) => {
     log('Address scanned from QR code');
-    
-    // QR codes might contain formats like: ripple:rAddress or just rAddress
-    let address = scannedAddress.trim();
-    
-    if (address.toLowerCase().startsWith('ripple:')) {
-      address = address.substring(7);
-    }
-    
-    // Extract just the address if there are additional parameters
-    const addressMatch = address.match(/^(r[1-9A-HJ-NP-Za-km-z]{25,34})/);
-    if (addressMatch) {
-      address = addressMatch[1];
-    }
-    
-    form.setValue('destination', address);
+    form.setValue('destination', validatedAddress);
     setShowAddressScanner(false);
     
     toast({
       title: "Address Scanned",
-      description: `Destination set to ${address.substring(0, 8)}...${address.substring(address.length - 6)}`,
+      description: `Destination set to ${validatedAddress.substring(0, 8)}...${validatedAddress.substring(validatedAddress.length - 6)}`,
     });
   };
 
@@ -858,7 +844,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
 
       {/* QR Scanner for Destination Address */}
       {showAddressScanner && (
-        <SimpleQRScanner
+        <GeneralQRScanner
+          mode="address"
           onScan={handleAddressQRScan}
           onClose={() => setShowAddressScanner(false)}
           title="Scan Destination Address"

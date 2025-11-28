@@ -118,5 +118,18 @@ Preferred communication style: Simple, everyday language.
   - Private domain suffixes (.local, .internal, .localhost, .home.arpa)
 
 **Client-Side Security**:
-- **Conditional Debug Logging**: `keystone-client.ts` uses `import.meta.env.DEV` flag to only output debug logs in development mode
-- **No Sensitive Data in Logs**: Production builds suppress verbose transaction data logging
+- **Conditional Debug Logging**: All client-side files use `import.meta.env.DEV` flag to only output debug logs in development mode. Pattern: `const isDev = import.meta.env.DEV; const log = (...args: any[]) => isDev && console.log('[Component]', ...args);`
+- **No Sensitive Data in Logs**: Production builds suppress verbose transaction data logging. Wallet addresses, transaction payloads, and signed blobs are never logged.
+- **Sanitized Error Logging**: All console.error statements use consistent bracket prefixes (e.g., `[XRPL]`, `[Keystone]`)
+
+## Code Architecture
+
+**QR Scanner Components**:
+- `GeneralQRScanner`: Unified general-purpose scanner for XRPL addresses and generic QR data. Supports three modes: 'address' (validates XRPL addresses), 'generic' (passes raw data), 'ur-code' (validates UR format). Includes manual entry fallback and optional Keystone-specific instructions.
+- `KeystoneQRScanner`: Specialized scanner for multi-part UR codes from Keystone hardware wallet signatures. Handles UR fragment collection and reassembly with progress indication.
+- `KeystoneAccountScanner`: Specialized scanner for extracting XRPL account address and public key from Keystone crypto-multi-accounts UR format.
+
+**Key Library Files**:
+- `keystone-client.ts`: Client-side Keystone SDK operations with JSDoc documentation. Key functions: `prepareXrpSignRequest()` (generates UR-encoded sign request), `parseKeystoneSignature()` (decodes signed transaction URs).
+- `xrpl-client.ts`: XRPL network client with protocol-aware connectors. Key functions: `getAccountInfo()`, `getAccountTransactions()`, `submitTransaction()`.
+- `dex-utils.ts`: DEX offer tracking and fill detection utilities. Parses transaction metadata to track partial fills.

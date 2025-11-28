@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Camera, QrCode } from 'lucide-react';
 import { xrplClient } from '@/lib/xrpl-client';
-import { WalletAddressScanner } from '@/components/wallet-address-scanner';
+import { GeneralQRScanner } from '@/components/general-qr-scanner';
 
 interface KeystoneAddressModalProps {
   isOpen: boolean;
@@ -48,34 +48,10 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
     onClose();
   };
 
-  const handleQRScan = (data: string) => {
-    try {
-      // Check if the scanned data is a valid XRPL address
-      if (data.length >= 25 && data.length <= 34 && data.startsWith('r')) {
-        setAddress(data);
-        setIsValid(true);
-        setShowQRScanner(false);
-      } else {
-        // Try to parse as JSON in case it's a more complex QR code
-        const parsed = JSON.parse(data);
-        if (parsed.address && parsed.address.startsWith('r')) {
-          setAddress(parsed.address);
-          setIsValid(true);
-          setShowQRScanner(false);
-        } else {
-          alert('Invalid account address QR code. Please scan a valid XRPL address.');
-        }
-      }
-    } catch (error) {
-      // If it's not JSON, check if it's a direct address
-      if (data.startsWith('r') && data.length >= 25 && data.length <= 34) {
-        setAddress(data);
-        setIsValid(true);
-        setShowQRScanner(false);
-      } else {
-        alert('Invalid QR code format. Please scan a valid XRPL account address.');
-      }
-    }
+  const handleQRScan = (validatedAddress: string) => {
+    setAddress(validatedAddress);
+    setIsValid(true);
+    setShowQRScanner(false);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -182,11 +158,13 @@ export function KeystoneAddressModal({ isOpen, onClose, onConfirm }: KeystoneAdd
       
       {/* QR Scanner Modal */}
       {showQRScanner && (
-        <WalletAddressScanner
+        <GeneralQRScanner
+          mode="address"
           onScan={handleQRScan}
           onClose={() => setShowQRScanner(false)}
           title="Scan Account Address"
           description="Position the QR code containing your account address within the camera view"
+          showKeystoneInstructions
         />
       )}
     </Dialog>

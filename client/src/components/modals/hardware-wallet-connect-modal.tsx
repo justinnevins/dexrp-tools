@@ -5,12 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Shield, QrCode, CheckCircle, Loader2, Camera, Globe } from 'lucide-react';
+import { Shield, QrCode, CheckCircle, Loader2, Globe } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/real-hardware-wallet';
 import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal';
-import { QRScanner } from '@/components/qr-scanner';
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
 
 const isDev = import.meta.env.DEV;
@@ -38,7 +37,6 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
   const [showKeystoneScanner, setShowKeystoneScanner] = useState(false);
-  const [showQRScanner, setShowQRScanner] = useState(false);
   const { connection, isConnecting, connect, disconnect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
   const isCreatingWalletRef = useRef(false);
@@ -54,7 +52,6 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       setShowNetworkSelection(false);
       setShowKeystoneScanner(false);
       setShowKeystoneModal(false);
-      setShowQRScanner(false);
       isCreatingWalletRef.current = false; // Reset the guard when modal opens
     }
   }, [isOpen, disconnect]);
@@ -135,33 +132,6 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
       alert(`Failed to add account: ${errorMessage}`);
       isCreatingWalletRef.current = false; // Reset on error so user can retry
-    }
-  };
-
-  const handleQRScan = (data: string) => {
-    try {
-      // Check if the scanned data is a valid XRPL address
-      if (data.length >= 25 && data.length <= 34 && data.startsWith('r')) {
-        handleKeystoneConfirm(data);
-        setShowQRScanner(false);
-      } else {
-        // Try to parse as JSON in case it's a more complex QR code
-        const parsed = JSON.parse(data);
-        if (parsed.address && parsed.address.startsWith('r')) {
-          handleKeystoneConfirm(parsed.address);
-          setShowQRScanner(false);
-        } else {
-          alert('Invalid account address QR code. Please scan a valid XRPL address.');
-        }
-      }
-    } catch (error) {
-      // If it's not JSON, check if it's a direct address
-      if (data.startsWith('r') && data.length >= 25 && data.length <= 34) {
-        handleKeystoneConfirm(data);
-        setShowQRScanner(false);
-      } else {
-        alert('Invalid QR code format. Please scan a valid XRPL account address.');
-      }
     }
   };
 

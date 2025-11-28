@@ -33,6 +33,25 @@ interface SignatureResult {
   requestId: string;
 }
 
+/**
+ * Prepares an XRP transaction for signing by Keystone hardware wallet.
+ * Generates a UR-encoded sign request that can be displayed as an animated QR code.
+ * 
+ * @param transaction - The XRP transaction to prepare for signing
+ * @returns SignRequestResult containing the UR type, CBOR hex data, and a unique request ID
+ * @throws Error if transaction formatting fails
+ * 
+ * @example
+ * const { type, cbor, requestId } = prepareXrpSignRequest({
+ *   TransactionType: 'Payment',
+ *   Account: 'rXXXXX...',
+ *   Destination: 'rYYYYY...',
+ *   Amount: '1000000',
+ *   Fee: '12',
+ *   Sequence: 100,
+ *   LastLedgerSequence: 50000
+ * });
+ */
 export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestResult {
   log('Creating sign request for:', transaction.TransactionType);
   
@@ -71,6 +90,22 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
   };
 }
 
+/**
+ * Parses a signed transaction response from Keystone hardware wallet.
+ * Decodes UR-encoded data scanned from Keystone's QR display.
+ * 
+ * Supports both single-part and multi-part URs, as well as hex and Bytewords encodings.
+ * Keystone returns complete XRPL serialized signed transaction blobs (starting with 
+ * transaction type prefix like `1200`), which can be submitted directly to XRPL nodes.
+ * 
+ * @param urString - The UR-encoded string scanned from Keystone (format: ur:bytes/...)
+ * @returns SignatureResult containing the signed transaction blob and request ID
+ * @throws Error if UR format is invalid or decoding fails
+ * 
+ * @example
+ * const { signature, requestId } = parseKeystoneSignature('ur:bytes/5820abc123...');
+ * await xrplClient.submitTransaction(signature);
+ */
 export function parseKeystoneSignature(urString: string): SignatureResult {
   log('Decoding signature from UR');
   
