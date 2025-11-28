@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Check, Trash2, Edit2, Server, Sun, Moon } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -332,17 +332,6 @@ export default function Profile() {
                   >
                     <Edit2 className="w-4 h-4" />
                   </Button>
-                  {currentWallet?.id !== wallet.id && (
-                    <Button
-                      onClick={() => setCurrentWallet(wallet)}
-                      variant="outline"
-                      size="sm"
-                      data-testid={`switch-wallet-${wallet.id}`}
-                    >
-                      <Check className="w-4 h-4 mr-1" />
-                      Switch
-                    </Button>
-                  )}
                   <Button
                     onClick={() => handleRemoveAccount(wallet.id)}
                     variant="ghost"
