@@ -124,12 +124,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Code Architecture
 
-**QR Scanner Components**:
-- `GeneralQRScanner`: Unified general-purpose scanner for XRPL addresses and generic QR data. Supports three modes: 'address' (validates XRPL addresses), 'generic' (passes raw data), 'ur-code' (validates UR format). Includes manual entry fallback and optional Keystone-specific instructions.
+**QR Scanner Components** (Consolidated):
+- `GeneralQRScanner`: Unified general-purpose scanner for XRPL addresses and generic QR data. Supports three modes: 'address' (validates XRPL addresses with checksum verification), 'generic' (passes raw data), 'ur-code' (validates UR format). Includes manual entry fallback, optional Keystone-specific instructions, and handles JSON-wrapped addresses and ripple: URI scheme.
 - `KeystoneQRScanner`: Specialized scanner for multi-part UR codes from Keystone hardware wallet signatures. Handles UR fragment collection and reassembly with progress indication.
-- `KeystoneAccountScanner`: Specialized scanner for extracting XRPL account address and public key from Keystone crypto-multi-accounts UR format.
+- `KeystoneAccountScanner`: Uses GeneralQRScanner internally for extracting XRPL account address and public key from Keystone crypto-multi-accounts UR format.
 
 **Key Library Files**:
-- `keystone-client.ts`: Client-side Keystone SDK operations with JSDoc documentation. Key functions: `prepareXrpSignRequest()` (generates UR-encoded sign request), `parseKeystoneSignature()` (decodes signed transaction URs).
-- `xrpl-client.ts`: XRPL network client with protocol-aware connectors. Key functions: `getAccountInfo()`, `getAccountTransactions()`, `submitTransaction()`.
-- `dex-utils.ts`: DEX offer tracking and fill detection utilities. Parses transaction metadata to track partial fills.
+- `keystone-client.ts`: Client-side Keystone SDK operations with comprehensive JSDoc documentation. Key functions: `prepareXrpSignRequest()` (generates UR-encoded sign request), `parseKeystoneSignature()` (decodes signed transaction URs with support for both hex and Bytewords encoding).
+- `xrpl-client.ts`: XRPL network client with protocol-aware connectors and JSDoc documentation. Key functions: `getAccountInfo()`, `getAccountTransactions()`, `submitTransaction()`, `isValidAddress()` (checksum validation).
+- `dex-utils.ts`: DEX offer tracking and fill detection utilities with comprehensive JSDoc documentation. Key functions: `extractOfferFills()` (parses AffectedNodes for partial fills), `enrichOfferWithStatus()` (combines stored and live offer data), `calculateBalanceChanges()` (computes XRP/token balance changes from metadata).
+
+**Component Structure**:
+- `components/modals/`: Modal dialogs for receive, trustline management, hardware wallet connection, and Keystone address input.
+- `components/wallet/`: Wallet-related UI components (balance display, transaction list, empty state).
+- `components/layout/`: Mobile app layout with bottom navigation.
+- `pages/`: Page components including home, send, transactions, tokens, DEX, and profile.
