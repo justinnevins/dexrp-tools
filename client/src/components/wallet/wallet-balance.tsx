@@ -7,11 +7,10 @@ import { xrplClient } from '@/lib/xrpl-client';
 import { useLocation } from 'wouter';
 
 interface WalletBalanceProps {
-  onSendClick: () => void;
   onReceiveClick: () => void;
 }
 
-export function WalletBalance({ onSendClick, onReceiveClick }: WalletBalanceProps) {
+export function WalletBalance({ onReceiveClick }: WalletBalanceProps) {
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading } = useAccountInfo(currentWallet?.address || null, network);
