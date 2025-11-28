@@ -95,7 +95,6 @@ class RealHardwareWalletService {
       requestId: crypto.randomUUID()
     };
 
-    console.log('QR Code for Keystone 3 Pro signing:', JSON.stringify(txData));
     throw new Error('Scan the transaction QR code with your Keystone 3 Pro to sign, then scan the response QR code');
   }
 

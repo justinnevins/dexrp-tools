@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Shield, QrCode, CheckCircle, Loader2, Camera, Globe } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
-import type { HardwareWalletType } from '@/lib/hardware-wallet';
+import type { HardwareWalletType } from '@/lib/real-hardware-wallet';
 import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal';
 import { QRScanner } from '@/components/qr-scanner';
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';

@@ -2,6 +2,9 @@ import KeystoneSDK from '@keystonehq/keystone-sdk';
 import { URDecoder, UR } from '@ngraveio/bc-ur';
 import { Buffer } from 'buffer';
 
+const DEBUG = import.meta.env.DEV;
+const log = (...args: any[]) => DEBUG && console.log('[Keystone]', ...args);
+
 interface XrpTransaction {
   TransactionType: string;
   Account: string;
@@ -31,7 +34,7 @@ interface SignatureResult {
 }
 
 export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestResult {
-  console.log('Client: Creating Keystone sign request for:', transaction);
+  log('Creating sign request for:', transaction);
   
   const keystoneSDK = new KeystoneSDK();
   
@@ -54,12 +57,12 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     }
   }
   
-  console.log('Client: Formatted transaction:', xrpTransaction);
+  log('Formatted transaction:', xrpTransaction);
   
   const ur = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
   
-  console.log('Client: SDK generated UR type:', ur.type);
-  console.log('Client: CBOR buffer length:', ur.cbor.length);
+  log('SDK generated UR type:', ur.type);
+  log('CBOR buffer length:', ur.cbor.length);
   
   return {
     type: ur.type,
@@ -69,7 +72,7 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
 }
 
 export function parseKeystoneSignature(urString: string): SignatureResult {
-  console.log('Client: Decoding Keystone signature from UR:', urString.substring(0, 50) + '...');
+  log('Decoding signature from UR:', urString.substring(0, 50) + '...');
   
   try {
     const keystoneSDK = new KeystoneSDK();
@@ -79,7 +82,7 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
     let decodedUR: any;
     
     if (isSinglePart) {
-      console.log('Client: Decoding single-part UR');
+      log('Decoding single-part UR');
       
       const match = urString.toLowerCase().match(/^ur:([^/]+)\/(.+)$/);
       if (!match) {
@@ -88,22 +91,19 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
       
       const [, type, payload] = match;
       
-      // Check if payload is pure hex (only 0-9, a-f characters)
       const isHex = /^[0-9a-f]+$/i.test(payload);
       
       if (isHex) {
-        console.log('Client: Detected hex-encoded UR (minimal encoding)');
-        // Convert hex payload to Uint8Array for CBOR
+        log('Detected hex-encoded UR');
         const cborBytes = new Uint8Array(payload.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
         decodedUR = {
           type: type,
           cbor: cborBytes
         };
       } else {
-        console.log('Client: Detected Bytewords-encoded UR');
-        // Use URDecoder for Bytewords-encoded URs
+        log('Detected Bytewords-encoded UR');
         const decoder = new URDecoder();
-        decoder.receivePart(urString.toUpperCase()); // URDecoder expects uppercase
+        decoder.receivePart(urString.toUpperCase());
         
         if (!decoder.isComplete()) {
           throw new Error('UR decoding incomplete');
@@ -112,7 +112,7 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
         decodedUR = decoder.resultUR();
       }
     } else {
-      console.log('Client: Decoding multi-part UR');
+      log('Decoding multi-part UR');
       const decoder = new URDecoder();
       decoder.receivePart(urString.toUpperCase());
       
@@ -143,27 +143,22 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
       cborBytes = new Uint8Array(decodedUR.cbor);
     }
     
-    console.log('Client: Decoded UR type:', typeString);
-    console.log('Client: Decoded CBOR length:', cborBytes.length);
+    log('Decoded UR type:', typeString);
+    log('Decoded CBOR length:', cborBytes.length);
     
-    // Convert to hex string for UR construction
     const cborHex = Array.from(cborBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    console.log('Client: CBOR hex (first 50 chars):', cborHex.substring(0, 50));
+    log('CBOR hex (first 50 chars):', cborHex.substring(0, 50));
     
-    // Create UR object - Keystone SDK expects Buffer
     const cborBuffer = Buffer.from(cborHex, 'hex');
     const ur = new UR(cborBuffer, typeString);
     
-    console.log('Client: Created UR object for parseSignature');
-    console.log('Client: UR type:', ur.type);
-    console.log('Client: UR cbor type:', typeof ur.cbor, ur.cbor?.constructor?.name);
-    console.log('Client: UR cbor length:', ur.cbor?.length);
+    log('Created UR object for parseSignature');
     
     try {
-      console.log('Client: Calling keystoneSDK.xrp.parseSignature...');
+      log('Calling keystoneSDK.xrp.parseSignature...');
       const signature = keystoneSDK.xrp.parseSignature(ur);
       
-      console.log('Client: Parsed signature result:', JSON.stringify(signature));
+      log('Parsed signature result');
       
       const parsedSignature: any = signature;
       return {
@@ -171,53 +166,33 @@ export function parseKeystoneSignature(urString: string): SignatureResult {
         requestId: typeof parsedSignature === 'object' && parsedSignature.requestId ? parsedSignature.requestId : crypto.randomUUID()
       };
     } catch (parseError: any) {
-      const errorMsg = parseError?.message || String(parseError) || 'Unknown error';
-      const errorStack = parseError?.stack || 'No stack trace';
-      console.error('Client: SDK parseSignature error message:', errorMsg);
-      console.error('Client: SDK parseSignature error stack:', errorStack);
-      console.error('Client: SDK parseSignature error object:', JSON.stringify(parseError, Object.getOwnPropertyNames(parseError)));
+      log('SDK parseSignature failed, attempting direct CBOR extraction');
       
-      // Keystone returns the signed transaction blob in CBOR format
-      // The CBOR contains the full signed binary transaction
-      // Try to extract it directly
-      console.log('Client: Attempting direct extraction from CBOR...');
-      console.log('Client: Full CBOR hex:', cborHex);
-      
-      // Check if this is a CBOR byte string (starts with 58 or 59 for length prefix)
       if (cborHex.startsWith('58') || cborHex.startsWith('59')) {
-        // CBOR byte string - extract the payload
-        // 58 xx = byte string with 1-byte length
-        // 59 xx xx = byte string with 2-byte length
         let signedTxBlob: string;
         if (cborHex.startsWith('58')) {
-          // 1-byte length
           const length = parseInt(cborHex.substring(2, 4), 16);
           signedTxBlob = cborHex.substring(4, 4 + length * 2);
-          console.log('Client: Extracted signed tx blob (1-byte length):', signedTxBlob.substring(0, 50) + '...');
+          log('Extracted signed tx blob (1-byte length)');
         } else {
-          // 2-byte length
           const length = parseInt(cborHex.substring(2, 6), 16);
           signedTxBlob = cborHex.substring(6, 6 + length * 2);
-          console.log('Client: Extracted signed tx blob (2-byte length):', signedTxBlob.substring(0, 50) + '...');
+          log('Extracted signed tx blob (2-byte length)');
         }
         
-        // The signed tx blob is the full XRPL serialized signed transaction
-        // We need to return this as the signature for the caller to handle
         return {
           signature: signedTxBlob,
           requestId: crypto.randomUUID()
         };
       }
       
-      // Fallback - return raw CBOR hex
       return {
         signature: cborHex,
         requestId: crypto.randomUUID()
       };
     }
   } catch (error: any) {
-    console.error('Client: parseKeystoneSignature error:', error?.message || error);
-    console.error('Client: Error stack:', error?.stack);
+    console.error('[Keystone] parseKeystoneSignature error:', error?.message || error);
     throw error;
   }
 }

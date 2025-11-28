@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { hardwareWalletService } from '@/lib/hardware-wallet';
+import { realHardwareWalletService as hardwareWalletService } from '@/lib/real-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo, useAccountLines, useServerInfo } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
