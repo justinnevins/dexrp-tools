@@ -166,6 +166,11 @@ class XRPLClient {
   };
 
   private defaultFullHistoryEndpoints = {
+    mainnet: 'wss://s1.ripple.com:51234',
+    testnet: 'wss://s.altnet.rippletest.net:51234'
+  };
+  
+  private fallbackFullHistoryEndpoints = {
     mainnet: 'https://s1.ripple.com:51234',
     testnet: 'https://s.altnet.rippletest.net:51234'
   };
@@ -535,11 +540,32 @@ class XRPLClient {
         warn(`Custom node check failed, falling back to default full history server`);
       }
       
-      // Fall back to default full history server
+      // Fall back to default full history server (try WebSocket first, then HTTPS)
+      const fallbackHttps = this.fallbackFullHistoryEndpoints[network];
       let fallbackConnector: XRPLConnector | null = null;
+      
+      // Try WebSocket first (more reliable on mobile)
       try {
-        log(`Using default full history server: ${defaultFullHistory}`);
+        log(`Using default full history server (WebSocket): ${defaultFullHistory}`);
         fallbackConnector = this.createConnector(defaultFullHistory);
+        await fallbackConnector.connect();
+        const result = await makeRequest(fallbackConnector);
+        return result;
+      } catch (wsError: any) {
+        if (wsError.data?.error === 'actNotFound' || wsError.error === 'actNotFound') {
+          return { transactions: [], account: address, marker: undefined };
+        }
+        log(`WebSocket fallback failed, trying HTTPS: ${wsError.message || wsError}`);
+        if (fallbackConnector) {
+          try { await fallbackConnector.disconnect(); } catch {}
+          fallbackConnector = null;
+        }
+      }
+      
+      // Try HTTPS as secondary fallback
+      try {
+        log(`Using default full history server (HTTPS): ${fallbackHttps}`);
+        fallbackConnector = this.createConnector(fallbackHttps);
         await fallbackConnector.connect();
         return await makeRequest(fallbackConnector);
       } catch (fallbackError: any) {
@@ -555,11 +581,32 @@ class XRPLClient {
       }
     }
     
-    // Case 3: No custom endpoints - use default full history server
-    log(`Using default full history server: ${defaultFullHistory}`);
+    // Case 3: No custom endpoints - use default full history server (try WebSocket first, then HTTPS)
+    const fallbackHttps = this.fallbackFullHistoryEndpoints[network];
     let connector: XRPLConnector | null = null;
+    
+    // Try WebSocket first (more reliable on mobile)
     try {
+      log(`Using default full history server (WebSocket): ${defaultFullHistory}`);
       connector = this.createConnector(defaultFullHistory);
+      await connector.connect();
+      const result = await makeRequest(connector);
+      return result;
+    } catch (wsError: any) {
+      if (wsError.data?.error === 'actNotFound' || wsError.error === 'actNotFound') {
+        return { transactions: [], account: address, marker: undefined };
+      }
+      log(`WebSocket failed, trying HTTPS: ${wsError.message || wsError}`);
+      if (connector) {
+        try { await connector.disconnect(); } catch {}
+        connector = null;
+      }
+    }
+    
+    // Try HTTPS as secondary fallback
+    try {
+      log(`Using default full history server (HTTPS): ${fallbackHttps}`);
+      connector = this.createConnector(fallbackHttps);
       await connector.connect();
       return await makeRequest(connector);
     } catch (error: any) {
