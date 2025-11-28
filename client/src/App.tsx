@@ -69,7 +69,7 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="xrpl-wallet-theme">
+      <ThemeProvider defaultTheme="system" storageKey="xrpl-wallet-theme">
         <WalletProvider>
           <TooltipProvider>
             <Toaster />
