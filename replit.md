@@ -124,10 +124,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Code Architecture
 
-**QR Scanner Components** (Consolidated):
-- `GeneralQRScanner`: Unified general-purpose scanner for XRPL addresses and generic QR data. Supports three modes: 'address' (validates XRPL addresses with checksum verification), 'generic' (passes raw data), 'ur-code' (validates UR format). Includes manual entry fallback, optional Keystone-specific instructions, and handles JSON-wrapped addresses and ripple: URI scheme.
-- `KeystoneQRScanner`: Specialized scanner for multi-part UR codes from Keystone hardware wallet signatures. Handles UR fragment collection and reassembly with progress indication.
-- `KeystoneAccountScanner`: Uses GeneralQRScanner internally for extracting XRPL account address and public key from Keystone crypto-multi-accounts UR format.
+**QR Scanner Components** (Consolidated from 5 to 2 core scanners):
+- `GeneralQRScanner`: Core unified scanner for XRPL addresses and generic QR data. Supports three modes: 'address' (validates XRPL addresses with checksum verification), 'generic' (passes raw data), 'ur-code' (validates UR format). Includes manual entry fallback, optional Keystone-specific instructions, and handles JSON-wrapped addresses and ripple: URI scheme.
+- `KeystoneQRScanner`: Core specialized scanner for multi-part UR codes from Keystone hardware wallet signatures. Handles UR fragment collection and reassembly with progress indication.
+- `KeystoneAccountScanner`: Wrapper component using GeneralQRScanner internally for extracting XRPL account address and public key from Keystone crypto-multi-accounts UR format.
+
+**Removed Dead Code** (cleanup performed):
+- `qr-code-modal.tsx`: Removed - was never imported or used anywhere in the codebase.
+- `send-modal.tsx`: Removed - was bypassed by direct navigation to `/send` page from WalletBalance component.
+- `security-confirmation-modal.tsx`: Removed - was only used by the removed SendModal flow.
 
 **Key Library Files**:
 - `keystone-client.ts`: Client-side Keystone SDK operations with comprehensive JSDoc documentation. Key functions: `prepareXrpSignRequest()` (generates UR-encoded sign request), `parseKeystoneSignature()` (decodes signed transaction URs with support for both hex and Bytewords encoding).
