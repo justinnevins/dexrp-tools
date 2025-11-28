@@ -30,7 +30,7 @@ function ThemeToggleIcon({ theme }: { theme: 'light' | 'dark' | 'system' }) {
   }, [theme, systemPrefersDark]);
 
   const isAuto = theme === 'system';
-  const Icon = resolvedTheme === 'dark' ? Sun : Moon;
+  const Icon = resolvedTheme === 'dark' ? Moon : Sun;
 
   return (
     <div className="relative">
