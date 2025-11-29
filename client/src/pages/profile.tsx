@@ -203,14 +203,13 @@ export default function Profile() {
     // Validate URLs (basic validation)
     const isValidUrl = (url: string) => {
       if (!url) return true; // Empty is okay (will use default)
-      return url.startsWith('ws://') || url.startsWith('wss://') || 
-             url.startsWith('http://') || url.startsWith('https://');
+      return url.startsWith('wss://') || url.startsWith('https://');
     };
 
     if (!isValidUrl(customMainnetNode)) {
       toast({
         title: "Invalid Mainnet Node URL",
-        description: "Node URL must start with http://, https://, ws://, or wss://",
+        description: "Node URL must use secure protocols (https:// or wss://)",
         variant: "destructive"
       });
       return;
@@ -219,7 +218,7 @@ export default function Profile() {
     if (!isValidUrl(customTestnetNode)) {
       toast({
         title: "Invalid Testnet Node URL",
-        description: "Node URL must start with http://, https://, ws://, or wss://",
+        description: "Node URL must use secure protocols (https:// or wss://)",
         variant: "destructive"
       });
       return;
@@ -228,7 +227,7 @@ export default function Profile() {
     if (!isValidUrl(fullHistoryMainnetNode)) {
       toast({
         title: "Invalid Full History Mainnet URL",
-        description: "Node URL must start with http://, https://, ws://, or wss://",
+        description: "Node URL must use secure protocols (https:// or wss://)",
         variant: "destructive"
       });
       return;
@@ -237,7 +236,7 @@ export default function Profile() {
     if (!isValidUrl(fullHistoryTestnetNode)) {
       toast({
         title: "Invalid Full History Testnet URL",
-        description: "Node URL must start with http://, https://, ws://, or wss://",
+        description: "Node URL must use secure protocols (https:// or wss://)",
         variant: "destructive"
       });
       return;
