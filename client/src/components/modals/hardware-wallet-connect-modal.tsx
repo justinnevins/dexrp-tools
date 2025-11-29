@@ -5,12 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Shield, QrCode, CheckCircle, Loader2, Globe } from 'lucide-react';
+import { Shield, QrCode, CheckCircle, Loader2, Globe, Eye } from 'lucide-react';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 import type { HardwareWalletType } from '@/lib/real-hardware-wallet';
 import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal';
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
+import { WatchOnlyAddressModal } from '@/components/modals/watch-only-address-modal';
 
 const isDev = import.meta.env.DEV;
 const log = (...args: any[]) => isDev && console.log('[HWConnect]', ...args);
@@ -37,14 +38,14 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showKeystoneModal, setShowKeystoneModal] = useState(false);
   const [showKeystoneScanner, setShowKeystoneScanner] = useState(false);
+  const [showWatchOnlyModal, setShowWatchOnlyModal] = useState(false);
   const { connection, isConnecting, connect, disconnect, getAddress } = useHardwareWallet();
   const { createWallet } = useWallet();
   const isCreatingWalletRef = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
-      // Reset connection state and show only Keystone 3 Pro
-      disconnect().catch(() => {}); // Disconnect any previous connection
+      disconnect().catch(() => {});
       setAvailableWallets(['Keystone 3 Pro']);
       setSelectedWallet(null);
       setSelectedNetwork('mainnet');
@@ -52,7 +53,8 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       setShowNetworkSelection(false);
       setShowKeystoneScanner(false);
       setShowKeystoneModal(false);
-      isCreatingWalletRef.current = false; // Reset the guard when modal opens
+      setShowWatchOnlyModal(false);
+      isCreatingWalletRef.current = false;
     }
   }, [isOpen, disconnect]);
 
@@ -220,6 +222,56 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
               </div>
             );
           })}
+          
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
+
+          <div className="border border-border rounded-xl p-4 hover:bg-muted/50 transition-colors">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-lg flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm">Watch-Only Address</h3>
+                  <p className="text-xs text-muted-foreground">Monitor any XRPL address</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                View Only
+              </Badge>
+            </div>
+
+            <div className="mb-3">
+              <div className="flex flex-wrap gap-1">
+                <span className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
+                  View balances
+                </span>
+                <span className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
+                  Transaction history
+                </span>
+                <span className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
+                  Token tracking
+                </span>
+              </div>
+            </div>
+
+            <Button
+              onClick={() => setShowWatchOnlyModal(true)}
+              className="w-full h-9 text-sm"
+              variant="outline"
+              data-testid="button-add-watch-only"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Add Watch-Only Address
+            </Button>
+          </div>
         </div>
 
       </DialogContent>
@@ -302,6 +354,14 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
           </DialogContent>
         </Dialog>
       )}
+      
+      <WatchOnlyAddressModal
+        isOpen={showWatchOnlyModal}
+        onClose={() => {
+          setShowWatchOnlyModal(false);
+          onClose();
+        }}
+      />
     </Dialog>
   );
 }
