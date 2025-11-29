@@ -414,9 +414,7 @@ export default function Profile() {
             <AccordionContent className="px-6 pb-6 pt-0">
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Configure custom XRPL node endpoints (JSON-RPC or WebSocket). Supports custom ports. Leave empty to use defaults.
-                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">Configure custom XRPL node (JSON-RPC or WebSocket). Supports custom ports. Leave empty to use defaults.</p>
                 </div>
                 
                 <div className="space-y-2">
