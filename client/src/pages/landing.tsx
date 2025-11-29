@@ -58,7 +58,10 @@ export default function Landing() {
           </p>
           
           <Button
-            onClick={() => setLocation('/')}
+            onClick={() => {
+              localStorage.setItem('xrpl_has_seen_landing', 'true');
+              setLocation('/');
+            }}
             size="lg"
             className="px-8"
             data-testid="button-get-started"
@@ -110,7 +113,10 @@ export default function Landing() {
             Add your first wallet or import an existing one to start trading and managing your XRP.
           </p>
           <Button
-            onClick={() => setLocation('/')}
+            onClick={() => {
+              localStorage.setItem('xrpl_has_seen_landing', 'true');
+              setLocation('/');
+            }}
             size="lg"
             className="px-8"
             data-testid="button-start-now"
