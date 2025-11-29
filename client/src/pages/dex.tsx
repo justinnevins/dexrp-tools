@@ -979,9 +979,7 @@ export default function DEX() {
             <Eye className="w-8 h-8 text-amber-600 dark:text-amber-400" />
           </div>
           <h2 className="text-lg font-semibold mb-2">Watch-Only Account</h2>
-          <p className="text-muted-foreground mb-6 max-w-sm">
-            This is a watch-only account. To trade on the DEX, you need to connect a Keystone 3 Pro hardware wallet with signing capabilities.
-          </p>
+          <p className="text-muted-foreground mb-6 max-w-sm">This is a watch-only account. To trade on the DEX, switch to a Keystone 3 Pro wallet address or connect a new one.</p>
           <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg max-w-sm">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-300 text-left">Watch-only accounts can view open orders, but cannot create or cancel offers. Connect a Keystone 3 Pro to enable trading.</p>
