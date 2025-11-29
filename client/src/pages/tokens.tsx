@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Plus, Coins, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Coins, Trash2, RefreshCw, Eye, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -125,6 +125,8 @@ export default function Tokens() {
     return num.toFixed(2);
   };
 
+  const isWatchOnly = currentWallet?.walletType === 'watchOnly';
+
   const getCurrencyColor = (currency: string) => {
     const colors = {
       'XRP': 'bg-primary',
@@ -137,12 +139,13 @@ export default function Tokens() {
   };
 
   const handleDeleteClick = (token: any) => {
+    if (isWatchOnly) return;
     setTrustlineToDelete(token);
     setDeleteDialogOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
-    if (!trustlineToDelete || !currentWallet) return;
+    if (!trustlineToDelete || !currentWallet || isWatchOnly) return;
 
     try {
       // Check if this is an XRPL trustline (string ID starting with 'xrpl-') or database trustline (numeric ID)
@@ -331,17 +334,28 @@ export default function Tokens() {
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => setTrustlineModalOpen(true)}
-            data-testid="button-add-token"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Token
-          </Button>
+          {!isWatchOnly && (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setTrustlineModalOpen(true)}
+              data-testid="button-add-token"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Token
+            </Button>
+          )}
         </div>
       </div>
+
+      {isWatchOnly && (
+        <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+          <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            <strong>Watch-only account:</strong> You can view tokens but cannot add or remove trustlines. Connect a Keystone 3 Pro to manage trustlines.
+          </p>
+        </div>
+      )}
 
       {trustlines.length === 1 ? (
         <div className="bg-white dark:bg-card border border-border rounded-xl p-8 text-center">
@@ -350,16 +364,20 @@ export default function Tokens() {
           </div>
           <h3 className="font-semibold mb-2">Only XRP Available</h3>
           <p className="text-muted-foreground text-sm mb-4">
-            Create trustlines to hold other tokens on the XRP Ledger.
+            {isWatchOnly 
+              ? "This account only holds XRP. Connect a Keystone 3 Pro to add trustlines."
+              : "Create trustlines to hold other tokens on the XRP Ledger."}
           </p>
-          <Button 
-            variant="outline"
-            onClick={() => setTrustlineModalOpen(true)}
-            data-testid="button-add-trustline"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Trustline
-          </Button>
+          {!isWatchOnly && (
+            <Button 
+              variant="outline"
+              onClick={() => setTrustlineModalOpen(true)}
+              data-testid="button-add-trustline"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Trustline
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -390,7 +408,7 @@ export default function Tokens() {
                       {token.isNative ? '' : `Limit: ${formatLimit(token.limit)} ${token.currency}`}
                     </p>
                   </div>
-                  {!token.isNative && (
+                  {!token.isNative && !isWatchOnly && (
                     <Button
                       variant="ghost"
                       size="icon"

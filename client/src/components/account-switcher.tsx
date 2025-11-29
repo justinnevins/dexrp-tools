@@ -43,7 +43,11 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
           className="flex items-center gap-2 h-auto py-2 px-3 border-border w-full max-w-full"
           data-testid="account-switcher-trigger"
         >
-          <Wallet className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          {currentWallet?.walletType === 'watchOnly' ? (
+            <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          ) : (
+            <Wallet className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          )}
           {currentWallet ? (
             <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1 overflow-hidden">
               <div className="flex items-center gap-2 max-w-full">

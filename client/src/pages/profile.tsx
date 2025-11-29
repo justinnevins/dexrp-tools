@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -315,7 +315,12 @@ export default function Profile() {
                     <p className="text-sm text-muted-foreground">
                       {formatAddress(wallet.address)}
                     </p>
-                    {wallet.hardwareWalletType && (
+                    {wallet.walletType === 'watchOnly' ? (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+                        <Eye className="w-3 h-3" />
+                        Watch-Only
+                      </p>
+                    ) : wallet.hardwareWalletType && (
                       <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
                         <Shield className="w-3 h-3" />
                         {wallet.hardwareWalletType}

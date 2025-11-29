@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Plus, X, Calendar, Wallet, Copy, Check, ArrowUpDown, RefreshCw } from 'lucide-react';
+import { TrendingUp, Plus, X, Calendar, Wallet, Copy, Check, ArrowUpDown, RefreshCw, Eye, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -964,6 +964,31 @@ export default function DEX() {
             </p>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  const isWatchOnly = currentWallet.walletType === 'watchOnly';
+
+  if (isWatchOnly) {
+    return (
+      <div className="px-4 py-6">
+        <h1 className="text-2xl font-bold mb-4">DEX Trading</h1>
+        <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+          <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
+            <Eye className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+          </div>
+          <h2 className="text-lg font-semibold mb-2">Watch-Only Account</h2>
+          <p className="text-muted-foreground mb-6 max-w-sm">
+            This is a watch-only account. To trade on the DEX, you need to connect a Keystone 3 Pro hardware wallet with signing capabilities.
+          </p>
+          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg max-w-sm">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-amber-700 dark:text-amber-300 text-left">
+              Watch-only accounts can view open orders, but cannot create or cancel offers. Add a Keystone 3 Pro account to enable trading.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

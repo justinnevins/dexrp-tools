@@ -272,6 +272,15 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   };
 
   const onSubmit = async (data: TransactionFormData) => {
+    if (currentWallet?.walletType === 'watchOnly') {
+      toast({
+        title: "Watch-Only Account",
+        description: "This account cannot send transactions. Connect a Keystone 3 Pro to enable sending.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!currentWallet?.hardwareWalletType || currentWallet.hardwareWalletType !== 'Keystone 3 Pro') {
       toast({
         title: "Hardware Wallet Required",
