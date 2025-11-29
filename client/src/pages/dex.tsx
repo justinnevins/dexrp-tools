@@ -984,9 +984,7 @@ export default function DEX() {
           </p>
           <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg max-w-sm">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-700 dark:text-amber-300 text-left">
-              Watch-only accounts can view open orders, but cannot create or cancel offers. Add a Keystone 3 Pro account to enable trading.
-            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 text-left">Watch-only accounts can view open orders, but cannot create or cancel offers. Connect a Keystone 3 Pro to enable trading.</p>
           </div>
         </div>
       </div>
