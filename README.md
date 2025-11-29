@@ -8,13 +8,15 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 
 ### Core Functionality
 - **Hardware Wallet Security**: Integration with Keystone 3 Pro for air-gapped transaction signing
+- **Watch-Only Wallets**: View any XRPL address balance and transactions without signing capabilities
 - **Multi-Network Support**: Per-wallet configuration for both Mainnet and Testnet
 - **Custom Node Configuration**: Support for both WebSocket (ws/wss) and JSON-RPC (http/https) XRPL endpoints
 - **Full Transaction History**: Dedicated full-history server support with automatic fallback
 - **Real-Time DEX Pricing**: Live XRP/RLUSD price sourced directly from XRPL DEX order book
 
 ### Wallet Management
-- **Send & Receive XRP**: Secure payment functionality with QR code-based signing
+- **Multiple Wallets**: Add both hardware-secured and watch-only accounts simultaneously
+- **Send & Receive XRP**: Secure payment functionality with QR code-based signing (hardware wallets only)
 - **Transaction History**: Complete transaction tracking with detailed status information
 - **Balance Overview**: Real-time account balance with RLUSD conversion from DEX
 - **Reserve Calculation**: Automatic XRPL reserve and fee accounting
@@ -113,13 +115,14 @@ Configure custom XRPL endpoints in Settings:
 
 ## Usage
 
-### Creating a Wallet
-1. Navigate to Profile
-2. Enter your XRPL address
-3. Select network (Mainnet or Testnet)
-4. Configure custom node endpoints (optional)
+### Adding Accounts
+1. Navigate to Accounts & Settings (Profile page)
+2. Click the + button in the XRPL Accounts section
+3. Choose one of two options:
+   - **Connect Keystone 3 Pro**: Scan your hardware wallet and select network (Mainnet/Testnet)
+   - **Watch-Only Address**: Enter any XRPL address to monitor without signing capability
 
-### Sending Transactions
+### Sending Transactions (Hardware Wallets Only)
 1. Go to Wallet tab
 2. Click "Send"
 3. Enter destination address and amount
@@ -129,18 +132,24 @@ Configure custom XRPL endpoints in Settings:
 7. Scan the signed QR code back into the app
 8. Transaction is submitted to your configured XRPL node
 
-### Managing Tokens
+### Managing Tokens (Hardware Wallets Only)
 1. Navigate to Tokens tab
 2. View existing trustlines and balances
 3. Add new trustlines by currency code and issuer
 4. Remove unwanted trustlines (requires QR signing)
 
-### DEX Trading
+### DEX Trading (Hardware Wallets Only)
 1. Go to DEX tab
 2. Select your trading pair currencies
 3. Enter offer amount and price
 4. Sign with Keystone 3 Pro via QR code
 5. Monitor offer status in transaction history
+
+### Viewing Watch-Only Accounts
+1. Select a watch-only wallet from the account switcher
+2. View real-time balance and transaction history
+3. Track token holdings and trustlines
+4. Access same information as hardware wallets, but without signing capability
 
 ## Security Features
 
@@ -149,6 +158,8 @@ Configure custom XRPL endpoints in Settings:
 - **Client-Side Storage**: Wallet data stored locally, not on servers
 - **Custom Node Support**: Connect to your own trusted XRPL validators
 - **Protocol Verification**: Transaction details displayed for verification before signing
+- **Watch-Only Protection**: Multiple layers prevent accidental signing with watch-only addresses
+- **SSRF Protection**: Backend proxy includes comprehensive protection against server-side request forgery attacks
 
 ## Development
 
@@ -171,8 +182,10 @@ Configure custom XRPL endpoints in Settings:
 ### Key Files
 - `client/src/lib/xrpl-client.ts` - XRPL connection management with protocol auto-detection
 - `client/src/lib/browser-storage.ts` - Client-side data persistence
+- `client/src/lib/keystone-client.ts` - Keystone hardware wallet SDK operations
 - `client/src/components/keystone-transaction-signer.tsx` - Hardware wallet integration
-- `server/routes.ts` - Backend API with transaction submission
+- `client/src/components/modals/watch-only-address-modal.tsx` - Watch-only wallet management
+- `server/routes.ts` - Backend API with transaction submission and XRPL proxy
 
 ## Contributing
 
