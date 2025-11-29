@@ -154,9 +154,7 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
             <Shield className="w-5 h-5 text-primary" />
             <span>Add XRPL Account</span>
           </DialogTitle>
-          <DialogDescription>
-            Add your Keystone 3 Pro account for secure transaction signing.
-          </DialogDescription>
+          <DialogDescription>Connect a Keystone 3 Pro account for secure transaction signing</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-6">
@@ -275,13 +273,11 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
         </div>
 
       </DialogContent>
-      
       <KeystoneAddressModal
         isOpen={showKeystoneModal}
         onClose={handleKeystoneClose}
         onConfirm={handleKeystoneConfirm}
       />
-      
       {showNetworkSelection && (
         <Dialog open={showNetworkSelection} onOpenChange={setShowNetworkSelection}>
           <DialogContent className="sm:max-w-md">
@@ -343,7 +339,6 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
           </DialogContent>
         </Dialog>
       )}
-      
       {showKeystoneScanner && (
         <Dialog open={showKeystoneScanner} onOpenChange={setShowKeystoneScanner}>
           <DialogContent className="sm:max-w-md">
@@ -354,7 +349,6 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
           </DialogContent>
         </Dialog>
       )}
-      
       <WatchOnlyAddressModal
         isOpen={showWatchOnlyModal}
         onClose={() => {
