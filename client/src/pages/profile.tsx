@@ -461,7 +461,7 @@ export default function Profile() {
 
                 <div className="border-t border-border pt-4 mt-4">
                   <h3 className="text-sm font-medium mb-3">Full History Servers (Optional)</h3>
-                  <p className="text-xs text-muted-foreground mb-4">Separate servers are used for transaction history queries. Leave blank to use default full history servers. NOTE: only used when transaction history request range exceeds available data from custom server above. </p>
+                  <p className="text-xs text-muted-foreground mb-4">Configure Full history Servers. Leave blank to use default full history servers. NOTE: only used when transaction history request range exceeds available data from custom server above. </p>
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
