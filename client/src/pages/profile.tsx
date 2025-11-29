@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,6 +33,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 
 export default function Profile() {
   const { currentWallet, wallets, setCurrentWallet, updateWallet } = useWallet();
@@ -48,6 +49,7 @@ export default function Profile() {
   const [customTestnetNode, setCustomTestnetNode] = useState('');
   const [fullHistoryMainnetNode, setFullHistoryMainnetNode] = useState('');
   const [fullHistoryTestnetNode, setFullHistoryTestnetNode] = useState('');
+  const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
@@ -278,7 +280,17 @@ export default function Profile() {
       <h1 className="text-2xl font-bold mb-6">Accounts & Settings</h1>
       {/* XRPL Accounts */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
-        <h2 className="text-lg font-semibold mb-4">XRPL Accounts</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">XRPL Accounts</h2>
+          <Button
+            onClick={() => setShowAddAccountModal(true)}
+            size="sm"
+            variant="outline"
+            data-testid="button-add-account"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
         <div className="space-y-3">
           {wallets.data && wallets.data.length > 0 ? (
             wallets.data.map((wallet, index) => (
@@ -525,6 +537,11 @@ export default function Profile() {
           Remove All Accounts
         </Button>
       </div>
+      <HardwareWalletConnectModal
+        isOpen={showAddAccountModal}
+        onClose={() => setShowAddAccountModal(false)}
+      />
+      
       {/* Edit Wallet Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
