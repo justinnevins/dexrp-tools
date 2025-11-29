@@ -180,10 +180,12 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {rlusdPrice && (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground mr-2">
-                  <TrendingUp className="w-3 h-3 flex-shrink-0" />
-                  <span className="whitespace-nowrap">XRP {formatPrice(rlusdPrice.price).replace('$', '')} (RLUSD)</span>
-                </div>
+                <Link href="/dex" className="hover:opacity-80 transition-opacity">
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground mr-2 cursor-pointer">
+                    <TrendingUp className="w-3 h-3 flex-shrink-0" />
+                    <span className="whitespace-nowrap">XRP {formatPrice(rlusdPrice.price).replace('$', '')} (RLUSD)</span>
+                  </div>
+                </Link>
               )}
               <Button
                 variant="ghost"
