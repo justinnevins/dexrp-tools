@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Wallet, Plus } from 'lucide-react';
+import { Check, ChevronDown, Wallet, Plus, Eye } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import {
@@ -58,6 +58,11 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                 >
                   {currentWallet.network === 'testnet' ? 'Test' : 'Main'}
                 </span>
+                {currentWallet.walletType === 'watchOnly' && (
+                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase flex-shrink-0 bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                    Watch
+                  </span>
+                )}
               </div>
               <span className="text-xs text-muted-foreground truncate max-w-full">
                 {formatAddress(currentWallet.address)}
@@ -99,8 +104,15 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
               )}
               data-testid={`account-option-${wallet.id}`}
             >
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
-                <Wallet className="w-4 h-4 text-primary" />
+              <div className={cn(
+                "flex items-center justify-center w-8 h-8 rounded-full",
+                wallet.walletType === 'watchOnly' ? 'bg-amber-500/10' : 'bg-primary/10'
+              )}>
+                {wallet.walletType === 'watchOnly' ? (
+                  <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                ) : (
+                  <Wallet className="w-4 h-4 text-primary" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -115,6 +127,11 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                   >
                     {wallet.network === 'testnet' ? 'Test' : 'Main'}
                   </span>
+                  {wallet.walletType === 'watchOnly' && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                      Watch
+                    </span>
+                  )}
                 </div>
                 <span className="text-xs text-muted-foreground">
                   {formatAddress(wallet.address)}
