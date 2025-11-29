@@ -6,6 +6,7 @@ DEXrp is a mobile-first XRP Ledger (XRPL) DEX trading platform built with React 
 
 Key capabilities include:
 - **Wallet Management**: Overview of balances, send/receive functionality, and transaction history.
+- **Watch-Only Wallets**: View any XRPL address balance and transactions without signing capabilities.
 - **Token Management**: Comprehensive trustline and token management (view, add, remove).
 - **Profile Management**: Account settings and preferences.
 - **DEX Trading**: Functionality for creating DEX offers with enhanced currency selection.
@@ -140,7 +141,24 @@ Preferred communication style: Simple, everyday language.
 - `dex-utils.ts`: DEX offer tracking and fill detection utilities with comprehensive JSDoc documentation. Key functions: `extractOfferFills()` (parses AffectedNodes for partial fills), `enrichOfferWithStatus()` (combines stored and live offer data), `calculateBalanceChanges()` (computes XRP/token balance changes from metadata).
 
 **Component Structure**:
-- `components/modals/`: Modal dialogs for receive, trustline management, hardware wallet connection, and Keystone address input.
+- `components/modals/`: Modal dialogs for receive, trustline management, hardware wallet connection, watch-only address input, and Keystone address input.
 - `components/wallet/`: Wallet-related UI components (balance display, transaction list, empty state).
 - `components/layout/`: Mobile app layout with bottom navigation.
 - `pages/`: Page components including home, send, transactions, tokens, DEX, and profile.
+
+### Watch-Only Wallet Architecture
+
+**Schema**: The `walletType` field in the wallet schema distinguishes between 'full' (hardware wallet with signing capability) and 'watchOnly' (view-only) wallets. Migration logic defaults existing wallets to 'full' for backward compatibility.
+
+**Visual Indicators**: Watch-only wallets display an Eye icon badge consistently across:
+- Account switcher trigger and dropdown list
+- Profile page wallet list
+- Wallet balance component
+
+**Defensive Guards**: Multiple layers prevent watch-only wallets from initiating transactions:
+- Send transaction form validates `walletType` before proceeding
+- DEX page disables trading actions for watch-only wallets
+- Token/trustline management handlers check wallet type before initiating TrustSet transactions
+- UI buttons are disabled with explanatory tooltips for watch-only accounts
+
+**Component**: `WatchOnlyAddressModal` (`client/src/components/modals/watch-only-address-modal.tsx`) provides the interface for adding watch-only addresses with XRPL address validation and network selection.
