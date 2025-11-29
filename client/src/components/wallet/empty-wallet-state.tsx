@@ -55,9 +55,7 @@ export function EmptyWalletState() {
           <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">No Accounts
 </h2>
           
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-            Add your Keystone 3 Pro XRPL account to view real-time balance, transactions, and trustlines.
-          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">Connect your Keystone 3 Pro to view real-time balance, transactions, and trustlines</p>
           
           <div className="space-y-3 mb-6">
             <div className="flex items-center space-x-3 text-sm text-gray-700 dark:text-gray-300">
