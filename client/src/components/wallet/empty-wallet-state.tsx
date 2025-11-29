@@ -52,9 +52,8 @@ export function EmptyWalletState() {
             <Wallet className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           </div>
           
-          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">
-            No Accounts Added
-          </h2>
+          <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">No Accounts
+</h2>
           
           <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
             Add your Keystone 3 Pro XRPL account to view real-time balance, transactions, and trustlines.
@@ -85,7 +84,6 @@ export function EmptyWalletState() {
           </Button>
         </CardContent>
       </Card>
-      
       {showNetworkSelection && (
         <Dialog open={showNetworkSelection} onOpenChange={setShowNetworkSelection}>
           <DialogContent className="sm:max-w-md">
@@ -146,7 +144,6 @@ export function EmptyWalletState() {
           </DialogContent>
         </Dialog>
       )}
-      
       {showScanner && (
         <Dialog open={showScanner} onOpenChange={setShowScanner}>
           <DialogContent className="sm:max-w-md">
