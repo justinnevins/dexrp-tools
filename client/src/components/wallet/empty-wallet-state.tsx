@@ -5,14 +5,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Wallet, Shield, Plus, Globe } from 'lucide-react';
+import { Wallet, Shield, Plus, Globe, Eye } from 'lucide-react';
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
+import { WatchOnlyAddressModal } from '@/components/modals/watch-only-address-modal';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useWallet } from '@/hooks/use-wallet';
 
 export function EmptyWalletState() {
   const [showNetworkSelection, setShowNetworkSelection] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [showWatchOnly, setShowWatchOnly] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [walletName, setWalletName] = useState('');
   const { connect } = useHardwareWallet();
@@ -72,14 +74,25 @@ export function EmptyWalletState() {
             </div>
           </div>
           
-          <Button 
-            onClick={() => setShowNetworkSelection(true)}
-            className="w-full"
-            data-testid="add-account-button"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Connect Keystone 3 Pro
-          </Button>
+          <div className="flex gap-3">
+            <Button 
+              onClick={() => setShowNetworkSelection(true)}
+              className="flex-1"
+              data-testid="add-account-button"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Connect Keystone 3 Pro
+            </Button>
+            <Button 
+              onClick={() => setShowWatchOnly(true)}
+              variant="outline"
+              className="flex-1"
+              data-testid="add-watch-only-button"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              Watch-Only
+            </Button>
+          </div>
         </CardContent>
       </Card>
       {showNetworkSelection && (
@@ -151,6 +164,9 @@ export function EmptyWalletState() {
             />
           </DialogContent>
         </Dialog>
+      )}
+      {showWatchOnly && (
+        <WatchOnlyAddressModal isOpen={showWatchOnly} onClose={() => setShowWatchOnly(false)} />
       )}
     </div>
   );
