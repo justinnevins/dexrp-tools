@@ -1,9 +1,14 @@
 import { Button } from '@/components/ui/button';
-import { useLocation } from 'wouter';
 import { Wallet, TrendingUp, Send, Shield, Smartphone, Zap } from 'lucide-react';
+import { useState } from 'react';
+import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 
 export default function Landing() {
-  const [, setLocation] = useLocation();
+  const [showSetup, setShowSetup] = useState(false);
+
+  if (showSetup) {
+    return <EmptyWalletState />;
+  }
 
   const features = [
     {
@@ -58,10 +63,7 @@ export default function Landing() {
           </p>
           
           <Button
-            onClick={() => {
-              localStorage.setItem('xrpl_has_seen_landing', 'true');
-              setLocation('/');
-            }}
+            onClick={() => setShowSetup(true)}
             size="lg"
             className="px-8"
             data-testid="button-get-started"
@@ -113,10 +115,7 @@ export default function Landing() {
             Add your first wallet or import an existing one to start trading and managing your XRP.
           </p>
           <Button
-            onClick={() => {
-              localStorage.setItem('xrpl_has_seen_landing', 'true');
-              setLocation('/');
-            }}
+            onClick={() => setShowSetup(true)}
             size="lg"
             className="px-8"
             data-testid="button-start-now"
