@@ -13,7 +13,7 @@ import { Capacitor } from "@capacitor/core";
 import Home from "@/pages/home";
 import Send from "@/pages/send";
 import Transactions from "@/pages/transactions";
-import Tokens from "@/pages/tokens";
+import Assets from "@/pages/assets";
 import DEX from "@/pages/dex";
 import Profile from "@/pages/profile";
 import NotFound from "@/pages/not-found";
@@ -58,7 +58,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/send" component={Send} />
         <Route path="/transactions" component={Transactions} />
-        <Route path="/tokens" component={Tokens} />
+        <Route path="/assets" component={Assets} />
         <Route path="/dex" component={DEX} />
         <Route path="/profile" component={Profile} />
         <Route component={NotFound} />

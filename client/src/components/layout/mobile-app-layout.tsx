@@ -126,7 +126,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     { path: '/', label: 'Home', icon: Home },
     { path: '/transactions', label: 'History', icon: ArrowLeftRight },
     { path: '/dex', label: 'DEX', icon: LineChart },
-    { path: '/tokens', label: 'Tokens', icon: Coins },
+    { path: '/assets', label: 'Assets', icon: Coins },
     { path: '/profile', label: 'Settings', icon: Settings },
   ];
 
