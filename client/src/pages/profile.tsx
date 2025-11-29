@@ -276,7 +276,6 @@ export default function Profile() {
   return (
     <div className="px-4 py-6">
       <h1 className="text-2xl font-bold mb-6">Accounts & Settings</h1>
-
       {/* XRPL Accounts */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4">XRPL Accounts</h2>
@@ -354,7 +353,6 @@ export default function Profile() {
           )}
         </div>
       </div>
-
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -403,7 +401,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-
       {/* Advanced Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl mb-6">
         <Accordion type="single" collapsible className="w-full">
@@ -466,9 +463,7 @@ export default function Profile() {
 
                 <div className="border-t border-border pt-4 mt-4">
                   <h3 className="text-sm font-medium mb-3">Full History Servers (Optional)</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    Separate servers are used for transaction history queries. Leave blank to use default full history servers.
-                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">Separate servers are used for transaction history queries. Leave blank to use default full history servers. NOTE: only used when transaction history request range exceeds available data from custom server above. </p>
                   
                   <div className="space-y-4">
                     <div className="space-y-2">
@@ -521,7 +516,6 @@ export default function Profile() {
           </AccordionItem>
         </Accordion>
       </div>
-
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
         <Button
           onClick={handleRemoveAllAccounts}
@@ -533,7 +527,6 @@ export default function Profile() {
           Remove All Accounts
         </Button>
       </div>
-
       {/* Edit Wallet Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
