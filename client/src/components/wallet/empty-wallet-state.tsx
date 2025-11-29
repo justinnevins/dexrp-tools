@@ -78,7 +78,7 @@ export function EmptyWalletState() {
             data-testid="add-account-button"
           >
             <Plus className="w-4 h-4 mr-2" />
-            Add Keystone 3 Pro Account
+            Connect Keystone 3 Pro
           </Button>
         </CardContent>
       </Card>
