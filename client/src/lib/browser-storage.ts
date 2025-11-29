@@ -52,43 +52,56 @@ class BrowserStorage {
 
   // Wallet operations
   getAllWallets(): Wallet[] {
-    const wallets = this.getStoredData<Wallet>(this.STORAGE_KEYS.WALLETS);
+    let wallets = this.getStoredData<Wallet>(this.STORAGE_KEYS.WALLETS);
+    let needsSave = false;
     
     // Migration: Add network field to legacy wallets that don't have one
-    // Check if migration has already been done
-    const migrationCompleted = localStorage.getItem('xrpl_wallet_network_migration_v1');
+    const networkMigrationCompleted = localStorage.getItem('xrpl_wallet_network_migration_v1');
     
-    if (!migrationCompleted) {
+    if (!networkMigrationCompleted) {
       const legacyWallets = wallets.filter(w => !w.network);
       
       if (legacyWallets.length > 0) {
-        // Try to infer network from old global setting as a hint
         const legacyNetwork = localStorage.getItem('xrpl-network') as 'mainnet' | 'testnet' | null;
         const inferredNetwork = legacyNetwork || 'mainnet';
         
-        log(`Found ${legacyWallets.length} legacy wallet(s) without network field. Inferring network as '${inferredNetwork}' from old global setting.`);
-        log('If this is incorrect, please edit each wallet to set the correct network from the Profile page.');
+        log(`Found ${legacyWallets.length} legacy wallet(s) without network field. Inferring network as '${inferredNetwork}'.`);
         
-        const migratedWallets = wallets.map(wallet => {
+        wallets = wallets.map(wallet => {
           if (!wallet.network) {
             log(`Migrating wallet ${wallet.id} to ${inferredNetwork}`);
-            return {
-              ...wallet,
-              network: inferredNetwork
-            };
+            return { ...wallet, network: inferredNetwork };
           }
           return wallet;
         });
-        
-        this.saveData(this.STORAGE_KEYS.WALLETS, migratedWallets);
-        localStorage.setItem('xrpl_wallet_network_migration_v1', 'completed');
-        log('Legacy wallet migration completed');
-        
-        return migratedWallets;
-      } else {
-        // No legacy wallets, mark migration as complete
-        localStorage.setItem('xrpl_wallet_network_migration_v1', 'completed');
+        needsSave = true;
       }
+      localStorage.setItem('xrpl_wallet_network_migration_v1', 'completed');
+    }
+    
+    // Migration: Add walletType field to legacy wallets that don't have one
+    const walletTypeMigrationCompleted = localStorage.getItem('xrpl_wallet_type_migration_v1');
+    
+    if (!walletTypeMigrationCompleted) {
+      const legacyWallets = wallets.filter(w => !w.walletType);
+      
+      if (legacyWallets.length > 0) {
+        log(`Found ${legacyWallets.length} legacy wallet(s) without walletType field. Setting to 'full'.`);
+        
+        wallets = wallets.map(wallet => {
+          if (!wallet.walletType) {
+            return { ...wallet, walletType: 'full' as const };
+          }
+          return wallet;
+        });
+        needsSave = true;
+      }
+      localStorage.setItem('xrpl_wallet_type_migration_v1', 'completed');
+    }
+    
+    if (needsSave) {
+      this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
+      log('Wallet migrations completed');
     }
     
     return wallets;
@@ -130,6 +143,7 @@ class BrowserStorage {
       balance: insertWallet.balance || '0',
       reservedBalance: insertWallet.reservedBalance || '1',
       hardwareWalletType: insertWallet.hardwareWalletType || null,
+      walletType: (insertWallet.walletType || 'full') as 'full' | 'watchOnly',
       network: network as 'mainnet' | 'testnet',
       isConnected: insertWallet.isConnected || false,
       createdAt: new Date()

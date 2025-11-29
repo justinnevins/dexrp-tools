@@ -3,6 +3,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 export type XRPLNetwork = 'mainnet' | 'testnet';
+export type WalletType = 'full' | 'watchOnly';
 
 export const wallets = pgTable("wallets", {
   id: serial("id").primaryKey(),
@@ -13,6 +14,7 @@ export const wallets = pgTable("wallets", {
   reservedBalance: text("reservedBalance").notNull().default("1"),
   isConnected: boolean("isConnected").notNull().default(false),
   hardwareWalletType: text("hardwareWalletType"),
+  walletType: text("walletType").$type<WalletType>().notNull().default("full"),
   network: text("network").$type<XRPLNetwork>().notNull().default("mainnet"),
   createdAt: timestamp("createdAt").notNull().defaultNow(),
 });
