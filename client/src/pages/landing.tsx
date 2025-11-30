@@ -54,9 +54,7 @@ export default function Landing() {
             </div>
           </div>
           
-          <h1 className="text-4xl sm:text-5xl font-bold text-black dark:text-white mb-4">
-            XRPL Wallet
-          </h1>
+          <h1 className="text-4xl sm:text-5xl font-bold text-black dark:text-white mb-4">DEXrp Wallet</h1>
           
           <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
             Your gateway to the XRP Ledger. Trade, send, and manage your digital assets with confidence.
@@ -72,7 +70,6 @@ export default function Landing() {
           </Button>
         </div>
       </div>
-
       {/* Features Grid */}
       <div className="px-4 py-16 sm:px-6 lg:px-8 bg-gray-50 dark:bg-card/50">
         <div className="max-w-6xl mx-auto">
@@ -104,7 +101,6 @@ export default function Landing() {
           </div>
         </div>
       </div>
-
       {/* CTA Section */}
       <div className="px-4 py-16 sm:px-6 lg:px-8">
         <div className="max-w-2xl mx-auto text-center">
