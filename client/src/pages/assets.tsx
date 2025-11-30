@@ -388,7 +388,7 @@ export default function Assets() {
     <div className="px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Assets</h1>
+        <h1 className="text-2xl font-bold">Assets/Tokens</h1>
         <div className="flex items-center space-x-2">
           <Button 
             variant="ghost" 
@@ -412,7 +412,6 @@ export default function Assets() {
           )}
         </div>
       </div>
-
       {/* Portfolio Value Card */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-white rounded-xl p-6 mb-6">
         <p className="text-sm opacity-80 mb-1">Total Portfolio Value</p>
@@ -423,7 +422,6 @@ export default function Assets() {
           {selectedNetwork === 'mainnet' ? 'Mainnet' : 'Testnet'} • {viewMode === 'all' ? `${networkWallets.length} wallet${networkWallets.length !== 1 ? 's' : ''}` : 'Current wallet'}
         </p>
       </div>
-
       {/* View Mode & Network Toggles */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'all' | 'current')} className="flex-1">
@@ -446,7 +444,6 @@ export default function Assets() {
           </TabsList>
         </Tabs>
       </div>
-
       {/* Watch-only notice */}
       {viewMode === 'current' && isWatchOnly && (
         <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
@@ -456,7 +453,6 @@ export default function Assets() {
           </p>
         </div>
       )}
-
       {/* No wallets on this network */}
       {walletsToShow.length === 0 && (
         <div className="bg-white dark:bg-card border border-border rounded-xl p-8 text-center">
@@ -471,7 +467,6 @@ export default function Assets() {
           </p>
         </div>
       )}
-
       {/* Assets List */}
       {walletsToShow.length > 0 && aggregatedAssets.length === 0 && (
         <div className="bg-white dark:bg-card border border-border rounded-xl p-8 text-center">
@@ -484,7 +479,6 @@ export default function Assets() {
           </p>
         </div>
       )}
-
       {aggregatedAssets.length > 0 && (
         <div className="space-y-3">
           {aggregatedAssets.map((asset, index) => {
@@ -567,12 +561,10 @@ export default function Assets() {
           })}
         </div>
       )}
-
       <TrustlineModal
         isOpen={trustlineModalOpen}
         onClose={() => setTrustlineModalOpen(false)}
       />
-
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -597,7 +589,6 @@ export default function Assets() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {removeTrustlineData && currentWallet && (
         <KeystoneTransactionSigner
           isOpen={!!removeTrustlineData}
