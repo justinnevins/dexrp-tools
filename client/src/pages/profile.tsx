@@ -181,7 +181,11 @@ export default function Profile() {
     }
   };
 
-  const handleRemoveAllAccounts = async () => {
+  const handleRemoveAllAccounts = () => {
+    setRemoveAllConfirmOpen(true);
+  };
+
+  const confirmRemoveAllAccounts = async () => {
     try {
       // Disconnect hardware wallet first
       await disconnectHardwareWallet();
@@ -207,6 +211,8 @@ export default function Profile() {
         title: "All Accounts Removed",
         description: "All account data cleared, reloading application...",
       });
+      
+      setRemoveAllConfirmOpen(false);
       
       // Force immediate page reload
       window.location.href = '/';
@@ -610,6 +616,50 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Remove Account Confirmation Dialog */}
+      <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Account</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this account? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmRemoveAccount}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="confirm-remove-account"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Remove All Accounts Confirmation Dialog */}
+      <AlertDialog open={removeAllConfirmOpen} onOpenChange={setRemoveAllConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove All Accounts</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove all accounts and clear all data? This action cannot be undone and will reset the application.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmRemoveAllAccounts}
+              className="bg-red-600 hover:bg-red-700"
+              data-testid="confirm-remove-all-accounts"
+            >
+              Remove All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
