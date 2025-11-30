@@ -60,6 +60,9 @@ export default function Profile() {
   const [fullHistoryMainnetNode, setFullHistoryMainnetNode] = useState('');
   const [fullHistoryTestnetNode, setFullHistoryTestnetNode] = useState('');
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
+  const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
+  const [walletToRemove, setWalletToRemove] = useState<number | null>(null);
+  const [removeAllConfirmOpen, setRemoveAllConfirmOpen] = useState(false);
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
@@ -100,13 +103,18 @@ export default function Profile() {
     return "0";
   };
 
-  const handleRemoveAccount = async (walletId: number) => {
-    if (!currentWallet) return;
+  const handleRemoveAccount = (walletId: number) => {
+    setWalletToRemove(walletId);
+    setRemoveConfirmOpen(true);
+  };
+
+  const confirmRemoveAccount = async () => {
+    if (walletToRemove === null || !currentWallet) return;
     
     const allWallets = wallets.data || [];
     
     // Remove the account
-    browserStorage.deleteWallet(walletId);
+    browserStorage.deleteWallet(walletToRemove);
     
     // If this was the last account, redirect to setup
     if (allWallets.length === 1) {
@@ -118,8 +126,8 @@ export default function Profile() {
     }
     
     // If removing the current account, switch to another one
-    if (currentWallet.id === walletId) {
-      const remainingWallets = allWallets.filter(w => w.id !== walletId);
+    if (currentWallet.id === walletToRemove) {
+      const remainingWallets = allWallets.filter(w => w.id !== walletToRemove);
       if (remainingWallets.length > 0) {
         setCurrentWallet(remainingWallets[0]);
       }
@@ -128,6 +136,9 @@ export default function Profile() {
     // Clear mutation cache and invalidate queries to fully refresh
     queryClient.resetQueries({ queryKey: ['browser-wallets'] });
     await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+    
+    setRemoveConfirmOpen(false);
+    setWalletToRemove(null);
     
     toast({
       title: "Account Removed",
