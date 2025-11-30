@@ -3,10 +3,6 @@ import { browserStorage } from './browser-storage';
 import { isNativeApp } from './platform';
 import { XRPL_ENDPOINTS } from './constants';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[XRPL]', ...args);
-const warn = (...args: any[]) => isDev && console.warn('[XRPL]', ...args);
-
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
 interface XRPLConnector {
@@ -54,11 +50,9 @@ class JsonRpcConnector implements XRPLConnector {
 
   constructor(endpoint: string) {
     this.endpoint = endpoint.endsWith('/') ? endpoint : endpoint + '/';
-    log(`Created JSON-RPC connector for endpoint: ${this.endpoint}`);
   }
 
   async connect(): Promise<void> {
-    log(`Testing JSON-RPC connection to: ${this.endpoint}`);
     try {
       const response = await this.request({ command: 'server_info' });
       
@@ -67,9 +61,7 @@ class JsonRpcConnector implements XRPLConnector {
       }
       
       this.connected = true;
-      log(`JSON-RPC connection successful to: ${this.endpoint}`);
     } catch (error) {
-      console.error(`[XRPL] JSON-RPC connection test failed for ${this.endpoint}:`, error);
       this.connected = false;
       throw error;
     }
@@ -332,7 +324,6 @@ class XRPLClient {
       await state.connector.connect();
       state.isConnected = true;
     } catch (error) {
-      console.error(`[XRPL] Failed to connect to ${network}:`, error);
       state.isConnected = false;
       throw error;
     } finally {
@@ -350,8 +341,7 @@ class XRPLClient {
       if (state.isConnected) {
         await state.connector.disconnect();
       }
-    } catch (error) {
-      console.error(`[XRPL] Error during disconnect from ${network}:`, error);
+    } catch {
     } finally {
       state.isConnected = false;
       state.connectionPromise = null;
@@ -397,7 +387,6 @@ class XRPLClient {
           error: 'Account not found on the ledger'
         };
       }
-      console.error('[XRPL] Error fetching account info:', error);
       throw error;
     }
   }
@@ -416,7 +405,6 @@ class XRPLClient {
       
       const validatedLedger = response.result?.info?.validated_ledger;
       if (!validatedLedger) {
-        warn('No validated_ledger in server_info, using fallback reserves');
         return { reserve_base_xrp: 1, reserve_inc_xrp: 0.2 };
       }
       
@@ -424,8 +412,7 @@ class XRPLClient {
         reserve_base_xrp: validatedLedger.reserve_base_xrp || 1,
         reserve_inc_xrp: validatedLedger.reserve_inc_xrp || 0.2
       };
-    } catch (error) {
-      console.error('[XRPL] Error fetching server info:', error);
+    } catch {
       return { reserve_base_xrp: 1, reserve_inc_xrp: 0.2 };
     }
   }
@@ -447,14 +434,10 @@ class XRPLClient {
       // Parse the first range start (e.g., "32570-100525000" -> 32570)
       const firstRangeStart = parseInt(completeLedgers.split('-')[0].split(',')[0], 10);
       
-      // Consider it full history if ledgers start from below 1,000,000
-      // Most full history servers start from ledger 32570 (the earliest available)
       const hasFullHistory = !isNaN(firstRangeStart) && firstRangeStart < 1000000;
       
-      log(`Node complete_ledgers: ${completeLedgers}, hasFullHistory: ${hasFullHistory}`);
       return hasFullHistory;
-    } catch (error) {
-      warn(`Failed to check server_info for complete history`);
+    } catch {
       return false;
     }
   }
@@ -489,9 +472,7 @@ class XRPLClient {
       return response.result;
     };
     
-    // Case 1: Custom full history server is configured - use it directly
     if (customFullHistory) {
-      log(`Using custom full history server: ${customFullHistory}`);
       let connector: XRPLConnector | null = null;
       try {
         connector = this.createConnector(customFullHistory);
@@ -501,7 +482,6 @@ class XRPLClient {
         if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
           return { transactions: [], account: address, marker: undefined };
         }
-        console.error('[XRPL] Error fetching transactions from custom full history server:', error);
         throw error;
       } finally {
         if (connector) {
@@ -510,9 +490,7 @@ class XRPLClient {
       }
     }
     
-    // Case 2: Custom node URL is configured - check if it has full history first
     if (customNode) {
-      log(`Checking if custom node has full history: ${customNode}`);
       try {
         await this.connect(network);
         const state = this.clients.get(network);
@@ -520,7 +498,6 @@ class XRPLClient {
           const hasFullHistory = await this.hasCompleteHistory(state.connector);
           
           if (hasFullHistory) {
-            log(`Custom node has full history, using it for transactions`);
             try {
               const result = await makeRequest(state.connector);
               return result;
@@ -530,24 +507,19 @@ class XRPLClient {
               }
               throw error;
             }
-          } else {
-            log(`Custom node lacks full history, falling back to default full history server`);
           }
         }
       } catch (error: any) {
         if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
           return { transactions: [], account: address, marker: undefined };
         }
-        warn(`Custom node check failed, falling back to default full history server`);
       }
       
       // Fall back to default full history server (try WebSocket first, then HTTPS)
       const fallbackHttps = this.fallbackFullHistoryEndpoints[network];
       let fallbackConnector: XRPLConnector | null = null;
       
-      // Try WebSocket first (more reliable on mobile)
       try {
-        log(`Using default full history server (WebSocket): ${defaultFullHistory}`);
         fallbackConnector = this.createConnector(defaultFullHistory);
         await fallbackConnector.connect();
         const result = await makeRequest(fallbackConnector);
@@ -556,16 +528,13 @@ class XRPLClient {
         if (wsError.data?.error === 'actNotFound' || wsError.error === 'actNotFound') {
           return { transactions: [], account: address, marker: undefined };
         }
-        log(`WebSocket fallback failed, trying HTTPS: ${wsError.message || wsError}`);
         if (fallbackConnector) {
           try { await fallbackConnector.disconnect(); } catch {}
           fallbackConnector = null;
         }
       }
       
-      // Try HTTPS as secondary fallback
       try {
-        log(`Using default full history server (HTTPS): ${fallbackHttps}`);
         fallbackConnector = this.createConnector(fallbackHttps);
         await fallbackConnector.connect();
         return await makeRequest(fallbackConnector);
@@ -573,22 +542,18 @@ class XRPLClient {
         if (fallbackError.data?.error === 'actNotFound' || fallbackError.error === 'actNotFound') {
           return { transactions: [], account: address, marker: undefined };
         }
-        console.error('[XRPL] Error fetching transactions from default full history server:', fallbackError);
         throw fallbackError;
       } finally {
         if (fallbackConnector) {
-          try { await fallbackConnector.disconnect(); log('Disconnected default full history server connector'); } catch {}
+          try { await fallbackConnector.disconnect(); } catch {}
         }
       }
     }
     
-    // Case 3: No custom endpoints - use default full history server (try WebSocket first, then HTTPS)
     const fallbackHttps = this.fallbackFullHistoryEndpoints[network];
     let connector: XRPLConnector | null = null;
     
-    // Try WebSocket first (more reliable on mobile)
     try {
-      log(`Using default full history server (WebSocket): ${defaultFullHistory}`);
       connector = this.createConnector(defaultFullHistory);
       await connector.connect();
       const result = await makeRequest(connector);
@@ -597,16 +562,13 @@ class XRPLClient {
       if (wsError.data?.error === 'actNotFound' || wsError.error === 'actNotFound') {
         return { transactions: [], account: address, marker: undefined };
       }
-      log(`WebSocket failed, trying HTTPS: ${wsError.message || wsError}`);
       if (connector) {
         try { await connector.disconnect(); } catch {}
         connector = null;
       }
     }
     
-    // Try HTTPS as secondary fallback
     try {
-      log(`Using default full history server (HTTPS): ${fallbackHttps}`);
       connector = this.createConnector(fallbackHttps);
       await connector.connect();
       return await makeRequest(connector);
@@ -614,11 +576,10 @@ class XRPLClient {
       if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return { transactions: [], account: address, marker: undefined };
       }
-      console.error('[XRPL] Error fetching transactions:', error);
       throw error;
     } finally {
       if (connector) {
-        try { await connector.disconnect(); log('Disconnected full history server connector'); } catch {}
+        try { await connector.disconnect(); } catch {}
       }
     }
   }
@@ -643,10 +604,7 @@ class XRPLClient {
         return { lines: [], account: address, marker: undefined };
       }
       
-      console.error('[XRPL] Error fetching account lines:', error);
-      
       if (error.name === 'DisconnectedError' || error.message?.includes('disconnected')) {
-        log('Retrying account lines fetch after disconnection...');
         await this.connect(network);
         const response = await state.connector.request({
           command: 'account_lines',
@@ -679,7 +637,6 @@ class XRPLClient {
       if (error.data?.error === 'actNotFound' || error.error === 'actNotFound') {
         return { offers: [], account: address };
       }
-      console.error('[XRPL] Error fetching account offers:', error);
       throw error;
     }
   }
@@ -700,8 +657,7 @@ class XRPLClient {
         ledger_index: 'validated'
       });
       return response.result;
-    } catch (error: any) {
-      console.error('[XRPL] Error fetching order book:', error);
+    } catch (error) {
       throw error;
     }
   }
@@ -900,8 +856,7 @@ class XRPLClient {
       const spread = bidPrice && askPrice ? askPrice - bidPrice : null;
 
       return { bidPrice, askPrice, spread };
-    } catch (error) {
-      console.error('[XRPL] Error fetching order book:', error);
+    } catch {
       return { bidPrice: null, askPrice: null, spread: null };
     }
   }
@@ -927,13 +882,11 @@ class XRPLClient {
         };
       }
       
-      warn('Unable to fetch reserve requirements from XRPL, using fallback values');
       return {
         baseReserve: 20,
         incrementReserve: 2
       };
-    } catch (error) {
-      console.error('[XRPL] Error fetching reserve requirements:', error);
+    } catch {
       return {
         baseReserve: 20,
         incrementReserve: 2
@@ -962,8 +915,6 @@ class XRPLClient {
       throw new Error(`Client not initialized for network: ${network}`);
     }
     
-    log(`Submitting transaction to XRPL ${network}...`);
-    
     try {
       const response = await state.connector.request({
         command: 'submit',
@@ -971,7 +922,6 @@ class XRPLClient {
       });
       
       const result = response.result;
-      log('Transaction submitted');
       
       const engineResult = result.engine_result || 'unknown';
       const engineResultMessage = result.engine_result_message || '';
@@ -981,11 +931,8 @@ class XRPLClient {
                         engineResult.startsWith('tec');
       
       if (!isSuccess) {
-        console.error('[XRPL] Transaction submission failed with result:', engineResult);
         throw new Error(`Transaction failed: ${engineResultMessage || engineResult}`);
       }
-      
-      log('Transaction submitted successfully with result:', engineResult);
       
       return {
         success: isSuccess,
@@ -993,8 +940,7 @@ class XRPLClient {
         engineResult,
         engineResultMessage
       };
-    } catch (error: any) {
-      console.error('[XRPL] Error submitting transaction:', error);
+    } catch (error) {
       throw error;
     }
   }

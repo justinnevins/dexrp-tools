@@ -1,9 +1,6 @@
 import { xrplClient } from './xrpl-client';
 import { PRICE_API, RLUSD_ISSUERS, GATEHUB_ISSUERS, CURRENCY_CODES } from './constants';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[XRPPrice]', ...args);
-
 export interface XRPPriceData {
   price: number;
   currency: string;
@@ -59,7 +56,6 @@ export async function fetchXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet'):
     const data: InFTFExchangeRate = await response.json();
 
     if (!data.rate || data.rate === 0) {
-      log('No exchange rate found for XRP pair');
       return null;
     }
 
@@ -71,8 +67,7 @@ export async function fetchXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet'):
       ledgerIndex: data.ledger_index,
       txHash: data.tx_hash
     };
-  } catch (error) {
-    console.error('[XRPPrice] Failed to fetch XRP price from InFTF API:', error);
+  } catch {
     return null;
   }
 }
@@ -98,7 +93,6 @@ export async function fetchXRPToRLUSDPrice(network: 'mainnet' | 'testnet' = 'mai
       : (priceData.askPrice || priceData.bidPrice);
 
     if (!price) {
-      log('No price available for XRP/RLUSD pair');
       return null;
     }
 
@@ -108,8 +102,7 @@ export async function fetchXRPToRLUSDPrice(network: 'mainnet' | 'testnet' = 'mai
       issuer: rlusdIssuer,
       timestamp: Date.now()
     };
-  } catch (error) {
-    console.error('[XRPPrice] Failed to fetch XRP/RLUSD price from order book:', error);
+  } catch {
     return null;
   }
 }

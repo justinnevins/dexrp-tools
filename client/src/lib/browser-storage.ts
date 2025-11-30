@@ -8,9 +8,6 @@ import type {
 } from "@shared/schema";
 import type { StoredOffer, OfferFill } from './dex-types';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[Storage]', ...args);
-
 export interface XRPLSettings {
   customMainnetNode?: string;
   customTestnetNode?: string;
@@ -65,11 +62,8 @@ class BrowserStorage {
         const legacyNetwork = localStorage.getItem('xrpl-network') as 'mainnet' | 'testnet' | null;
         const inferredNetwork = legacyNetwork || 'mainnet';
         
-        log(`Found ${legacyWallets.length} legacy wallet(s) without network field. Inferring network as '${inferredNetwork}'.`);
-        
         wallets = wallets.map(wallet => {
           if (!wallet.network) {
-            log(`Migrating wallet ${wallet.id} to ${inferredNetwork}`);
             return { ...wallet, network: inferredNetwork };
           }
           return wallet;
@@ -86,8 +80,6 @@ class BrowserStorage {
       const legacyWallets = wallets.filter(w => !w.walletType);
       
       if (legacyWallets.length > 0) {
-        log(`Found ${legacyWallets.length} legacy wallet(s) without walletType field. Setting to 'full'.`);
-        
         wallets = wallets.map(wallet => {
           if (!wallet.walletType) {
             return { ...wallet, walletType: 'full' as const };
@@ -101,7 +93,6 @@ class BrowserStorage {
     
     if (needsSave) {
       this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
-      log('Wallet migrations completed');
     }
     
     return wallets;
@@ -127,7 +118,6 @@ class BrowserStorage {
       w.address === insertWallet.address && w.network === network
     );
     if (existingWallet) {
-      log('Wallet with this address and network already exists');
       throw new Error(`Account with address ${insertWallet.address} already exists on ${network}`);
     }
     
@@ -153,7 +143,6 @@ class BrowserStorage {
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
     this.saveCounters(counters);
     
-    log('Wallet created successfully');
     return wallet;
   }
 
@@ -187,7 +176,6 @@ class BrowserStorage {
     };
     
     this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
-    log('Wallet updated successfully');
     return wallets[index];
   }
 
@@ -385,9 +373,7 @@ class BrowserStorage {
   addOfferFill(walletAddress: string, network: 'mainnet' | 'testnet', sequence: number, fill: OfferFill): void {
     let offer = this.getOffer(walletAddress, network, sequence);
     
-    // If offer doesn't exist, create a placeholder (historical fill before we tracked the offer)
     if (!offer) {
-      log(`Creating placeholder offer for historical fill`);
       offer = {
         sequence,
         walletAddress,
@@ -402,10 +388,8 @@ class BrowserStorage {
       };
     }
     
-    // Check if this fill already exists (by txHash)
     const existingFill = offer.fills.find(f => f.txHash === fill.txHash);
     if (existingFill) {
-      log(`Fill already recorded for offer ${sequence}`);
       return;
     }
     

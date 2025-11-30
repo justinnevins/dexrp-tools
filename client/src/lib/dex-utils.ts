@@ -16,9 +16,6 @@
 import type { StoredOffer, OfferFill, Amount, OfferWithStatus } from './dex-types';
 import { xrplClient } from './xrpl-client';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[DEXUtils]', ...args);
-
 /**
  * Extended OfferFill with the sequence number of the filled offer.
  * Used to match fills to specific offers in the user's offer history.
@@ -118,10 +115,8 @@ export function extractOfferFills(
       continue;
     }
     
-    // Get the offer sequence number (try both FinalFields and PreviousFields)
     const offerSequence = finalFields?.Sequence || previousFields?.Sequence;
     if (!offerSequence) {
-      log('Offer node missing Sequence field');
       continue;
     }
     
@@ -241,8 +236,7 @@ function calculateExecutionPrice(
     if (getsValue > 0) {
       return paysValue / getsValue;
     }
-  } catch (error) {
-    console.error('[DEXUtils] Error calculating execution price:', error);
+  } catch {
   }
   
   return undefined;
@@ -354,8 +348,7 @@ function calculateFillPercentage(original: Amount | string, filled: string): num
     if (originalValue > 0) {
       return Math.min(100, (filledValue / originalValue) * 100);
     }
-  } catch (error) {
-    console.error('[DEXUtils] Error calculating fill percentage:', error);
+  } catch {
   }
   
   return 0;

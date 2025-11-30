@@ -123,8 +123,7 @@ class NotificationService {
           
           this.previousTransactionCount = transactions.length;
         }
-      } catch (error) {
-        console.error('[Notifications] Error monitoring transactions:', error);
+      } catch {
       }
     }, 30000);
   }
@@ -137,8 +136,7 @@ class NotificationService {
         const transactions = await response.json();
         this.previousTransactionCount = transactions.length;
       }
-    } catch (error) {
-      console.error('[Notifications] Error initializing transaction count:', error);
+    } catch {
     }
   }
 

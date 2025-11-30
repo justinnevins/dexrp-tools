@@ -69,8 +69,7 @@ class BiometricService {
       this.isEnabled = true;
       localStorage.setItem('biometric_enabled', 'true');
       localStorage.setItem('biometric_credential_id', credential.id);
-    } catch (error) {
-      console.error('[Biometric] Registration failed:', error);
+    } catch {
       throw new Error('Failed to register biometric authentication. Please try again.');
     }
   }
@@ -105,8 +104,7 @@ class BiometricService {
 
       const assertion = await navigator.credentials.get(getCredentialOptions);
       return assertion !== null;
-    } catch (error) {
-      console.error('[Biometric] Authentication failed:', error);
+    } catch {
       return false;
     }
   }
