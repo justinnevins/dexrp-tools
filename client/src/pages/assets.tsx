@@ -22,6 +22,7 @@ import { useQueryClient, useQueries } from '@tanstack/react-query';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { formatPrice } from '@/lib/xrp-price';
+import { AddressFormat } from '@/lib/format-address';
 import type { Wallet as WalletType } from '@shared/schema';
 
 interface AssetData {
@@ -556,7 +557,7 @@ export default function Assets() {
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-muted-foreground">Issuer:</span>
                       <span className="font-mono text-muted-foreground">
-                        {asset.issuer.slice(0, 8)}...{asset.issuer.slice(-8)}
+                        {AddressFormat.long(asset.issuer)}
                       </span>
                     </div>
                   </div>

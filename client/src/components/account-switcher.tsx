@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { truncateAddress } from '@/lib/format-address';
 
 interface AccountSwitcherProps {
   onAddAccount?: () => void;
@@ -20,14 +21,9 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
 
   const availableWallets = wallets.data || [];
 
-  // Don't render if there are no wallets at all
   if (availableWallets.length === 0) {
     return null;
   }
-
-  const formatAddress = (address: string) => {
-    return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
-  };
 
   const getNetworkBadgeColor = (network: 'mainnet' | 'testnet') => {
     return network === 'testnet' 
@@ -52,7 +48,7 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
             <div className="flex flex-col items-start gap-0.5 min-w-0 flex-1 overflow-hidden">
               <div className="flex items-center gap-2 max-w-full">
                 <span className="text-sm font-medium truncate">
-                  {currentWallet.name || formatAddress(currentWallet.address)}
+                  {currentWallet.name || truncateAddress(currentWallet.address)}
                 </span>
                 <span 
                   className={cn(
@@ -64,7 +60,7 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                 </span>
               </div>
               <span className="text-xs text-muted-foreground truncate max-w-full">
-                {formatAddress(currentWallet.address)}
+                {truncateAddress(currentWallet.address)}
               </span>
             </div>
           ) : (
@@ -116,7 +112,7 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium truncate">
-                    {wallet.name || formatAddress(wallet.address)}
+                    {wallet.name || truncateAddress(wallet.address)}
                   </span>
                   <span 
                     className={cn(
@@ -128,7 +124,7 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {formatAddress(wallet.address)}
+                  {truncateAddress(wallet.address)}
                 </span>
               </div>
               {isActive && (

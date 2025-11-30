@@ -11,6 +11,7 @@ import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
 import { xrplClient } from '@/lib/xrpl-client';
+import { AddressFormat } from '@/lib/format-address';
 import type { Wallet as WalletType } from '@shared/schema';
 import {
   Dialog,
@@ -77,12 +78,6 @@ export default function Profile() {
 
 
 
-  const formatAddress = (address: string) => {
-    if (address.length > 16) {
-      return `${address.slice(0, 8)}...${address.slice(-8)}`;
-    }
-    return address;
-  };
 
   const getDisplayBalance = () => {
     if (loadingAccountInfo) return "Loading...";
@@ -348,7 +343,7 @@ export default function Profile() {
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {formatAddress(wallet.address)}
+                      {AddressFormat.long(wallet.address)}
                     </p>
                     {wallet.walletType === 'watchOnly' ? (
                       <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">

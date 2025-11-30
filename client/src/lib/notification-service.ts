@@ -1,3 +1,5 @@
+import { AddressFormat } from './format-address';
+
 class NotificationService {
   private isEnabled: boolean = false;
   private previousTransactionCount: number = 0;
@@ -77,21 +79,14 @@ class NotificationService {
     const isReceived = type === 'received';
     const title = isReceived ? 'XRP Received' : 'XRP Sent';
     const body = isReceived 
-      ? `Received ${amount} XRP from ${this.formatAddress(address)}`
-      : `Sent ${amount} XRP to ${this.formatAddress(address)}`;
+      ? `Received ${amount} XRP from ${AddressFormat.short(address)}`
+      : `Sent ${amount} XRP to ${AddressFormat.short(address)}`;
 
     this.showNotification(title, {
       body,
       tag: 'transaction',
       icon: '/favicon.ico',
     });
-  }
-
-  private formatAddress(address: string): string {
-    if (address.length > 10) {
-      return `${address.slice(0, 4)}...${address.slice(-4)}`;
-    }
-    return address;
   }
 
   startTransactionMonitoring(walletAddress: string) {

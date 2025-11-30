@@ -22,6 +22,7 @@ import { encode } from 'ripple-binary-codec';
 import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
 import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
+import { truncateAddress } from '@/lib/format-address';
 
 const transactionSchema = z.object({
   destination: z.string().min(1, 'Destination address is required').regex(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/, 'Invalid XRP address format'),
@@ -150,7 +151,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
     
     toast({
       title: "Address Scanned",
-      description: `Destination set to ${validatedAddress.substring(0, 8)}...${validatedAddress.substring(validatedAddress.length - 6)}`,
+      description: `Destination set to ${truncateAddress(validatedAddress, 8, 6)}`,
     });
   };
 

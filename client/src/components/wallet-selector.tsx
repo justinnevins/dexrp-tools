@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useWallet } from '@/hooks/use-wallet';
+import { truncateAddress } from '@/lib/format-address';
 import type { Wallet } from '@shared/schema';
 
 interface WalletSelectorProps {
@@ -26,10 +27,6 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
     return wallet.name || `Account ${index + 1}`;
   };
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -44,7 +41,7 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
               {currentWallet?.name || (wallets.data && wallets.data.length > 0 ? getWalletName(wallets.data[0], 0) : 'No Wallet')}
             </span>
             <span className="text-xs opacity-60">
-              {currentWallet ? formatAddress(currentWallet.address) : ''}
+              {currentWallet ? truncateAddress(currentWallet.address) : ''}
             </span>
           </div>
           <ChevronDown className="w-4 h-4 opacity-75" />
@@ -82,7 +79,7 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {formatAddress(wallet.address)}
+                  {truncateAddress(wallet.address)}
                 </span>
               </div>
               {currentWallet?.id === wallet.id && (

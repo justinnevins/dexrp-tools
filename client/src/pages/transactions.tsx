@@ -6,6 +6,7 @@ import { xrplClient } from '@/lib/xrpl-client';
 import { extractOfferFills, calculateBalanceChanges, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
 import { EXPLORER_URLS } from '@/lib/constants';
+import { truncateAddress } from '@/lib/format-address';
 import {
   Select,
   SelectContent,
@@ -429,12 +430,6 @@ export default function Transactions() {
     return true;
   });
 
-  const formatAddress = (address: string) => {
-    if (address.length > 10) {
-      return `${address.slice(0, 6)}...${address.slice(-6)}`;
-    }
-    return address;
-  };
 
   const formatDate = (date: Date) => {
     const now = new Date();
@@ -552,7 +547,7 @@ export default function Transactions() {
                       </p>
                       {transaction.type !== 'exchange' && !transaction.isDEXFill && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && (
                         <p className="text-sm text-muted-foreground">
-                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
+                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + truncateAddress(transaction.address, 6, 6)}
                         </p>
                       )}
                       {transaction.isDEXFill && (

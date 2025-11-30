@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
 import { useQueryClient } from '@tanstack/react-query';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
+import { AddressFormat } from '@/lib/format-address';
 
 export default function Tokens() {
   const [trustlineModalOpen, setTrustlineModalOpen] = useState(false);
@@ -409,7 +410,7 @@ export default function Tokens() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-muted-foreground">Issuer:</span>
                     <span className="font-mono text-muted-foreground">
-                      {token.issuer.slice(0, 8)}...{token.issuer.slice(-8)}
+                      {AddressFormat.long(token.issuer)}
                     </span>
                   </div>
                 </div>

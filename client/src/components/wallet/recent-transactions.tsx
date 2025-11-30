@@ -6,6 +6,7 @@ import { useAccountTransactions } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 import { calculateBalanceChanges, extractOfferFills, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
+import { AddressFormat } from '@/lib/format-address';
 
 interface RecentTransactionsProps {
   onViewAllClick: () => void;
@@ -323,12 +324,6 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
 
   const transactions = formatTransactions();
 
-  const formatAddress = (address: string) => {
-    if (address.length > 10) {
-      return `${address.slice(0, 4)}...${address.slice(-4)}`;
-    }
-    return address;
-  };
 
   return (
     <section className="px-4 py-4">
@@ -376,7 +371,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                       </p>
                       {transaction.type !== 'exchange' && transaction.type !== 'dex-fill' && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && (
                         <p className="text-sm text-muted-foreground">
-                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + formatAddress(transaction.address)}
+                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + AddressFormat.short(transaction.address)}
                         </p>
                       )}
                     </div>
