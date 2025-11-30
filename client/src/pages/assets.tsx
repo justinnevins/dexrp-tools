@@ -24,9 +24,6 @@ import { useXRPPrice } from '@/hooks/use-xrp-price';
 import { formatPrice } from '@/lib/xrp-price';
 import type { Wallet as WalletType } from '@shared/schema';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[Assets]', ...args);
-
 interface AssetData {
   id: string;
   currency: string;
@@ -79,8 +76,7 @@ export default function Assets() {
       queryFn: async () => {
         try {
           return await xrplClient.getAccountInfo(wallet.address, wallet.network);
-        } catch (error) {
-          console.error('[Assets] Error fetching account info:', error);
+        } catch {
           return null;
         }
       },
@@ -96,8 +92,7 @@ export default function Assets() {
       queryFn: async () => {
         try {
           return await xrplClient.getAccountLines(wallet.address, wallet.network);
-        } catch (error) {
-          console.error('[Assets] Error fetching account lines:', error);
+        } catch {
           return { lines: [] };
         }
       },
@@ -227,7 +222,6 @@ export default function Assets() {
     if (isRefreshing) return;
     
     setIsRefreshing(true);
-    log('Manual refresh triggered');
     
     try {
       await queryClient.refetchQueries({ 
@@ -236,9 +230,7 @@ export default function Assets() {
           query.queryKey[0] === 'accountLines'
       });
       await queryClient.refetchQueries({ queryKey: ['xrp-price-dex'] });
-      log('Manual refresh complete');
-    } catch (error) {
-      console.error('[Assets] Refresh failed:', error);
+    } catch {
     } finally {
       setIsRefreshing(false);
     }

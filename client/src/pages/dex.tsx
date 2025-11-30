@@ -44,9 +44,6 @@ import {
 } from '@/lib/order-book-depth';
 import { COMMON_TOKENS, XRPL_RESERVES, DEX_DEFAULTS, CURRENCY_CODES } from '@/lib/constants';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[DEX]', ...args);
-
 interface OfferData {
   takerGets: { currency: string; issuer?: string; value: string };
   takerPays: { currency: string; issuer?: string; value: string };
@@ -146,9 +143,7 @@ export default function DEX() {
         const reserves = await xrplClient.getReserveRequirements(currentNetwork);
         setBaseReserve(reserves.baseReserve);
         setIncrementReserve(reserves.incrementReserve);
-      } catch (error) {
-        console.error('[DEX] Failed to fetch reserve requirements:', error);
-        // Keep using the default fallback values (20/2)
+      } catch {
       }
     };
     fetchReserves();
@@ -258,25 +253,11 @@ export default function DEX() {
     const baseInfo = parseAsset(baseAsset);
     const quoteInfo = parseAsset(quoteAsset);
 
-    log('MAX clicked:', {
-      orderSide,
-      baseAsset,
-      quoteAsset,
-      price,
-      marketPrice
-    });
-
     if (orderSide === 'buy') {
       // Buying base with quote - calculate max base we can afford
       const quoteBalance = quoteInfo.currency === 'XRP'
         ? parseFloat(getXRPBalance())
         : getTokenBalanceFromLines(quoteInfo.currency, quoteInfo.issuer, accountLines?.lines);
-
-      log('Buy MAX calculation:', {
-        quoteBalance,
-        price,
-        isQuoteXRP: quoteInfo.currency === 'XRP'
-      });
 
       const maxCalc = calculateMaxBuy(
         quoteBalance,
@@ -288,8 +269,6 @@ export default function DEX() {
         incrementReserve
       );
 
-      log('Buy MAX result');
-
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
         // Let useEffect auto-calculate total from amount × price
@@ -300,12 +279,6 @@ export default function DEX() {
         ? parseFloat(getXRPBalance())
         : getTokenBalanceFromLines(baseInfo.currency, baseInfo.issuer, accountLines?.lines);
 
-      log('Sell MAX calculation:', {
-        baseBalance,
-        price,
-        isBaseXRP: baseInfo.currency === 'XRP'
-      });
-
       const maxCalc = calculateMaxSell(
         baseBalance,
         price,
@@ -315,8 +288,6 @@ export default function DEX() {
         baseReserve,
         incrementReserve
       );
-
-      log('Sell MAX result');
 
       if (maxCalc.maxAmount) {
         setAmount(maxCalc.maxAmount);
@@ -394,13 +365,6 @@ export default function DEX() {
         orderSide
       );
       effectivePrice = slippageProtectedPrice.toString();
-      
-      log('Market order pricing:', {
-        marketPrice,
-        slippageTolerance: slippageTolerance * 100 + '%',
-        slippageProtectedPrice,
-        orderSide
-      });
     } else {
       // Limit order - validate price is set and > 0
       const priceValue = parseFloat(price);
@@ -583,8 +547,6 @@ export default function DEX() {
         transaction.Expiration = expirationTime - rippleEpoch;
       }
 
-      log('Creating OfferCreate transaction');
-
       const keystoneUR = await encodeOfferTransaction(transaction);
       
       setTransactionUR(keystoneUR);
@@ -593,7 +555,6 @@ export default function DEX() {
       setShowSigner(true);
 
     } catch (error) {
-      console.error('[DEX] Failed to create offer transaction:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create offer",
@@ -625,8 +586,6 @@ export default function DEX() {
         SigningPubKey: currentWallet.publicKey || ''
       };
 
-      log('Creating OfferCancel transaction');
-
       const keystoneUR = await encodeOfferTransaction(transaction);
       
       setTransactionUR(keystoneUR);
@@ -636,7 +595,6 @@ export default function DEX() {
       setShowSigner(true);
 
     } catch (error) {
-      console.error('[DEX] Failed to create cancel transaction:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to cancel offer",
@@ -646,8 +604,6 @@ export default function DEX() {
   };
 
   const handleSigningSuccess = async (txHash: string) => {
-    log('Offer transaction successful');
-    
     // Save offer to browser storage if it's an OfferCreate
     if (transactionType === 'OfferCreate' && unsignedTransaction && currentWallet) {
       const storedOffer: StoredOffer = {
@@ -665,7 +621,6 @@ export default function DEX() {
       };
       
       browserStorage.saveOffer(storedOffer);
-      log('Saved offer to browser storage');
     }
     
     // Wait 4 seconds for XRPL ledger validation, then refetch offers
@@ -746,11 +701,7 @@ export default function DEX() {
         ? { currency: 'XRP' }
         : { currency: quoteInfo.currency, issuer: quoteInfo.issuer };
 
-      log('Fetching order book price');
-      
       const priceData = await xrplClient.getOrderBookPrice(currentNetwork, takerGets, takerPays);
-      
-      log('Order book price data received');
 
       // Use mid-market price (average of bid and ask) if both are available
       if (priceData.bidPrice && priceData.askPrice) {
@@ -770,7 +721,6 @@ export default function DEX() {
         setPriceError('No liquidity found for this trading pair');
       }
     } catch (error: any) {
-      console.error('[DEX] Failed to fetch order book price:', error);
       setMarketPrice(null);
       setPriceError(error.message || 'Failed to load price data');
     } finally {
@@ -816,10 +766,7 @@ export default function DEX() {
       const orderSize = parseFloat(amount);
       const estimate = estimateExecution(depth, orderSize, slippageTolerance);
       setExecutionEstimate(estimate);
-
-      log('Order book depth analysis');
-    } catch (error: any) {
-      console.error('[DEX] Failed to analyze order book depth:', error);
+    } catch {
       setOrderBookDepth(null);
       setExecutionEstimate(null);
     } finally {
