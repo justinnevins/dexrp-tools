@@ -388,7 +388,7 @@ export default function Assets() {
     <div className="px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Assets/Tokens</h1>
+        <h1 className="text-2xl font-bold">Assets</h1>
         <div className="flex items-center space-x-2">
           <Button 
             variant="ghost" 
