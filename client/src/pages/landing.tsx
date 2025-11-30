@@ -18,7 +18,7 @@ export default function Landing() {
     },
     {
       icon: TrendingUp,
-      title: 'Your New Title Here',
+      title: 'Transact directly on the XRP Ledger DEX',
       description: 'Access the XRPL decentralized exchange. Trade tokens with real-time order book depth.'
     },
     {
