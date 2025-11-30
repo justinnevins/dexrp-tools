@@ -4,9 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Camera, X } from 'lucide-react';
 import { URDecoder } from '@ngraveio/bc-ur';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[KeystoneQR]', ...args);
-
 interface KeystoneQRScannerProps {
   onScan: (data: string) => void;
   onClose: () => void;
@@ -38,8 +35,6 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
 
   const startCamera = async () => {
     try {
-      log('Starting camera for Keystone QR scanning...');
-      
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
@@ -60,10 +55,8 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
             videoRef.current.play().then(() => {
               setIsActive(true);
               setError(null);
-              log('Camera active, starting QR scanning...');
               startQRScanning();
-            }).catch(err => {
-              console.error('[KeystoneQR] Video play failed:', err);
+            }).catch(() => {
               setError('Failed to play video stream');
             });
           }
@@ -71,7 +64,6 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
       }
 
     } catch (err) {
-      console.error('[KeystoneQR] Camera access failed:', err);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
           setError('Camera permission denied. Please allow camera access.');
@@ -88,17 +80,12 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
 
   const startQRScanning = async () => {
     try {
-      // Dynamic import of QR scanner
       const QrScanner = (await import('qr-scanner')).default;
       
       if (videoRef.current) {
-        log('Initializing QR scanner for multi-part UR support...');
         setIsScanning(true);
-        
-        // Initialize URDecoder for multi-part QR codes
         decoderRef.current = new URDecoder();
         
-        // Scan every 200ms
         scanIntervalRef.current = setInterval(async () => {
           if (videoRef.current && canvasRef.current) {
             try {
@@ -107,42 +94,25 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
               if (result) {
                 const qrData = (typeof result === 'string' ? result : (result as any).data || result).trim();
                 
-                // Check if it's a Keystone UR format
                 if (qrData.toUpperCase().startsWith('UR:')) {
                   const upperQR = qrData.toUpperCase();
-                  
-                  // Check if this is a multi-part UR (format: UR:BYTES/{total}-{current}/)
                   const multiPartMatch = upperQR.match(/UR:[^/]+\/(\d+)-(\d+)\//);
                   
                   if (multiPartMatch) {
-                    // Multi-part UR detected - format is {seq_num}-{seq_len}
-                    const seqNum = parseInt(multiPartMatch[1]);
                     const seqLen = parseInt(multiPartMatch[2]);
                     
-                    log(`Multi-part UR detected: sequence ${seqNum} of ${seqLen}`);
-                    
-                    // Feed this part to the decoder
                     if (decoderRef.current && !hasSubmittedRef.current) {
                       try {
-                        log('Attempting to receive part');
                         decoderRef.current.receivePart(qrData.toLowerCase());
-                        log('Part received successfully');
                         
-                        // Get progress from decoder - receivedPartIndexes() returns an array
                         const receivedIndexes = decoderRef.current.receivedPartIndexes();
                         const receivedCount = receivedIndexes ? receivedIndexes.length : 0;
                         
                         setScanProgress({ current: receivedCount, total: seqLen });
-                        log(`Progress: ${receivedCount}/${seqLen} parts received`);
                         
-                        // Check if we have all parts - decoder knows when it's complete
                         if (decoderRef.current.isComplete()) {
-                          log('All parts received! Decoding complete UR...');
-                          
-                          // Prevent multiple submissions
                           hasSubmittedRef.current = true;
                           
-                          // Stop scanning immediately
                           if (scanIntervalRef.current) {
                             clearInterval(scanIntervalRef.current);
                             scanIntervalRef.current = null;
@@ -150,30 +120,22 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                           
                           try {
                             const completeUR = decoderRef.current.resultUR();
-                            // Convert UR to string format
                             const completeURString = `ur:${completeUR.type}/${completeUR.cbor.toString('hex')}`;
-                            log('Complete UR reconstructed');
                             
                             stopCamera();
                             onScan(completeURString);
-                          } catch (urError) {
-                            console.error('[KeystoneQR] Error creating complete UR:', urError);
+                          } catch {
                             hasSubmittedRef.current = false;
                           }
                           return;
                         }
-                      } catch (decodeError) {
-                        console.error('[KeystoneQR] Error processing UR part:', decodeError);
-                        log('Error details:', decodeError instanceof Error ? decodeError.message : 'Unknown error');
+                      } catch {
                       }
                     }
                   } else {
-                    // Single-part UR (no sequence numbers)
                     if (!hasSubmittedRef.current) {
-                      log('Single-part UR detected');
                       hasSubmittedRef.current = true;
                       
-                      // Stop scanning immediately
                       if (scanIntervalRef.current) {
                         clearInterval(scanIntervalRef.current);
                         scanIntervalRef.current = null;
@@ -186,14 +148,12 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
                   }
                 }
               }
-            } catch (scanError) {
-              // No QR code found, continue scanning
+            } catch {
             }
           }
         }, 200);
       }
-    } catch (error) {
-      console.error('[KeystoneQR] QR Scanner initialization failed:', error);
+    } catch {
       setError('QR scanning not available. Please ensure you have a modern browser.');
     }
   };

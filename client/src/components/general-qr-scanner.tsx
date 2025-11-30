@@ -5,9 +5,6 @@ import { Camera, X, Scan } from 'lucide-react';
 import QrScanner from 'qr-scanner';
 import { xrplClient } from '@/lib/xrpl-client';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[GeneralQR]', ...args);
-
 type ScanMode = 'address' | 'generic' | 'ur-code';
 
 interface GeneralQRScannerProps {
@@ -50,7 +47,6 @@ function extractAddressFromQRData(data: string): string | null {
         return parsed.address;
       }
     } catch {
-      log('Failed to parse JSON payload');
     }
   }
   
@@ -123,10 +119,8 @@ export function GeneralQRScanner({
     if (mode === 'address') {
       const address = extractAddressFromQRData(data);
       if (address && validateXrplAddress(address)) {
-        log('Address validated with checksum');
         return address;
       }
-      log('Address validation failed');
       return null;
     }
     
@@ -158,8 +152,6 @@ export function GeneralQRScanner({
 
   const initCamera = async () => {
     try {
-      log('Requesting camera access...');
-      
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: 'environment',
@@ -178,20 +170,17 @@ export function GeneralQRScanner({
           video.play().then(() => {
             setIsActive(true);
             setError(null);
-            log('Camera ready');
             
             setTimeout(() => {
               startQRDetection();
             }, 500);
-          }).catch(err => {
-            console.error('[GeneralQR] Video play failed:', err);
+          }).catch(() => {
             setError('Failed to start camera playback');
           });
         });
       }
 
     } catch (err) {
-      console.error('[GeneralQR] Camera access failed:', err);
       if (err instanceof Error) {
         if (err.name === 'NotAllowedError') {
           setError('Camera permission denied. Please allow camera access.');
@@ -227,23 +216,19 @@ export function GeneralQRScanner({
 
       QrScanner.scanImage(canvas).then(result => {
         const qrData = (typeof result === 'string' ? result : String(result)).trim();
-        log('Canvas QR detected');
         
         const validatedData = validateAndProcessData(qrData);
         if (validatedData) {
-          log('Valid data from canvas');
           onScan(validatedData);
           cleanup();
         }
       }).catch(() => {
-        // No QR code found, continue scanning
       });
 
       frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
     };
 
     frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
-    log('Canvas analysis started');
   };
 
   const startQRDetection = () => {
@@ -253,16 +238,12 @@ export function GeneralQRScanner({
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result: any) => {
-          log('QR detected');
           const qrData = (typeof result === 'string' ? result : (result.data || String(result))).trim();
           
           const validatedData = validateAndProcessData(qrData);
           if (validatedData) {
-            log('Valid data detected');
             onScan(validatedData);
             cleanup();
-          } else {
-            log('Data validation failed, continuing scan');
           }
         },
         {
@@ -279,15 +260,12 @@ export function GeneralQRScanner({
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
-        log('QR scanner active');
         startCanvasAnalysis();
-      }).catch(err => {
-        console.error('[GeneralQR] QR scanner failed:', err);
+      }).catch(() => {
         startCanvasAnalysis();
       });
 
-    } catch (err) {
-      console.error('[GeneralQR] QR setup error:', err);
+    } catch {
       setError('Failed to setup QR detection');
       startCanvasAnalysis();
     }

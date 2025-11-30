@@ -48,8 +48,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
           },
         });
         setQrCodeUrl(url);
-      } catch (error) {
-        console.error('[Receive] Failed to generate QR code:', error);
+      } catch {
         toast({
           title: "QR Code Error",
           description: "Unable to generate QR code",

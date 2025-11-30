@@ -13,9 +13,6 @@ import { KeystoneAddressModal } from '@/components/modals/keystone-address-modal
 import { KeystoneAccountScanner } from '@/components/keystone-account-scanner';
 import { WatchOnlyAddressModal } from '@/components/modals/watch-only-address-modal';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[HWConnect]', ...args);
-
 interface HardwareWalletConnectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -72,16 +69,12 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
   };
 
   const handleKeystoneAccountScan = async (address: string, publicKey: string) => {
-    // Prevent duplicate wallet creation
     if (isCreatingWalletRef.current) {
-      log('Already creating wallet, ignoring duplicate call');
       return;
     }
     isCreatingWalletRef.current = true;
     
     try {
-      log('Keystone 3 Pro account scanned');
-      
       await connect('Keystone 3 Pro');
       
       await createWallet.mutateAsync({
@@ -95,21 +88,18 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       setShowKeystoneScanner(false);
       setShowNetworkSelection(false);
       setSelectedWallet(null);
-      setSelectedNetwork('mainnet'); // Reset to default
+      setSelectedNetwork('mainnet');
       setWalletName('');
       onClose();
     } catch (error: any) {
-      console.error('[HWConnect] Keystone connection failed:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
       alert(`Failed to add account: ${errorMessage}`);
-      isCreatingWalletRef.current = false; // Reset on error so user can retry
+      isCreatingWalletRef.current = false;
     }
   };
 
   const handleKeystoneConfirm = async (address: string) => {
-    // Prevent duplicate wallet creation
     if (isCreatingWalletRef.current) {
-      log('Already creating wallet, ignoring duplicate call');
       return;
     }
     isCreatingWalletRef.current = true;
@@ -126,14 +116,13 @@ export function HardwareWalletConnectModal({ isOpen, onClose }: HardwareWalletCo
       
       setShowKeystoneModal(false);
       setSelectedWallet(null);
-      setSelectedNetwork('mainnet'); // Reset to default
+      setSelectedNetwork('mainnet');
       setWalletName('');
       onClose();
     } catch (error: any) {
-      console.error('[HWConnect] Keystone connection failed:', error);
       const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
       alert(`Failed to add account: ${errorMessage}`);
-      isCreatingWalletRef.current = false; // Reset on error so user can retry
+      isCreatingWalletRef.current = false;
     }
   };
 

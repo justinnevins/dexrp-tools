@@ -23,9 +23,6 @@ import { AnimatedQRCode } from '@keystonehq/animated-qr';
 import { AmountPresetButtons } from '@/components/amount-preset-buttons';
 import { calculateAvailableBalance, getTokenBalance } from '@/lib/xrp-account';
 
-const isDev = import.meta.env.DEV;
-const log = (...args: any[]) => isDev && console.log('[SendTx]', ...args);
-
 const transactionSchema = z.object({
   destination: z.string().min(1, 'Destination address is required').regex(/^r[1-9A-HJ-NP-Za-km-z]{25,34}$/, 'Invalid XRP address format'),
   amount: z.string().min(1, 'Amount is required').refine((val) => {
@@ -45,18 +42,13 @@ interface SendTransactionFormProps {
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
-  log('Encoding transaction for Keystone');
-  
   try {
     const { prepareXrpSignRequest } = await import('@/lib/keystone-client');
     const result = prepareXrpSignRequest(transactionTemplate);
     
-    log('SDK generated type:', result.type, 'CBOR length:', result.cbor.length);
-    
     return { type: result.type, cbor: result.cbor };
     
-  } catch (error) {
-    console.error('[SendTx] Keystone encoding failed:', error);
+  } catch {
     throw new Error('Failed to encode transaction. Please try again.');
   }
 }
@@ -153,7 +145,6 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   };
 
   const handleAddressQRScan = (validatedAddress: string) => {
-    log('Address scanned from QR code');
     form.setValue('destination', validatedAddress);
     setShowAddressScanner(false);
     
@@ -198,8 +189,6 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       transactionSequence = accountInfo.account_data.Sequence || 1;
       // Check both possible ledger index fields (current or validated ledger)
       transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
-      
-      log('Using real XRPL network data:', { sequence: transactionSequence, currentLedger: transactionLedger });
     }
     
     // Create transaction for Keystone 3 Pro using actual form data
@@ -229,10 +218,7 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }];
     }
 
-    log('Creating Keystone transaction object');
-
     try {
-      log('Using Keystone-compatible UR encoder');
       
       // Create proper transaction JSON template with actual form data
       const transactionTemplate = {
@@ -252,21 +238,14 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         (transactionTemplate as any).DestinationTag = parseInt(txData.destinationTag);
       }
       
-      const txStr = JSON.stringify(transactionTemplate, null, 2);
-      
-      log('Transaction template created');
-      
       const urResult = await encodeKeystoneUR(transactionTemplate);
-      
-      log('Keystone UR type:', urResult.type, 'CBOR length:', urResult.cbor.length);
       
       // Store the unsigned transaction so we can combine it with the signature later
       setPendingUnsignedTx(transactionTemplate);
       
       return urResult;
       
-    } catch (error) {
-      console.error('[SendTx] Keystone encoding failed:', error);
+    } catch {
       throw new Error('Failed to encode transaction for Keystone 3 Pro');
     }
   };
@@ -340,8 +319,6 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       // Wait for user to scan QR code and sign with Keystone device
       setCurrentStep('signing');
       
-      log('QR code displayed for Keystone 3 Pro signing');
-      
       setPendingTransactionData(data);
       
       toast({
@@ -350,8 +327,6 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       });
 
     } catch (error) {
-      console.error('[SendTx] Failed to send transaction:', error);
-      
       toast({
         title: "Transaction Failed",
         description: error instanceof Error ? error.message : "Failed to send transaction",
@@ -364,46 +339,34 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   };
 
   const handleSignedQRScan = async (signedQRData: string) => {
-    log('Handle signed QR scan started');
-    
     if (!currentWallet || !pendingTransactionData) {
-      console.error('[SendTx] Missing current wallet or pending transaction data');
       return;
     }
 
     if (processingSignatureRef.current) {
-      log('Already processing a signed transaction, ignoring...');
       return;
     }
 
     try {
-      log('Setting processing flag and closing scanner...');
       processingSignatureRef.current = true;
       setCurrentStep('submitting');
       setIsSubmitting(true);
       setShowSignedQRScanner(false);
 
-      log('Processing signed QR from Keystone');
-
       let signedTransaction;
       try {
         if (signedQRData.toUpperCase().startsWith('UR:XRP-SIGNATURE/') || 
             signedQRData.toUpperCase().startsWith('UR:BYTES/')) {
-          log('Keystone UR format detected');
           
           try {
-            log('Decoding signature using client-side Keystone SDK...');
             const { parseKeystoneSignature } = await import('@/lib/keystone-client');
             const result = parseKeystoneSignature(signedQRData);
-            log('Client decoded signature');
             
             const signatureData = result.signature;
-            log('Signature data length:', signatureData.length);
             
             let txBlob: string;
             
             if (signatureData.length > 200 && /^1[0-9a-f]00/i.test(signatureData)) {
-              log('Keystone returned full signed transaction blob, using directly');
               txBlob = signatureData.toUpperCase();
             } else {
               if (!pendingUnsignedTx) {
@@ -415,13 +378,8 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
                 TxnSignature: signatureData
               };
               
-              log('Combining transaction with signature');
-              
               txBlob = encode(signedTx);
-              log('Encoded signed transaction blob');
             }
-            
-            log('Final transaction blob ready');
             
             signedTransaction = {
               txBlob: txBlob,
@@ -429,16 +387,13 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
             };
             
           } catch (error) {
-            console.error('[SendTx] Keystone signature decoding failed:', error);
             throw error;
           }
           
         } else if (signedQRData.startsWith('{')) {
-          log('JSON format detected');
           signedTransaction = JSON.parse(signedQRData);
           
         } else if (/^[0-9A-Fa-f]+$/.test(signedQRData)) {
-          log('Raw hex transaction blob detected');
           signedTransaction = {
             txBlob: signedQRData,
             txHash: null
@@ -448,13 +403,11 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
           throw new Error('Unrecognized signed transaction format. Expected UR:XRP-SIGNATURE/, UR:BYTES/, JSON, or hex data.');
         }
         
-        // Validate we have the required fields
         if (!signedTransaction.txBlob) {
           throw new Error('Signed transaction missing transaction blob');
         }
         
         const txBlob = signedTransaction.txBlob.toUpperCase();
-        log('Validating transaction blob format');
         
         if (!txBlob || txBlob.length < 20 || !/^[0-9A-F]+$/.test(txBlob)) {
           throw new Error('Invalid transaction blob format. Must be valid hex.');
@@ -462,32 +415,22 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
         
         const firstByte = txBlob.substring(0, 2);
         if (firstByte === '30' || firstByte === '31' || firstByte === '32') {
-          log('Attempting to extract valid XRPL transaction...');
-          
           const paymentPattern = txBlob.match(/(12[0-9A-F]{40,})/);
           if (paymentPattern) {
-            log('Found payment transaction pattern');
             signedTransaction.txBlob = paymentPattern[1];
           } else {
             throw new Error('Unable to extract valid XRPL transaction from Keystone signed data. The device may be using an incompatible encoding format.');
           }
         }
         
-        log('Parsed signed transaction');
-        
       } catch (parseError) {
-        console.error('[SendTx] Failed to parse signed QR:', parseError);
         throw new Error('Invalid signed transaction QR code format. Please ensure you scanned the signed transaction from your Keystone device.');
       }
 
       const submissionNetwork = currentWallet?.network || 'mainnet';
-      const customEndpoint = xrplClient.getEndpoint(submissionNetwork);
-      
-      log('Submitting transaction to network:', submissionNetwork);
       
       const txBlob = signedTransaction.txBlob || signedTransaction.signedTransaction;
       const submitResult = await xrplClient.submitTransaction(txBlob, submissionNetwork);
-      log('Transaction submitted');
       
       if (!submitResult.success) {
         throw new Error(submitResult.engineResultMessage || 'Failed to submit transaction to network');
@@ -511,7 +454,6 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
       }
 
     } catch (error) {
-      console.error('[SendTx] Failed to submit signed transaction:', error);
       toast({
         title: "Transaction Failed",
         description: error instanceof Error ? error.message : "Failed to submit signed transaction",
