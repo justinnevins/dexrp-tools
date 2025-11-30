@@ -16,7 +16,7 @@ import Transactions from "@/pages/transactions";
 import Assets from "@/pages/assets";
 import DEX from "@/pages/dex";
 import Profile from "@/pages/profile";
-import NotFound from "@/pages/not-found";
+import NotFound from "@/pages/NotFoundPage";
 
 function BackButtonHandler() {
   const [location] = useLocation();

@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/cn';
 import { truncateAddress } from '@/lib/format-address';
 
 interface AccountSwitcherProps {
