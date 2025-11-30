@@ -42,72 +42,10 @@ import {
   type OrderBookDepth,
   type ExecutionEstimate
 } from '@/lib/order-book-depth';
+import { COMMON_TOKENS, XRPL_RESERVES, DEX_DEFAULTS, CURRENCY_CODES } from '@/lib/constants';
 
 const isDev = import.meta.env.DEV;
 const log = (...args: any[]) => isDev && console.log('[DEX]', ...args);
-
-// Common XRPL tokens with mainnet/testnet issuers
-interface CommonToken {
-  name: string;
-  currency: string;
-  mainnetIssuer?: string;
-  testnetIssuer?: string;
-}
-
-const COMMON_TOKENS: CommonToken[] = [
-  {
-    name: 'Ripple USD (RLUSD)',
-    currency: '524C555344000000000000000000000000000000',
-    mainnetIssuer: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
-    testnetIssuer: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV'
-  },
-  {
-    name: 'USD Coin (USDC)',
-    currency: '5553444300000000000000000000000000000000',
-    mainnetIssuer: 'rGm7WCVp9gb4jZHWTEtGUr4dd74z2XuWhE',
-    testnetIssuer: 'rHuGNhqTG32mfmAvWA8hUyWRLV3tCSwKQt'
-  },
-  {
-    name: 'Bitstamp USD',
-    currency: 'USD',
-    mainnetIssuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'
-  },
-  {
-    name: 'Bitstamp BTC',
-    currency: 'BTC',
-    mainnetIssuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'
-  },
-  {
-    name: 'Bitstamp ETH',
-    currency: 'ETH',
-    mainnetIssuer: 'rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B'
-  },
-  {
-    name: 'GateHub EUR',
-    currency: 'EUR',
-    mainnetIssuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq'
-  },
-  {
-    name: 'GateHub USD',
-    currency: 'USD',
-    mainnetIssuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq'
-  },
-  {
-    name: 'GateHub GBP',
-    currency: 'GBP',
-    mainnetIssuer: 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq'
-  },
-  {
-    name: 'Sologenic (SOLO)',
-    currency: '534F4C4F00000000000000000000000000000000',
-    mainnetIssuer: 'rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz'
-  },
-  {
-    name: 'CasinoCoin (CSC)',
-    currency: 'CSC',
-    mainnetIssuer: 'rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr'
-  }
-];
 
 interface OfferData {
   takerGets: { currency: string; issuer?: string; value: string };
@@ -132,8 +70,8 @@ export default function DEX() {
   const [expirationDays, setExpirationDays] = useState('');
   const [limitPriceInitialized, setLimitPriceInitialized] = useState(false); // Track if limit price was set
   // Dynamic reserve state - fetched from XRPL ledger
-  const [baseReserve, setBaseReserve] = useState(20); // Default to current XRPL base reserve
-  const [incrementReserve, setIncrementReserve] = useState(2); // Default to current XRPL increment
+  const [baseReserve, setBaseReserve] = useState(XRPL_RESERVES.BASE_RESERVE);
+  const [incrementReserve, setIncrementReserve] = useState(XRPL_RESERVES.INCREMENT_RESERVE);
   
   // Advanced options
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -155,7 +93,7 @@ export default function DEX() {
   const [priceError, setPriceError] = useState<string | null>(null);
   
   // Order book depth and slippage state
-  const [slippageTolerance, setSlippageTolerance] = useState(0.02); // 2% default
+  const [slippageTolerance, setSlippageTolerance] = useState(DEX_DEFAULTS.SLIPPAGE_TOLERANCE);
   const [orderBookDepth, setOrderBookDepth] = useState<OrderBookDepth | null>(null);
   const [executionEstimate, setExecutionEstimate] = useState<ExecutionEstimate | null>(null);
   const [isLoadingDepth, setIsLoadingDepth] = useState(false);
@@ -186,10 +124,11 @@ export default function DEX() {
   };
 
   const getRLUSDAsset = (network: XRPLNetwork): string => {
+    const rlusdToken = COMMON_TOKENS.find(t => t.name === 'Ripple USD (RLUSD)');
     const rlusdIssuer = network === 'mainnet'
-      ? 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De'
-      : 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
-    return `524C555344000000000000000000000000000000:${rlusdIssuer}`;
+      ? rlusdToken?.mainnetIssuer
+      : rlusdToken?.testnetIssuer;
+    return `${CURRENCY_CODES.RLUSD_HEX}:${rlusdIssuer}`;
   };
 
 
