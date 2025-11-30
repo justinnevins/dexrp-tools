@@ -5,7 +5,7 @@ import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 import { ReceiveModal } from '@/components/modals/receive-modal';
 import { useLocation } from 'wouter';
 import { useWallet } from '@/hooks/use-wallet';
-import Landing from './landing';
+import Landing from './LandingPage';
 
 export default function Home() {
   const [, setLocation] = useLocation();

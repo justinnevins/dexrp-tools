@@ -16,7 +16,7 @@ import {
 import {
   isValidAddress as validateAddress,
   generateTestWallet as genWallet,
-} from './xrpl-address';
+} from './xrpl-address-utils';
 
 export type XRPLNetwork = 'mainnet' | 'testnet';
 
