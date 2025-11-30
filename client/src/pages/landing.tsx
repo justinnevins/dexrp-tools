@@ -56,9 +56,7 @@ export default function Landing() {
           
           <h1 className="text-4xl sm:text-5xl font-bold text-black dark:text-white mb-4">DEXrp Wallet</h1>
           
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
-            Your gateway to the XRP Ledger. Trade, send, and manage your digital assets with confidence.
-          </p>
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">Your gateway to transact directly on the XRP Ledger. Trade, send, and manage your digital assets with confidence.</p>
           
           <Button
             onClick={() => setShowSetup(true)}
