@@ -18,7 +18,7 @@ export default function Landing() {
     },
     {
       icon: TrendingUp,
-      title: 'Trade on the DEX',
+      title: 'Your New Title Here',
       description: 'Access the XRPL decentralized exchange. Trade tokens with real-time order book depth.'
     },
     {
