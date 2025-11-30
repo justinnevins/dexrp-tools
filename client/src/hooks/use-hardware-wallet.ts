@@ -39,8 +39,7 @@ export function useHardwareWallet() {
     try {
       await hardwareWalletService.disconnect();
       setConnection(null);
-    } catch (error) {
-      console.error('[HWWallet] Error disconnecting hardware wallet:', error);
+    } catch {
     }
   }, []);
 
