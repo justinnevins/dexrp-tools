@@ -62,11 +62,6 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                 >
                   {currentWallet.network === 'testnet' ? 'Test' : 'Main'}
                 </span>
-                {currentWallet.walletType === 'watchOnly' && (
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase flex-shrink-0 bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
-                    Watch
-                  </span>
-                )}
               </div>
               <span className="text-xs text-muted-foreground truncate max-w-full">
                 {formatAddress(currentWallet.address)}
@@ -131,11 +126,6 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                   >
                     {wallet.network === 'testnet' ? 'Test' : 'Main'}
                   </span>
-                  {wallet.walletType === 'watchOnly' && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
-                      Watch
-                    </span>
-                  )}
                 </div>
                 <span className="text-xs text-muted-foreground">
                   {formatAddress(wallet.address)}
