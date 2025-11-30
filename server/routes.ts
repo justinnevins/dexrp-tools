@@ -119,7 +119,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = await response.json();
       res.json(data);
     } catch (error: any) {
-      console.error('XRPL Proxy error:', error);
       res.status(500).json({ 
         error: 'Failed to proxy request',
         message: error.message 
