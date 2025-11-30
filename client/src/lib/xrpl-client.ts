@@ -1,6 +1,7 @@
 import { Client, Wallet as XRPLWallet } from 'xrpl';
 import { browserStorage } from './browser-storage';
 import { isNativeApp } from './platform';
+import { XRPL_ENDPOINTS } from './constants';
 
 const isDev = import.meta.env.DEV;
 const log = (...args: any[]) => isDev && console.log('[XRPL]', ...args);
@@ -161,18 +162,18 @@ class XRPLClient {
   private clients: Map<XRPLNetwork, ClientState> = new Map();
 
   private defaultEndpoints = {
-    mainnet: 'wss://xrplcluster.com',
-    testnet: 'wss://s.altnet.rippletest.net:51233'
+    mainnet: XRPL_ENDPOINTS.MAINNET_WS,
+    testnet: XRPL_ENDPOINTS.TESTNET_WS
   };
 
   private defaultFullHistoryEndpoints = {
-    mainnet: 'wss://s1.ripple.com:51234',
-    testnet: 'wss://s.altnet.rippletest.net:51234'
+    mainnet: XRPL_ENDPOINTS.MAINNET_WS_FULL_HISTORY,
+    testnet: XRPL_ENDPOINTS.TESTNET_WS_FULL_HISTORY
   };
   
   private fallbackFullHistoryEndpoints = {
-    mainnet: 'https://s1.ripple.com:51234',
-    testnet: 'https://s.altnet.rippletest.net:51234'
+    mainnet: XRPL_ENDPOINTS.MAINNET_HTTP,
+    testnet: XRPL_ENDPOINTS.TESTNET_HTTP
   };
 
   private customEndpoints: {

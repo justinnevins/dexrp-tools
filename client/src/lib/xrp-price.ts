@@ -1,4 +1,5 @@
 import { xrplClient } from './xrpl-client';
+import { PRICE_API, RLUSD_ISSUERS, GATEHUB_ISSUERS, CURRENCY_CODES } from './constants';
 
 const isDev = import.meta.env.DEV;
 const log = (...args: any[]) => isDev && console.log('[XRPPrice]', ...args);
@@ -39,16 +40,16 @@ export async function fetchXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet'):
     let issuer: string;
 
     if (currentNetwork === 'mainnet') {
-      counter = 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq_USD';
+      counter = `${GATEHUB_ISSUERS.USD_MAINNET}_USD`;
       currency = 'USD';
-      issuer = 'rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq';
+      issuer = GATEHUB_ISSUERS.USD_MAINNET;
     } else {
-      counter = 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV_RLUSD';
+      counter = `${RLUSD_ISSUERS.TESTNET}_RLUSD`;
       currency = 'RLUSD';
-      issuer = 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
+      issuer = RLUSD_ISSUERS.TESTNET;
     }
 
-    const url = `https://xrpldata.inftf.org/v1/iou/exchange_rates/XRP/${counter}`;
+    const url = `${PRICE_API.INFTF_BASE_URL}/XRP/${counter}`;
     const response = await fetch(url);
     
     if (!response.ok) {
@@ -83,11 +84,11 @@ export async function fetchXRPToRLUSDPrice(network: 'mainnet' | 'testnet' = 'mai
   try {
     const isMainnet = network === 'mainnet';
     const rlusdIssuer = isMainnet 
-      ? 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De'
-      : 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV';
+      ? RLUSD_ISSUERS.MAINNET
+      : RLUSD_ISSUERS.TESTNET;
 
     const takerGets = { currency: 'XRP' };
-    const takerPays = { currency: '524C555344000000000000000000000000000000', issuer: rlusdIssuer };
+    const takerPays = { currency: CURRENCY_CODES.RLUSD_HEX, issuer: rlusdIssuer };
 
     const priceData = await xrplClient.getOrderBookPrice(network, takerGets, takerPays);
 

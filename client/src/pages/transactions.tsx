@@ -5,6 +5,7 @@ import { useAccountTransactions } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 import { extractOfferFills, calculateBalanceChanges, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
+import { EXPLORER_URLS } from '@/lib/constants';
 import {
   Select,
   SelectContent,
@@ -82,8 +83,8 @@ export default function Transactions() {
   
   const getXRPScanUrl = (hash: string) => {
     const baseUrl = currentNetwork === 'mainnet' 
-      ? 'https://xrpscan.com' 
-      : 'https://testnet.xrpscan.com';
+      ? EXPLORER_URLS.XRPSCAN_MAINNET 
+      : EXPLORER_URLS.XRPSCAN_TESTNET;
     return `${baseUrl}/tx/${hash}`;
   };
 
