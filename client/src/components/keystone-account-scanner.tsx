@@ -13,7 +13,10 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const frameAnalysisRef = useRef<number | null>(null);
   const hasScannedRef = useRef(false);
 
   useEffect(() => {
@@ -28,31 +31,107 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
 
     try {
       setError(null);
-      setIsScanning(true);
       hasScannedRef.current = false;
 
-      scannerRef.current = new QrScanner(
-        videoRef.current,
-        (result) => handleScanResult(result.data),
-        {
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          preferredCamera: 'environment',
+      // Get camera stream manually for canvas fallback
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
-      );
+      });
 
-      await scannerRef.current.start();
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+
+      videoRef.current.onloadedmetadata = () => {
+        if (videoRef.current) {
+          videoRef.current.play().then(() => {
+            setIsScanning(true);
+            
+            // Try QrScanner first, with canvas fallback
+            try {
+              scannerRef.current = new QrScanner(
+                videoRef.current!,
+                (result) => handleScanResult(result.data),
+                {
+                  highlightScanRegion: true,
+                  highlightCodeOutline: true,
+                  preferredCamera: 'environment',
+                }
+              );
+
+              scannerRef.current.start().then(() => {
+                // Also start canvas analysis as fallback
+                startCanvasAnalysis();
+              }).catch(() => {
+                // QrScanner failed, use canvas fallback only
+                startCanvasAnalysis();
+              });
+            } catch {
+              // QrScanner initialization failed, use canvas fallback
+              startCanvasAnalysis();
+            }
+          }).catch(() => {
+            setError('Failed to play video stream');
+          });
+        }
+      };
     } catch {
       setError('Failed to access camera. Please ensure camera permissions are granted.');
       setIsScanning(false);
     }
   };
 
+  const startCanvasAnalysis = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const analyzeFrame = () => {
+      if (!videoRef.current || !canvasRef.current || hasScannedRef.current) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx || video.readyState < 2) {
+        frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+        return;
+      }
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      QrScanner.scanImage(canvas).then(result => {
+        if (hasScannedRef.current) return;
+        const data = typeof result === 'string' ? result : String(result);
+        handleScanResult(data);
+      }).catch(() => {
+        // No QR code found in this frame, continue
+      });
+
+      if (!hasScannedRef.current) {
+        frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+      }
+    };
+
+    frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+  };
+
   const stopScanning = () => {
+    if (frameAnalysisRef.current) {
+      cancelAnimationFrame(frameAnalysisRef.current);
+      frameAnalysisRef.current = null;
+    }
     if (scannerRef.current) {
       scannerRef.current.stop();
       scannerRef.current.destroy();
       scannerRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
     }
     setIsScanning(false);
   };
@@ -310,6 +389,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
             playsInline
             muted
           />
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
           {!isScanning && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
               <Camera className="h-12 w-12 text-white" />
