@@ -78,7 +78,6 @@ export default function LandingPage() {
           <meta property="og:type" content="website" />
         </>
       )}
-
       {/* Hero Section - Both Versions */}
       <div className="relative px-4 py-8 sm:px-6 sm:py-16 lg:px-8 lg:py-24 border-b border-gray-800">
         <div className="max-w-4xl mx-auto text-center">
@@ -120,14 +119,11 @@ export default function LandingPage() {
                 variant="outline"
                 className="border-gray-700 text-gray-300 hover:bg-gray-900 text-sm sm:text-base px-6 sm:px-8 py-2 sm:py-2 h-10 sm:h-11 font-medium"
                 data-testid="button-get-premium"
-              >
-                Get Premium – $9.99
-              </Button>
+              >Premium COMING SOON – $9.99</Button>
             )}
           </div>
         </div>
       </div>
-
       {/* Feature Grid - Both Versions */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
         <div className="max-w-6xl mx-auto">
@@ -216,7 +212,6 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-
       {/* Pricing Table - Public Site Only */}
       {!IS_MOBILE_APP && (
         <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
@@ -299,7 +294,6 @@ export default function LandingPage() {
           </div>
         </div>
       )}
-
       {/* Open-Source & Community Section - Both Versions */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
         <div className="max-w-4xl mx-auto text-center">
@@ -337,7 +331,6 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-
       {/* Footer - Both Versions */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 bg-gray-950 border-t border-gray-800">
         <div className="max-w-6xl mx-auto">
