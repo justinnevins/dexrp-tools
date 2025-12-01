@@ -16,8 +16,10 @@ if defined ANDROID_HOME (
     echo.
 )
 
-echo [1/4] Building web app...
+echo [1/4] Building web app for Android (mobile mode)...
+set VITE_IS_MOBILE_APP=true
 call npm run build
+set VITE_IS_MOBILE_APP=
 if %ERRORLEVEL% NEQ 0 (
     echo ERROR: Web build failed!
     pause
