@@ -60,6 +60,7 @@ coverage
 *.tsbuildinfo
 
 # Replit specific
+attached_assets/*
 replit.md
 .replit
 replit.nix
