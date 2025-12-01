@@ -1,9 +1,11 @@
 import { Button } from '@/components/ui/button';
-import { Wallet, Lock, GitBranch, Github, MessageCircle, CheckCircle2, Send, TrendingUp, Eye } from 'lucide-react';
+import { Wallet, Lock, GitBranch, Github, MessageCircle, CheckCircle2, Send, TrendingUp, Eye, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 
 const IS_MOBILE_APP = import.meta.env.VITE_IS_MOBILE_APP === 'true';
+
+const KEYSTONE_AFFILIATE_URL = 'https://keyst.one/?rfsn=8924031.c9a3ff&utm_source=refersion&utm_medium=affiliate&utm_campaign=8924031.c9a3ff';
 
 const features = [
   {
@@ -86,7 +88,7 @@ export default function LandingPage() {
           </div>
 
           {/* CTA Button */}
-          <div className="flex justify-center">
+          <div className="flex flex-col items-center gap-4">
             <Button
               onClick={() => setShowSetup(true)}
               size="lg"
@@ -95,6 +97,17 @@ export default function LandingPage() {
             >
               {IS_MOBILE_APP ? 'Connect Your Wallet' : 'Get Started'}
             </Button>
+            
+            <a
+              href={KEYSTONE_AFFILIATE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs sm:text-sm text-gray-500 hover:text-gray-300 transition-colors flex items-center gap-1"
+              data-testid="link-get-keystone-hero"
+            >
+              Don't have a Keystone 3 Pro yet?
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
         </div>
       </div>
@@ -134,6 +147,26 @@ export default function LandingPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Keystone CTA */}
+          <div className="mt-8 sm:mt-12 p-4 sm:p-6 bg-gradient-to-r from-gray-900 to-gray-800 border border-gray-700 rounded-xl max-w-2xl mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+              <div>
+                <p className="text-white font-medium text-sm sm:text-base mb-1">Need a Keystone 3 Pro?</p>
+                <p className="text-gray-400 text-xs sm:text-sm">The most secure way to manage your XRPL assets</p>
+              </div>
+              <a
+                href={KEYSTONE_AFFILIATE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                data-testid="link-get-keystone-features"
+              >
+                Get Keystone 3 Pro
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </div>
       </div>
@@ -176,12 +209,21 @@ export default function LandingPage() {
       {/* Footer */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 bg-gray-950 border-t border-gray-800">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 mb-6 sm:mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-8 mb-6 sm:mb-8">
             <a href="#" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-github">
               GitHub
             </a>
             <a href="https://x.com/JustinNevins" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-x">
               X (@JustinNevins)
+            </a>
+            <a
+              href={KEYSTONE_AFFILIATE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm"
+              data-testid="footer-keystone"
+            >
+              Get Keystone
             </a>
             <a href="#" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-privacy">
               Privacy
