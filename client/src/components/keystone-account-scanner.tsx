@@ -139,8 +139,11 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         const data = typeof result === 'string' ? result : (result.data || String(result));
         console.log('[KeystoneScanner] Canvas detected QR:', data?.substring(0, 50) + '...');
         handleScanResult(data);
-      }).catch(() => {
-        // No QR code found in this frame, continue
+      }).catch((err) => {
+        // Log every 120 frames (about every 2 seconds) to show scan attempts
+        if (frameCountRef.current % 120 === 0) {
+          console.log('[KeystoneScanner] No QR found in frame', frameCountRef.current, '- error:', err?.message || err);
+        }
       });
 
       if (!hasScannedRef.current) {
