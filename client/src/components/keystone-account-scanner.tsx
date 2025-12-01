@@ -111,7 +111,23 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       return;
     }
 
-    const analyzeFrame = () => {
+    // Check if native BarcodeDetector is available
+    const hasBarcodeDetector = 'BarcodeDetector' in window;
+    let barcodeDetector: any = null;
+    
+    if (hasBarcodeDetector) {
+      try {
+        // @ts-ignore - BarcodeDetector is not in TypeScript types yet
+        barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        console.log('[KeystoneScanner] Using native BarcodeDetector API');
+      } catch (e) {
+        console.log('[KeystoneScanner] BarcodeDetector not supported:', e);
+      }
+    } else {
+      console.log('[KeystoneScanner] BarcodeDetector not available, using QrScanner fallback');
+    }
+
+    const analyzeFrame = async () => {
       if (!videoRef.current || !canvasRef.current || hasScannedRef.current) return;
 
       const video = videoRef.current;
@@ -134,17 +150,43 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       canvas.height = video.videoHeight || 480;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      QrScanner.scanImage(canvas, { returnDetailedScanResult: true }).then(result => {
-        if (hasScannedRef.current) return;
-        const data = typeof result === 'string' ? result : (result.data || String(result));
-        console.log('[KeystoneScanner] Canvas detected QR:', data?.substring(0, 50) + '...');
-        handleScanResult(data);
-      }).catch((err) => {
-        // Log every 120 frames (about every 2 seconds) to show scan attempts
-        if (frameCountRef.current % 120 === 0) {
-          console.log('[KeystoneScanner] No QR found in frame', frameCountRef.current, '- error:', err?.message || err);
+      try {
+        let detected = false;
+        
+        // Try native BarcodeDetector first (no web worker needed)
+        if (barcodeDetector) {
+          try {
+            const barcodes = await barcodeDetector.detect(canvas);
+            if (barcodes && barcodes.length > 0) {
+              const data = barcodes[0].rawValue;
+              console.log('[KeystoneScanner] BarcodeDetector found QR:', data?.substring(0, 50) + '...');
+              if (!hasScannedRef.current) {
+                handleScanResult(data);
+                detected = true;
+              }
+            }
+          } catch (e) {
+            // BarcodeDetector failed, will try QrScanner
+          }
         }
-      });
+        
+        // Fallback to QrScanner if BarcodeDetector didn't find anything
+        if (!detected && !hasScannedRef.current) {
+          try {
+            const result = await QrScanner.scanImage(canvas, { returnDetailedScanResult: true });
+            const data = typeof result === 'string' ? result : (result.data || String(result));
+            console.log('[KeystoneScanner] QrScanner found QR:', data?.substring(0, 50) + '...');
+            handleScanResult(data);
+          } catch (err) {
+            // Log every 120 frames (about every 2 seconds)
+            if (frameCountRef.current % 120 === 0) {
+              console.log('[KeystoneScanner] No QR found in frame', frameCountRef.current);
+            }
+          }
+        }
+      } catch (err) {
+        // Continue scanning
+      }
 
       if (!hasScannedRef.current) {
         frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
