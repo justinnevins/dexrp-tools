@@ -110,47 +110,58 @@ export function GeneralQRScanner({
   }, [mode]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
+  const frameAnalysisRef = useRef<number | null>(null);
+  const hasScannedRef = useRef<boolean>(false);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleSuccessfulScan = useCallback((validatedData: string) => {
+    if (hasScannedRef.current) return;
+    hasScannedRef.current = true;
+    onScan(validatedData);
+    cleanup();
+  }, [onScan]);
 
   useEffect(() => {
     initCamera();
     return () => {
-      if (scannerRef.current) {
-        scannerRef.current.destroy();
-        scannerRef.current = null;
-      }
+      cleanup();
     };
   }, []);
 
   const initCamera = async () => {
     try {
-      if (!videoRef.current) return;
-
-      scannerRef.current = new QrScanner(
-        videoRef.current,
-        (result: any) => {
-          const qrData = (typeof result === 'string' ? result : result?.data || String(result)).trim();
-          const validatedData = validateAndProcessData(qrData);
-          if (validatedData) {
-            onScan(validatedData);
-            if (scannerRef.current) {
-              scannerRef.current.destroy();
-              scannerRef.current = null;
-            }
-            onClose();
-          }
-        },
-        {
-          returnDetailedScanResult: true,
-          maxScansPerSecond: 5
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
-      );
+      });
 
-      await scannerRef.current.start();
-      setIsActive(true);
-      setError(null);
+      setStream(mediaStream);
+      
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.srcObject = mediaStream;
+        
+        video.addEventListener('loadedmetadata', () => {
+          video.play().then(() => {
+            setIsActive(true);
+            setError(null);
+            
+            setTimeout(() => {
+              startQRDetection();
+            }, 500);
+          }).catch(() => {
+            setError('Failed to start camera playback');
+          });
+        });
+      }
 
     } catch (err) {
       if (err instanceof Error) {
@@ -167,17 +178,108 @@ export function GeneralQRScanner({
     }
   };
 
+  const startCanvasAnalysis = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const analyzeFrame = () => {
+      if (!videoRef.current || !canvasRef.current || hasScannedRef.current) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx || video.readyState < 2) {
+        frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+        return;
+      }
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      QrScanner.scanImage(canvas).then(result => {
+        if (hasScannedRef.current) return;
+        
+        const qrData = (typeof result === 'string' ? result : String(result)).trim();
+        const validatedData = validateAndProcessData(qrData);
+        if (validatedData) {
+          handleSuccessfulScan(validatedData);
+        }
+      }).catch(() => {
+      });
+
+      if (!hasScannedRef.current) {
+        frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+      }
+    };
+
+    frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+  };
+
+  const startQRDetection = () => {
+    if (!videoRef.current) return;
+
+    try {
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result: any) => {
+          if (hasScannedRef.current) return;
+          
+          const qrData = (typeof result === 'string' ? result : (result.data || String(result))).trim();
+          const validatedData = validateAndProcessData(qrData);
+          if (validatedData) {
+            handleSuccessfulScan(validatedData);
+          }
+        },
+        {
+          returnDetailedScanResult: true,
+          maxScansPerSecond: 5,
+          highlightScanRegion: true,
+          highlightCodeOutline: true
+        }
+      );
+
+      if (scannerRef.current) {
+        scannerRef.current.setInversionMode('both');
+      }
+
+      scannerRef.current.start().then(() => {
+        setIsScanning(true);
+        startCanvasAnalysis();
+      }).catch(() => {
+        startCanvasAnalysis();
+      });
+
+    } catch {
+      setError('Failed to setup QR detection');
+      startCanvasAnalysis();
+    }
+  };
+
+  const cleanup = () => {
+    if (frameAnalysisRef.current) {
+      cancelAnimationFrame(frameAnalysisRef.current);
+      frameAnalysisRef.current = null;
+    }
+    if (scannerRef.current) {
+      scannerRef.current.stop();
+      scannerRef.current.destroy();
+      scannerRef.current = null;
+    }
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setStream(null);
+    setIsActive(false);
+    setIsScanning(false);
+  };
+
   const handleManualEntry = () => {
     const input = prompt(config.manualEntryPrompt);
     if (input && input.trim()) {
       const validatedData = validateAndProcessData(input.trim());
       if (validatedData) {
-        onScan(validatedData);
-        if (scannerRef.current) {
-          scannerRef.current.destroy();
-          scannerRef.current = null;
-        }
-        onClose();
+        handleSuccessfulScan(validatedData);
       } else {
         alert(config.errorMessage);
       }
@@ -185,10 +287,7 @@ export function GeneralQRScanner({
   };
 
   const handleClose = () => {
-    if (scannerRef.current) {
-      scannerRef.current.destroy();
-      scannerRef.current = null;
-    }
+    cleanup();
     onClose();
   };
 
@@ -253,12 +352,14 @@ export function GeneralQRScanner({
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-4 border-2 border-green-400 border-dashed rounded-lg flex items-center justify-center">
                       <span className="text-green-400 text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
-                        Position QR code here
+                        {isScanning ? 'Scanning...' : 'Position QR code here'}
                       </span>
                     </div>
                   </div>
                 )}
               </div>
+
+              <canvas ref={canvasRef} style={{ display: 'none' }} />
 
               {showKeystoneInstructions && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-lg">
@@ -273,10 +374,26 @@ export function GeneralQRScanner({
                 </div>
               )}
 
-              <Button onClick={handleManualEntry} variant="outline" className="w-full">
-                <Scan className="h-4 w-4 mr-2" />
-                {config.manualEntryLabel}
-              </Button>
+              {isActive && (
+                <div className="text-center mb-3">
+                  {isScanning ? (
+                    <div className="text-green-600 dark:text-green-400 text-sm">
+                      Actively scanning for QR codes...
+                    </div>
+                  ) : (
+                    <div className="text-blue-600 dark:text-blue-400 text-sm">
+                      Camera ready
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {isActive && (
+                <Button onClick={handleManualEntry} variant="outline" className="w-full">
+                  <Scan className="h-4 w-4 mr-2" />
+                  {config.manualEntryLabel}
+                </Button>
+              )}
             </div>
           )}
           
