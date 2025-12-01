@@ -1,13 +1,25 @@
 import { SendTransactionForm } from '@/components/send-transaction-form';
-import { ArrowLeft, Eye, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Eye, AlertCircle, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useLocation } from 'wouter';
+import { useLocation, useSearch } from 'wouter';
 import { useWallet } from '@/hooks/use-wallet';
 
 export default function Send() {
   const [, setLocation] = useLocation();
+  const search = useSearch();
   const { currentWallet } = useWallet();
   const isWatchOnly = currentWallet?.walletType === 'watchOnly';
+
+  // Parse URL params for prefilling the form
+  const params = new URLSearchParams(search);
+  const isDonation = params.get('donate') === 'true';
+  const initialDestination = params.get('destination') || '';
+  const initialAmount = params.get('amount') || '';
+  const initialCurrency = params.get('currency') || 'XRP';
+  const initialIssuer = params.get('issuer') || '';
+  const initialMemo = params.get('memo') || '';
+
+  const pageTitle = isDonation ? 'Donate to DEXrp' : 'Send XRP';
 
   return (
     <div className="px-4 py-6">
@@ -20,8 +32,20 @@ export default function Send() {
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <h1 className="text-2xl font-bold">Send XRP</h1>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          {isDonation && <Heart className="w-5 h-5 text-pink-500" />}
+          {pageTitle}
+        </h1>
       </div>
+
+      {isDonation && (
+        <div className="mb-6 p-4 bg-pink-50 dark:bg-pink-950/30 border border-pink-200 dark:border-pink-800 rounded-lg">
+          <p className="text-sm text-pink-800 dark:text-pink-200">
+            Thank you for considering a donation! Your support helps keep DEXrp free and maintained.
+            You can donate XRP, RLUSD, or USDC. The form is pre-filled but feel free to adjust the amount.
+          </p>
+        </div>
+      )}
 
       {isWatchOnly ? (
         <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
@@ -52,6 +76,11 @@ export default function Send() {
           onSuccess={() => {
             setLocation('/');
           }}
+          initialDestination={initialDestination}
+          initialAmount={initialAmount}
+          initialCurrency={initialCurrency}
+          initialIssuer={initialIssuer}
+          initialMemo={initialMemo}
         />
       )}
     </div>

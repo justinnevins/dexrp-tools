@@ -40,6 +40,11 @@ type TransactionFormData = z.infer<typeof transactionSchema>;
 
 interface SendTransactionFormProps {
   onSuccess?: () => void;
+  initialDestination?: string;
+  initialAmount?: string;
+  initialCurrency?: string;
+  initialIssuer?: string;
+  initialMemo?: string;
 }
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
@@ -85,7 +90,14 @@ function decodeBase32Like(urContent: string): Uint8Array {
   return new Uint8Array(bytes);
 }
 
-export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
+export function SendTransactionForm({ 
+  onSuccess,
+  initialDestination = '',
+  initialAmount = '',
+  initialCurrency = 'XRP',
+  initialIssuer = '',
+  initialMemo = ''
+}: SendTransactionFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showQRDialog, setShowQRDialog] = useState(false);
   const [showSignedQRScanner, setShowSignedQRScanner] = useState(false);
@@ -119,12 +131,12 @@ export function SendTransactionForm({ onSuccess }: SendTransactionFormProps) {
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      destination: '',
-      amount: '',
-      currency: 'XRP',
-      issuer: '',
+      destination: initialDestination,
+      amount: initialAmount,
+      currency: initialCurrency,
+      issuer: initialIssuer,
       destinationTag: '',
-      memo: '',
+      memo: initialMemo,
     },
   });
 
