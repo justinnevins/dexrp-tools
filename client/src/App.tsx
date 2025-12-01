@@ -16,6 +16,7 @@ import Transactions from "@/pages/transactions";
 import Assets from "@/pages/assets";
 import DEX from "@/pages/dex";
 import Profile from "@/pages/profile";
+import Privacy from "@/pages/Privacy";
 import NotFound from "@/pages/NotFoundPage";
 
 function BackButtonHandler() {
@@ -61,6 +62,7 @@ function Router() {
         <Route path="/assets" component={Assets} />
         <Route path="/dex" component={DEX} />
         <Route path="/profile" component={Profile} />
+        <Route path="/privacy" component={Privacy} />
         <Route component={NotFound} />
       </Switch>
     </>

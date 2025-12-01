@@ -187,7 +187,7 @@ export default function LandingPage() {
             >
               Get Keystone
             </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-privacy">
+            <a href="/privacy" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-privacy">
               Privacy
             </a>
             <a href="#" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-contact">
