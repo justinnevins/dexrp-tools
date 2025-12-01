@@ -135,9 +135,7 @@ export function GeneralQRScanner({
   }, [mode]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
-  const frameAnalysisRef = useRef<number | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,42 +193,6 @@ export function GeneralQRScanner({
     }
   };
 
-  const startCanvasAnalysis = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const analyzeFrame = () => {
-      if (!videoRef.current || !canvasRef.current) return;
-
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx || video.readyState < 2) {
-        frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
-        return;
-      }
-
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      QrScanner.scanImage(canvas).then(result => {
-        const qrData = (typeof result === 'string' ? result : String(result)).trim();
-        
-        const validatedData = validateAndProcessData(qrData);
-        if (validatedData) {
-          onScan(validatedData);
-          cleanup();
-        }
-      }).catch(() => {
-      });
-
-      frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
-    };
-
-    frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
-  };
-
   const startQRDetection = () => {
     if (!videoRef.current) return;
 
@@ -260,22 +222,16 @@ export function GeneralQRScanner({
 
       scannerRef.current.start().then(() => {
         setIsScanning(true);
-        startCanvasAnalysis();
-      }).catch(() => {
-        startCanvasAnalysis();
+      }).catch((err) => {
+        setError('Failed to start QR scanner');
       });
 
-    } catch {
+    } catch (err) {
       setError('Failed to setup QR detection');
-      startCanvasAnalysis();
     }
   };
 
   const cleanup = () => {
-    if (frameAnalysisRef.current) {
-      cancelAnimationFrame(frameAnalysisRef.current);
-      frameAnalysisRef.current = null;
-    }
     if (scannerRef.current) {
       scannerRef.current.stop();
       scannerRef.current.destroy();
@@ -374,8 +330,6 @@ export function GeneralQRScanner({
                   </div>
                 )}
               </div>
-
-              <canvas ref={canvasRef} style={{ display: 'none' }} />
 
               {showKeystoneInstructions && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 rounded-lg">
