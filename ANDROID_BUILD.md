@@ -7,7 +7,7 @@ This guide explains how to build the DEXrp Android app locally.
 1. **Android Studio** installed with:
    - Android SDK
    - Android Build Tools
-   - Java Development Kit (JDK 17 or higher)
+   - Java Development Kit (JDK 21 or higher)
 
 2. **Node.js** and npm installed
 
@@ -110,7 +110,7 @@ sdk.dir=/path/to/your/Android/sdk
 
 ### "JAVA_HOME not set"
 
-Ensure JDK 17+ is installed and JAVA_HOME is set:
+Ensure JDK 21+ is installed and JAVA_HOME is set:
 
 ```bash
 export JAVA_HOME=/path/to/jdk
