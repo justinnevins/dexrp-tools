@@ -18,6 +18,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   const streamRef = useRef<MediaStream | null>(null);
   const frameAnalysisRef = useRef<number | null>(null);
   const hasScannedRef = useRef(false);
+  const frameCountRef = useRef(0);
 
   useEffect(() => {
     startScanning();
@@ -27,12 +28,18 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   }, []);
 
   const startScanning = async () => {
-    if (!videoRef.current) return;
+    console.log('[KeystoneScanner] startScanning called');
+    if (!videoRef.current) {
+      console.log('[KeystoneScanner] ERROR: videoRef.current is null');
+      return;
+    }
 
     try {
       setError(null);
       hasScannedRef.current = false;
+      frameCountRef.current = 0;
 
+      console.log('[KeystoneScanner] Requesting camera access...');
       // Get camera stream manually for canvas fallback
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -42,19 +49,26 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         }
       });
 
+      console.log('[KeystoneScanner] Camera stream obtained:', stream.getVideoTracks().length, 'video tracks');
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
 
       videoRef.current.onloadedmetadata = () => {
+        console.log('[KeystoneScanner] Video metadata loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
         if (videoRef.current) {
           videoRef.current.play().then(() => {
+            console.log('[KeystoneScanner] Video playing');
             setIsScanning(true);
             
             // Try QrScanner first, with canvas fallback
             try {
+              console.log('[KeystoneScanner] Creating QrScanner instance...');
               scannerRef.current = new QrScanner(
                 videoRef.current!,
-                (result) => handleScanResult(result.data),
+                (result) => {
+                  console.log('[KeystoneScanner] QrScanner detected QR:', result.data?.substring(0, 50) + '...');
+                  handleScanResult(result.data);
+                },
                 {
                   highlightScanRegion: true,
                   highlightCodeOutline: true,
@@ -62,30 +76,40 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
                 }
               );
 
+              console.log('[KeystoneScanner] Starting QrScanner...');
               scannerRef.current.start().then(() => {
+                console.log('[KeystoneScanner] QrScanner started successfully, also starting canvas fallback');
                 // Also start canvas analysis as fallback
                 startCanvasAnalysis();
-              }).catch(() => {
+              }).catch((err) => {
+                console.log('[KeystoneScanner] QrScanner.start() failed:', err, '- using canvas fallback only');
                 // QrScanner failed, use canvas fallback only
                 startCanvasAnalysis();
               });
-            } catch {
+            } catch (err) {
+              console.log('[KeystoneScanner] QrScanner initialization failed:', err, '- using canvas fallback');
               // QrScanner initialization failed, use canvas fallback
               startCanvasAnalysis();
             }
-          }).catch(() => {
+          }).catch((err) => {
+            console.log('[KeystoneScanner] Video play failed:', err);
             setError('Failed to play video stream');
           });
         }
       };
-    } catch {
+    } catch (err) {
+      console.log('[KeystoneScanner] Camera access failed:', err);
       setError('Failed to access camera. Please ensure camera permissions are granted.');
       setIsScanning(false);
     }
   };
 
   const startCanvasAnalysis = () => {
-    if (!videoRef.current || !canvasRef.current) return;
+    console.log('[KeystoneScanner] startCanvasAnalysis called');
+    if (!videoRef.current || !canvasRef.current) {
+      console.log('[KeystoneScanner] ERROR: videoRef or canvasRef is null');
+      return;
+    }
 
     const analyzeFrame = () => {
       if (!videoRef.current || !canvasRef.current || hasScannedRef.current) return;
@@ -99,13 +123,21 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         return;
       }
 
+      frameCountRef.current++;
+      
+      // Log every 60 frames (about once per second)
+      if (frameCountRef.current % 60 === 1) {
+        console.log('[KeystoneScanner] Canvas analysis running, frame:', frameCountRef.current, 'video dimensions:', video.videoWidth, 'x', video.videoHeight);
+      }
+
       canvas.width = video.videoWidth || 640;
       canvas.height = video.videoHeight || 480;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-      QrScanner.scanImage(canvas).then(result => {
+      QrScanner.scanImage(canvas, { returnDetailedScanResult: true }).then(result => {
         if (hasScannedRef.current) return;
-        const data = typeof result === 'string' ? result : String(result);
+        const data = typeof result === 'string' ? result : (result.data || String(result));
+        console.log('[KeystoneScanner] Canvas detected QR:', data?.substring(0, 50) + '...');
         handleScanResult(data);
       }).catch(() => {
         // No QR code found in this frame, continue
@@ -117,6 +149,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     };
 
     frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
+    console.log('[KeystoneScanner] Canvas analysis loop started');
   };
 
   const stopScanning = () => {
@@ -137,29 +170,37 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   };
 
   const handleScanResult = async (data: string) => {
+    console.log('[KeystoneScanner] handleScanResult called with data:', data?.substring(0, 80) + '...');
     if (hasScannedRef.current) {
+      console.log('[KeystoneScanner] Already scanned, ignoring');
       return;
     }
 
     try {
       // Handle Keystone UR format (case insensitive)
       const upperData = data.toUpperCase();
+      console.log('[KeystoneScanner] Checking if data starts with UR:BYTES/ or UR:XRP-ACCOUNT/');
       
       if (upperData.startsWith('UR:BYTES/') || upperData.startsWith('UR:XRP-ACCOUNT/')) {
+        console.log('[KeystoneScanner] Valid UR format detected, parsing...');
         const urData = await parseKeystoneAccountUR(data);
         if (urData) {
+          console.log('[KeystoneScanner] Successfully parsed UR data:', urData.address);
           hasScannedRef.current = true;
           stopScanning();
           onScan(urData.address, urData.publicKey);
           return;
         } else {
+          console.log('[KeystoneScanner] Failed to parse UR data');
           setError('Could not parse the Keystone UR data. Please ensure your device is displaying the account QR code.');
           return;
         }
       }
 
+      console.log('[KeystoneScanner] Data does not match expected UR format');
       setError('Please scan the account QR code from your Keystone 3 Pro device. Looking for UR:BYTES/ format.');
-    } catch {
+    } catch (err) {
+      console.log('[KeystoneScanner] Error in handleScanResult:', err);
       setError('Invalid QR code format. Please scan the account QR from Keystone 3 Pro.');
     }
   };
