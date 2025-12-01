@@ -109,24 +109,24 @@ export default function LandingPage() {
             Everything you need for secure, self-custodial XRPL management
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <div
                   key={index}
-                  className="p-4 sm:p-6 bg-gray-900 border border-gray-800 rounded-lg hover:border-gray-700 transition-colors"
+                  className="p-5 sm:p-6 bg-gray-900 border border-gray-800 rounded-xl hover:border-gray-700 transition-colors"
                   data-testid={`feature-${index}`}
                 >
-                  <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-600/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />
+                  <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4">
+                    <div className="w-14 h-14 sm:w-12 sm:h-12 bg-blue-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                      <Icon className="w-7 h-7 sm:w-6 sm:h-6 text-blue-400" />
                     </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold text-white mb-1 text-sm sm:text-base">
+                    <div>
+                      <h3 className="font-semibold text-white mb-2 text-base">
                         {feature.title}
                       </h3>
-                      <p className="text-xs sm:text-sm text-gray-400">
+                      <p className="text-sm text-gray-400 leading-relaxed">
                         {feature.description}
                       </p>
                     </div>

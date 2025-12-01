@@ -33,7 +33,7 @@ The app automatically detects if it's running as:
 ## Building the Android APK
 
 ### Prerequisites
-1. Install Java Development Kit (JDK 17 or higher)
+1. Install Java Development Kit (JDK 21 or higher)
    ```bash
    # Check if Java is installed
    java -version
@@ -223,7 +223,7 @@ You can customize these settings before building.
 ## Troubleshooting
 
 ### Gradle Build Fails
-- Make sure Java 17+ is installed
+- Make sure Java 21+ is installed
 - Delete `android/.gradle` and rebuild
 - Run `./gradlew clean` in the android directory
 
