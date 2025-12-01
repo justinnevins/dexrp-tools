@@ -111,46 +111,46 @@ export function GeneralQRScanner({
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const scannerRef = useRef<QrScanner | null>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
     initCamera();
     return () => {
-      cleanup();
+      if (scannerRef.current) {
+        scannerRef.current.destroy();
+        scannerRef.current = null;
+      }
     };
   }, []);
 
   const initCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      if (!videoRef.current) return;
 
-      setStream(mediaStream);
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.onloadedmetadata = async () => {
-          try {
-            await videoRef.current!.play();
-            setIsActive(true);
-            setError(null);
-            
-            if (scannerRef.current === null && videoRef.current) {
-              startQRDetection();
+      scannerRef.current = new QrScanner(
+        videoRef.current,
+        (result: any) => {
+          const qrData = (typeof result === 'string' ? result : result?.data || String(result)).trim();
+          const validatedData = validateAndProcessData(qrData);
+          if (validatedData) {
+            onScan(validatedData);
+            if (scannerRef.current) {
+              scannerRef.current.destroy();
+              scannerRef.current = null;
             }
-          } catch (err) {
-            setError('Failed to start camera playback');
+            onClose();
           }
-        };
-      }
+        },
+        {
+          returnDetailedScanResult: true,
+          maxScansPerSecond: 5
+        }
+      );
+
+      await scannerRef.current.start();
+      setIsActive(true);
+      setError(null);
 
     } catch (err) {
       if (err instanceof Error) {
@@ -167,75 +167,17 @@ export function GeneralQRScanner({
     }
   };
 
-  const startQRDetection = () => {
-    if (!videoRef.current || scannerRef.current) return;
-
-    try {
-      scannerRef.current = new QrScanner(
-        videoRef.current,
-        (result: any) => {
-          let qrData = '';
-          if (typeof result === 'string') {
-            qrData = result;
-          } else if (result && result.data) {
-            qrData = result.data;
-          } else {
-            qrData = String(result);
-          }
-          
-          qrData = qrData.trim();
-          const validatedData = validateAndProcessData(qrData);
-          
-          if (validatedData) {
-            onScan(validatedData);
-            cleanup();
-          }
-        },
-        {
-          returnDetailedScanResult: true,
-          maxScansPerSecond: 5,
-          highlightScanRegion: false,
-          highlightCodeOutline: false
-        }
-      );
-
-      scannerRef.current.setInversionMode('both');
-      scannerRef.current.start()
-        .then(() => {
-          setIsScanning(true);
-        })
-        .catch(() => {
-          setIsScanning(true);
-        });
-
-    } catch (err) {
-      setError('Failed to setup QR detection');
-    }
-  };
-
-  const cleanup = () => {
-    if (scannerRef.current) {
-      try {
-        scannerRef.current.stop();
-        scannerRef.current.destroy();
-      } catch {}
-      scannerRef.current = null;
-    }
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-    }
-    setStream(null);
-    setIsActive(false);
-    setIsScanning(false);
-  };
-
   const handleManualEntry = () => {
     const input = prompt(config.manualEntryPrompt);
     if (input && input.trim()) {
       const validatedData = validateAndProcessData(input.trim());
       if (validatedData) {
         onScan(validatedData);
-        cleanup();
+        if (scannerRef.current) {
+          scannerRef.current.destroy();
+          scannerRef.current = null;
+        }
+        onClose();
       } else {
         alert(config.errorMessage);
       }
@@ -243,7 +185,10 @@ export function GeneralQRScanner({
   };
 
   const handleClose = () => {
-    cleanup();
+    if (scannerRef.current) {
+      scannerRef.current.destroy();
+      scannerRef.current = null;
+    }
     onClose();
   };
 
@@ -308,7 +253,7 @@ export function GeneralQRScanner({
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute inset-4 border-2 border-green-400 border-dashed rounded-lg flex items-center justify-center">
                       <span className="text-green-400 text-xs bg-black bg-opacity-50 px-2 py-1 rounded">
-                        {isScanning ? 'Scanning...' : 'Position QR code here'}
+                        Position QR code here
                       </span>
                     </div>
                   </div>
@@ -328,26 +273,10 @@ export function GeneralQRScanner({
                 </div>
               )}
 
-              {isActive && (
-                <div className="text-center mb-3">
-                  {isScanning ? (
-                    <div className="text-green-600 dark:text-green-400 text-sm">
-                      Actively scanning for QR codes...
-                    </div>
-                  ) : (
-                    <div className="text-blue-600 dark:text-blue-400 text-sm">
-                      Camera ready
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {isActive && (
-                <Button onClick={handleManualEntry} variant="outline" className="w-full">
-                  <Scan className="h-4 w-4 mr-2" />
-                  {config.manualEntryLabel}
-                </Button>
-              )}
+              <Button onClick={handleManualEntry} variant="outline" className="w-full">
+                <Scan className="h-4 w-4 mr-2" />
+                {config.manualEntryLabel}
+              </Button>
             </div>
           )}
           
