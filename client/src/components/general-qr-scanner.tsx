@@ -16,15 +16,6 @@ interface GeneralQRScannerProps {
   showKeystoneInstructions?: boolean;
 }
 
-/**
- * Extracts an XRPL address from QR data, supporting:
- * - Raw classic addresses (rXXX...)
- * - JSON-wrapped addresses ({ address: 'rXXX...' })
- * - Ripple URI scheme (ripple:rXXX... or ripple:rXXX?param=value)
- * 
- * @param data - Raw QR scan data
- * @returns Extracted address or null if not found
- */
 function extractAddressFromQRData(data: string): string | null {
   let trimmed = data.trim();
   
@@ -53,13 +44,6 @@ function extractAddressFromQRData(data: string): string | null {
   return null;
 }
 
-/**
- * Validates an XRPL address using the xrplClient checksum validation.
- * This ensures full address validation including base58 checksum.
- * 
- * @param address - XRPL address to validate
- * @returns true if valid with correct checksum
- */
 function validateXrplAddress(address: string): boolean {
   return xrplClient.isValidAddress(address);
 }
@@ -106,15 +90,6 @@ export function GeneralQRScanner({
   const displayTitle = title || config.defaultTitle;
   const displayDescription = description || config.defaultDescription;
 
-  /**
-   * Validates and processes scanned data based on the current mode.
-   * For address mode: Extracts address from raw/JSON data and validates checksum.
-   * For generic mode: Passes through unchanged.
-   * For ur-code mode: Validates UR format.
-   * 
-   * @param data - Raw scanned QR data
-   * @returns Processed/validated data or null if invalid
-   */
   const validateAndProcessData = useCallback((data: string): string | null => {
     if (mode === 'address') {
       const address = extractAddressFromQRData(data);
@@ -161,21 +136,20 @@ export function GeneralQRScanner({
       setStream(mediaStream);
       
       if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = mediaStream;
-        
-        video.addEventListener('loadedmetadata', () => {
-          video.play().then(() => {
+        videoRef.current.srcObject = mediaStream;
+        videoRef.current.onloadedmetadata = async () => {
+          try {
+            await videoRef.current!.play();
             setIsActive(true);
             setError(null);
             
-            setTimeout(() => {
+            if (scannerRef.current === null && videoRef.current) {
               startQRDetection();
-            }, 500);
-          }).catch(() => {
+            }
+          } catch (err) {
             setError('Failed to start camera playback');
-          });
-        });
+          }
+        };
       }
 
     } catch (err) {
@@ -194,15 +168,24 @@ export function GeneralQRScanner({
   };
 
   const startQRDetection = () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || scannerRef.current) return;
 
     try {
       scannerRef.current = new QrScanner(
         videoRef.current,
         (result: any) => {
-          const qrData = (typeof result === 'string' ? result : (result.data || String(result))).trim();
+          let qrData = '';
+          if (typeof result === 'string') {
+            qrData = result;
+          } else if (result && result.data) {
+            qrData = result.data;
+          } else {
+            qrData = String(result);
+          }
           
+          qrData = qrData.trim();
           const validatedData = validateAndProcessData(qrData);
+          
           if (validatedData) {
             onScan(validatedData);
             cleanup();
@@ -211,20 +194,19 @@ export function GeneralQRScanner({
         {
           returnDetailedScanResult: true,
           maxScansPerSecond: 5,
-          highlightScanRegion: true,
-          highlightCodeOutline: true
+          highlightScanRegion: false,
+          highlightCodeOutline: false
         }
       );
 
-      if (scannerRef.current) {
-        scannerRef.current.setInversionMode('both');
-      }
-
-      scannerRef.current.start().then(() => {
-        setIsScanning(true);
-      }).catch((err) => {
-        setError('Failed to start QR scanner');
-      });
+      scannerRef.current.setInversionMode('both');
+      scannerRef.current.start()
+        .then(() => {
+          setIsScanning(true);
+        })
+        .catch(() => {
+          setIsScanning(true);
+        });
 
     } catch (err) {
       setError('Failed to setup QR detection');
@@ -233,8 +215,10 @@ export function GeneralQRScanner({
 
   const cleanup = () => {
     if (scannerRef.current) {
-      scannerRef.current.stop();
-      scannerRef.current.destroy();
+      try {
+        scannerRef.current.stop();
+        scannerRef.current.destroy();
+      } catch {}
       scannerRef.current = null;
     }
     if (stream) {
