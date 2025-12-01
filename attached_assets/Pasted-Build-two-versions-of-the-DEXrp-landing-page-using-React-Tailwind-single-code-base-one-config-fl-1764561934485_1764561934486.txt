@@ -1,0 +1,81 @@
+Build two versions of the DEXrp landing page using React + Tailwind (single code base, one config flag).
+
+Product truth (never deviate from this):
+- DEXrp is a watch-only interface for the XRP Ledger.
+- All private keys and signing happen exclusively on the air-gapped Keystone 3 Pro hardware wallet.
+- The workflow is fully air-gapped (QR → Keystone → QR).
+- Current only supported air-gapped device = Keystone 3 Pro.
+- Future devices will be added only when the community strongly requests them.
+
+Version 1 – Public website[](https://dexrp.me) – shown to everyone
+Version 2 – In-app “About / Home” screen loaded inside the Capacitor Android build – shown only to mobile users (hide upsells and pricing for paying users).
+
+Use an env flag `IS_MOBILE_APP=true/false` to switch between the two.
+
+Required Structure & Exact Wording (copy verbatim where marked):
+
+1. Hero Section (both versions)
+   Headline: “DEXrp – Fully Air-Gapped XRPL Wallet for Keystone 3 Pro”
+   Subheadline (exact):  
+   “Watch-only interface. Private keys never leave your Keystone.  
+   Sign payments, trustlines, and DEX trades completely offline via QR.”
+
+   CTAs (public site only):
+   - Primary: “Launch Free Web App” → opens the PWA
+   - Secondary: “Get Premium Mobile – $9.99 one-time” → Google Play or purchase flow
+
+   CTAs (mobile in-app version):  
+   - Similar to current landing page but very stripped down
+   - No pricing, no upsell
+
+2. Accuracy Callout (both versions, small badge under hero)
+   “100% air-gapped signing — Keystone 3 Pro never touches the internet.”
+
+3. Feature Grid (both versions)
+   - Air-Gapped Signing with Keystone 3 Pro (Free)
+   - Custom XRPL Node Selection (Free)
+   - Payments & Trustlines (Free)
+   - Basic DEX Trading (Free)
+   - Advanced DEX Tools (limit orders, slippage guard, multi-hop) → Premium
+   - Portfolio Analytics & Tax Export → Premium
+   - Priority Private Nodes → Premium
+   - Batch & Template Signing → Premium
+
+   On mobile in-app version: show Premium features as unlocked (green check) with no price tags.
+
+4. Open-Source & Community Section (both versions)
+   Title: “Open-Source Core. Community-Driven Future.”
+   Text (exact):
+   “The entire watch-only interface and QR signing flow are 100% open-source on GitHub.
+   Keystone 3 Pro is fully supported today.
+   Want another QR-based cold wallet? Tell us — we’ll build the ones the community actually needs.”
+
+   Buttons:
+   - “View Source on GitHub”
+   - “Request Your Wallet → GitHub Discussions”
+
+5. Pricing Table – PUBLIC SITE ONLY
+   When IS_MOBILE_APP=true → completely hide this section.
+
+   | Tier            | Price           | Includes                                      |
+   |-----------------|-----------------|-----------------------------------------------|
+   | Free Web App    | Forever free    | Full Keystone air-gapped workflow + basics   |
+   | Premium Mobile  | $9.99 one-time  | All pro features + priority updates          |
+
+   Small note: “One-time purchase = lifetime access & updates”
+
+6. Footer (both versions)
+   - Links: GitHub · X (@JustinNevins) · Privacy · Contact
+   - “© 2025 DEXrp – Sovereign XRPL tools”
+
+Tech & Design Requirements
+- React 18 + Vite + Tailwind CSS
+- Dark mode default
+- Fully responsive, mobile-first
+- PWA manifest included
+- Build must detect `import.meta.env.VITE_IS_MOBILE_APP` (or similar) to toggle mobile mode
+- Fast < 2s load, no tracking pixels
+- SEO title (public): “DEXrp – Air-Gapped XRPL Wallet for Keystone 3 Pro | Open-Source”
+- Meta description: “Free open-source watch-only interface for XRPL. Fully air-gapped signing with Keystone 3 Pro. Premium mobile unlocks pro DEX trading tools.”
+
+Output: Full working codebase that can be deployed to Vercel/Netlify (public) and bundled with Capacitor (mobile). Include clear comments where the mobile/public split happens.
