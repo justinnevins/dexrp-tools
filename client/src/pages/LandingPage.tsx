@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Wallet, Lock, GitBranch, Github, MessageCircle, CheckCircle2, Send, TrendingUp, Eye, ExternalLink } from 'lucide-react';
+import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalLink } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 
@@ -51,8 +51,8 @@ export default function LandingPage() {
     <div className="min-h-screen bg-black dark:bg-black text-white">
       {!IS_MOBILE_APP && (
         <>
-          <title>DEXrp – Air-Gapped XRPL Wallet for Keystone 3 Pro | Open-Source</title>
-          <meta name="description" content="Free open-source XRPL wallet with air-gapped signing via Keystone 3 Pro hardware wallet. Send XRP, trade on DEX, and manage tokens securely." />
+          <title>DEXrp – Air-Gapped XRPL Wallet for Keystone 3 Pro</title>
+          <meta name="description" content="Free XRPL wallet with air-gapped signing via Keystone 3 Pro hardware wallet. Send XRP, trade on DEX, and manage tokens securely." />
           <meta property="og:title" content="DEXrp – Air-Gapped XRPL Wallet for Keystone 3 Pro" />
           <meta property="og:description" content="Secure XRPL trading with hardware wallet security. Watch-only interface with air-gapped signing via QR codes." />
           <meta property="og:type" content="website" />
@@ -171,48 +171,10 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* Open-Source Section */}
-      <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-6 sm:mb-8 px-2">
-            Open-Source & Community-Driven
-          </h2>
-
-          <p className="text-sm sm:text-base lg:text-lg text-gray-400 mb-8 sm:mb-12 max-w-2xl mx-auto leading-relaxed px-2">
-            DEXrp is 100% open-source. Verify the code yourself, contribute improvements, or request new features.
-            Currently supporting Keystone 3 Pro — more hardware wallets can be added based on community demand.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-2">
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-gray-700 text-gray-300 hover:bg-gray-900 text-sm sm:text-base px-6 h-11 sm:h-12"
-              data-testid="button-github"
-            >
-              <Github className="w-4 h-4 mr-2" />
-              View on GitHub
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="border-gray-700 text-gray-300 hover:bg-gray-900 text-sm sm:text-base px-6 h-11 sm:h-12"
-              data-testid="button-requests"
-            >
-              <MessageCircle className="w-4 h-4 mr-2" />
-              Request a Feature
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* Footer */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 bg-gray-950 border-t border-gray-800">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-8 mb-6 sm:mb-8">
-            <a href="#" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-github">
-              GitHub
-            </a>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-8 mb-6 sm:mb-8">
             <a href="https://x.com/JustinNevins" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-x">
               X (@JustinNevins)
             </a>
