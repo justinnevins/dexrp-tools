@@ -144,7 +144,7 @@ export default function LandingPage() {
               <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
               Included Free
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
               {freeFeatures.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
@@ -178,7 +178,7 @@ export default function LandingPage() {
               <Star className="w-5 h-5 flex-shrink-0" />
               Premium Features
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
               {premiumFeatures.map((feature, index) => {
                 const Icon = feature.icon;
                 return (
