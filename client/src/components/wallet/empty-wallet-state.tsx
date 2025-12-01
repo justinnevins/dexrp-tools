@@ -73,10 +73,10 @@ export function EmptyWalletState() {
             </div>
           </div>
           
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3">
             <Button 
               onClick={() => setShowNetworkSelection(true)}
-              className="flex-1"
+              className="w-full"
               data-testid="add-account-button"
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -85,7 +85,7 @@ export function EmptyWalletState() {
             <Button 
               onClick={() => setShowWatchOnly(true)}
               variant="outline"
-              className="flex-1"
+              className="w-full"
               data-testid="add-watch-only-button"
             >
               <Eye className="w-4 h-4 mr-2" />
