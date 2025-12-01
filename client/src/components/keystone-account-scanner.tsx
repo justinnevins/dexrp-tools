@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
-import QrScanner from 'qr-scanner';
+import jsQR from 'jsqr';
 
 interface KeystoneAccountScannerProps {
   onScan: (address: string, publicKey: string) => void;
@@ -13,9 +13,9 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const scannerRef = useRef<QrScanner | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
   const hasScannedRef = useRef(false);
 
   useEffect(() => {
@@ -27,8 +27,8 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
 
   const startScanning = async () => {
     console.log('[KeystoneScanner] startScanning called');
-    if (!videoRef.current) {
-      console.log('[KeystoneScanner] ERROR: videoRef.current is null');
+    if (!videoRef.current || !canvasRef.current) {
+      console.log('[KeystoneScanner] ERROR: refs not available');
       return;
     }
 
@@ -55,9 +55,9 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         console.log('[KeystoneScanner] Video metadata loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
         if (videoRef.current) {
           videoRef.current.play().then(() => {
-            console.log('[KeystoneScanner] Video playing, starting interval-based scanning');
+            console.log('[KeystoneScanner] Video playing, starting jsQR scanning');
             setIsScanning(true);
-            startIntervalScanning();
+            startJsQRScanning();
           }).catch((err) => {
             console.log('[KeystoneScanner] Video play failed:', err);
             setError('Failed to play video stream');
@@ -71,49 +71,67 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     }
   };
 
-  const startIntervalScanning = async () => {
-    console.log('[KeystoneScanner] startIntervalScanning called');
-    
-    // Use the same approach as KeystoneQRScanner - interval-based scanning of video element
+  const startJsQRScanning = () => {
+    console.log('[KeystoneScanner] startJsQRScanning called - using jsQR (no web worker)');
     let scanCount = 0;
     
-    scanIntervalRef.current = setInterval(async () => {
-      if (!videoRef.current || hasScannedRef.current) return;
+    const tick = () => {
+      if (hasScannedRef.current) return;
       
-      scanCount++;
-      if (scanCount % 10 === 1) {
-        console.log('[KeystoneScanner] Scanning attempt', scanCount);
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      
+      if (!video || !canvas) {
+        animationFrameRef.current = requestAnimationFrame(tick);
+        return;
       }
       
-      try {
-        const result = await QrScanner.scanImage(videoRef.current, { returnDetailedScanResult: true });
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          animationFrameRef.current = requestAnimationFrame(tick);
+          return;
+        }
         
-        if (result) {
-          const qrData = typeof result === 'string' ? result : (result.data || String(result));
-          console.log('[KeystoneScanner] QR detected:', qrData?.substring(0, 50) + '...');
-          
-          if (!hasScannedRef.current) {
-            handleScanResult(qrData.trim());
-          }
+        // Set canvas size to match video
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data for jsQR
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Scan with jsQR (pure JavaScript, no web worker)
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert',
+        });
+        
+        scanCount++;
+        if (scanCount % 30 === 1) {
+          console.log('[KeystoneScanner] jsQR scanning, frame:', scanCount, 'dimensions:', canvas.width, 'x', canvas.height);
         }
-      } catch (err) {
-        // No QR found, continue scanning
-        if (scanCount % 25 === 0) {
-          console.log('[KeystoneScanner] No QR found after', scanCount, 'attempts');
+        
+        if (code) {
+          console.log('[KeystoneScanner] jsQR detected QR:', code.data?.substring(0, 50) + '...');
+          if (!hasScannedRef.current) {
+            handleScanResult(code.data);
+          }
+          return; // Stop scanning after detection
         }
       }
-    }, 200); // Scan every 200ms like KeystoneQRScanner
+      
+      animationFrameRef.current = requestAnimationFrame(tick);
+    };
+    
+    animationFrameRef.current = requestAnimationFrame(tick);
   };
 
   const stopScanning = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (scannerRef.current) {
-      scannerRef.current.stop();
-      scannerRef.current.destroy();
-      scannerRef.current = null;
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
@@ -383,7 +401,8 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
             playsInline
             muted
           />
-                    {!isScanning && (
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+          {!isScanning && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
               <Camera className="h-12 w-12 text-white" />
             </div>
