@@ -215,9 +215,9 @@ class BrowserStorage {
     }
     
     // Add any wallets that weren't in the orderedIds (shouldn't happen, but safety)
-    for (const wallet of walletMap.values()) {
+    walletMap.forEach(wallet => {
       reorderedWallets.push(wallet);
-    }
+    });
     
     this.saveData(this.STORAGE_KEYS.WALLETS, reorderedWallets);
     return reorderedWallets;

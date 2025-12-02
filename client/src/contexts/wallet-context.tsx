@@ -23,6 +23,10 @@ interface WalletContextType {
     mutateAsync: (data: { id: number; balance: string; reservedBalance: string }) => Promise<Wallet | null>;
     isPending: boolean;
   };
+  reorderWallets: {
+    mutateAsync: (orderedIds: number[]) => Promise<Wallet[]>;
+    isPending: boolean;
+  };
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
@@ -112,6 +116,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const reorderWalletsMutation = useMutation({
+    mutationFn: async (orderedIds: number[]) => {
+      const wallets = browserStorage.reorderWallets(orderedIds);
+      return wallets;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+    },
+  });
+
   return (
     <WalletContext.Provider
       value={{
@@ -133,6 +147,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         updateWalletBalance: {
           mutateAsync: updateWalletBalance.mutateAsync,
           isPending: updateWalletBalance.isPending,
+        },
+        reorderWallets: {
+          mutateAsync: reorderWalletsMutation.mutateAsync,
+          isPending: reorderWalletsMutation.isPending,
         },
       }}
     >
