@@ -198,6 +198,31 @@ class BrowserStorage {
     return true;
   }
 
+  reorderWallets(orderedIds: number[]): Wallet[] {
+    const wallets = this.getAllWallets();
+    
+    // Create a map for quick lookup
+    const walletMap = new Map(wallets.map(w => [w.id, w]));
+    
+    // Reorder based on the provided ID order
+    const reorderedWallets: Wallet[] = [];
+    for (const id of orderedIds) {
+      const wallet = walletMap.get(id);
+      if (wallet) {
+        reorderedWallets.push(wallet);
+        walletMap.delete(id);
+      }
+    }
+    
+    // Add any wallets that weren't in the orderedIds (shouldn't happen, but safety)
+    for (const wallet of walletMap.values()) {
+      reorderedWallets.push(wallet);
+    }
+    
+    this.saveData(this.STORAGE_KEYS.WALLETS, reorderedWallets);
+    return reorderedWallets;
+  }
+
   // Transaction operations
   getAllTransactions(): Transaction[] {
     return this.getStoredData<Transaction>(this.STORAGE_KEYS.TRANSACTIONS);
