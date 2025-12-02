@@ -1,4 +1,5 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical } from 'lucide-react';
+import { Reorder } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +48,7 @@ import {
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 
 export default function Profile() {
-  const { currentWallet, wallets, setCurrentWallet, updateWallet } = useWallet();
+  const { currentWallet, wallets, setCurrentWallet, updateWallet, reorderWallets } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
@@ -310,21 +311,39 @@ export default function Profile() {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-        <div className="space-y-3">
-          {wallets.data && wallets.data.length > 0 ? (
-            wallets.data.map((wallet, index) => (
-              <div
+        {wallets.data && wallets.data.length > 0 ? (
+          <Reorder.Group
+            axis="y"
+            values={wallets.data}
+            onReorder={(newOrder) => {
+              const orderedIds = newOrder.map(w => w.id);
+              reorderWallets.mutateAsync(orderedIds);
+            }}
+            className="space-y-3"
+          >
+            {wallets.data.map((wallet, index) => (
+              <Reorder.Item
                 key={wallet.id}
-                className={`flex items-center justify-between p-4 rounded-lg border ${
+                value={wallet}
+                className={`flex items-center justify-between p-4 rounded-lg border cursor-grab active:cursor-grabbing ${
                   currentWallet?.id === wallet.id
                     ? 'border-primary bg-primary/5'
                     : 'border-border bg-muted/30'
                 }`}
+                style={{ touchAction: 'none' }}
                 data-testid={`wallet-item-${wallet.id}`}
+                whileDrag={{ 
+                  scale: 1.02, 
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+                  zIndex: 50
+                }}
               >
                 <div className="flex items-center space-x-3 flex-1">
-                  <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                    <Wallet className="w-5 h-5 text-white" />
+                  <div className="flex items-center gap-2">
+                    <GripVertical className="w-4 h-4 text-muted-foreground" />
+                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                      <Wallet className="w-5 h-5 text-white" />
+                    </div>
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -360,7 +379,10 @@ export default function Profile() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => handleEditWallet(wallet)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditWallet(wallet);
+                    }}
                     variant="ghost"
                     size="sm"
                     data-testid={`edit-wallet-${wallet.id}`}
@@ -368,7 +390,10 @@ export default function Profile() {
                     <Edit2 className="w-4 h-4" />
                   </Button>
                   <Button
-                    onClick={() => handleRemoveAccount(wallet.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveAccount(wallet.id);
+                    }}
                     variant="ghost"
                     size="sm"
                     className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -377,12 +402,17 @@ export default function Profile() {
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
-              </div>
-            ))
-          ) : (
-            <p className="text-center text-muted-foreground py-4">No accounts added</p>
-          )}
-        </div>
+              </Reorder.Item>
+            ))}
+          </Reorder.Group>
+        ) : (
+          <p className="text-center text-muted-foreground py-4">No accounts added</p>
+        )}
+        {wallets.data && wallets.data.length > 1 && (
+          <p className="text-xs text-muted-foreground text-center mt-3">
+            Drag accounts to reorder
+          </p>
+        )}
       </div>
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
