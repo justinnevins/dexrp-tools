@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -432,6 +432,30 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Support DEXrp */}
+      <div className="bg-gradient-to-r from-pink-50 to-pink-100 dark:from-pink-950/30 dark:to-pink-900/20 border border-pink-200 dark:border-pink-800 rounded-xl p-6 mb-6">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+            <Heart className="w-6 h-6 text-pink-500" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold mb-1">Support DEXrp</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              DEXrp is free to use. If you find it helpful, consider supporting its continued development with a donation.
+            </p>
+            <a
+              href="/send?donate=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP&memo=DEXrp%20Donation"
+              className="inline-flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              data-testid="button-donate-settings"
+            >
+              <Heart className="w-4 h-4" />
+              Donate XRP, RLUSD, or USDC
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Advanced Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl mb-6">
         <Accordion type="single" collapsible className="w-full">
