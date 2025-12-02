@@ -46,8 +46,15 @@ export default function Assets() {
   const [trustlineToDelete, setTrustlineToDelete] = useState<AssetData | null>(null);
   const [removeTrustlineData, setRemoveTrustlineData] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<'all' | 'current'>('current');
-  const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
+  // Load saved preferences from localStorage
+  const [viewMode, setViewMode] = useState<'all' | 'current'>(() => {
+    const saved = localStorage.getItem('assets_view_mode');
+    return (saved === 'all' || saved === 'current') ? saved : 'current';
+  });
+  const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>(() => {
+    const saved = localStorage.getItem('assets_selected_network');
+    return (saved === 'mainnet' || saved === 'testnet') ? saved : 'mainnet';
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentWallet, wallets } = useWallet();
@@ -348,6 +355,16 @@ export default function Assets() {
     await new Promise(resolve => setTimeout(resolve, 4000));
     await handleRefresh();
   };
+
+  // Save view mode preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('assets_view_mode', viewMode);
+  }, [viewMode]);
+
+  // Save selected network preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('assets_selected_network', selectedNetwork);
+  }, [selectedNetwork]);
 
   // Update selected network when current wallet changes (in current wallet mode)
   useEffect(() => {
