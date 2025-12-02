@@ -61,7 +61,6 @@ export default function LandingPage() {
           <meta property="og:type" content="website" />
         </>
       )}
-
       {/* Hero Section */}
       <div className="relative px-4 py-8 sm:px-6 sm:py-16 lg:px-8 lg:py-24 border-b border-gray-800">
         <div className="max-w-4xl mx-auto text-center">
@@ -114,7 +113,6 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-
       {/* Features Section */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
         <div className="max-w-6xl mx-auto">
@@ -173,7 +171,6 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-
       {/* Donate Section */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
         <div className="max-w-2xl mx-auto text-center">
@@ -199,7 +196,6 @@ export default function LandingPage() {
           </p>
         </div>
       </div>
-
       {/* Footer */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 bg-gray-950 border-t border-gray-800">
         <div className="max-w-6xl mx-auto">
@@ -233,9 +229,7 @@ export default function LandingPage() {
           </div>
 
           <div className="border-t border-gray-800 pt-6 sm:pt-8">
-            <p className="text-center text-gray-500 text-xs sm:text-sm">
-              © 2025 DEXrp — Self-custodial XRPL tools
-            </p>
+            <p className="text-center text-gray-500 text-xs sm:text-sm">© 2025 DEXrp — Self-custodial XRPL Wallet by CarbonVibe</p>
           </div>
         </div>
       </div>
