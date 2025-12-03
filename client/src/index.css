@@ -60,7 +60,18 @@
     overscroll-behavior: none;
     /* Prevent pull-to-refresh on mobile */
     overflow: hidden;
-    height: 100%;
+    /* Use dynamic viewport height to account for mobile browser UI */
+    height: 100dvh;
+    /* Fallback for older browsers */
+    height: 100svh;
+  }
+  
+  /* Additional fallback for browsers without dvh/svh support */
+  @supports not (height: 100dvh) {
+    html, body, #root {
+      height: 100vh;
+      height: -webkit-fill-available;
+    }
   }
 
   body {

@@ -206,8 +206,11 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
   return (
     <div 
-      className="flex h-screen overflow-hidden bg-background"
-      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+      className="flex overflow-hidden bg-background"
+      style={{ 
+        height: '100dvh',
+        paddingTop: 'env(safe-area-inset-top, 0px)' 
+      }}
     >
       {/* Desktop Sidebar Navigation */}
       <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-white dark:bg-card">
