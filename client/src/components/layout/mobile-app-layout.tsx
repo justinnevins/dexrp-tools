@@ -97,20 +97,27 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isSubmittingRef.current || isRefreshingRef.current || !isPullingRef.current) return;
+      if (isSubmittingRef.current || isRefreshingRef.current) return;
 
       const currentY = e.touches[0].clientY;
       const scrollTop = mainContent.scrollTop;
 
       // Only track pull when at the very top and pulling down
-      if (scrollTop === 0 && currentY > touchStartYRef.current) {
+      if (scrollTop === 0 && currentY > touchStartYRef.current && isPullingRef.current) {
         const distance = currentY - touchStartYRef.current;
+        
+        // Once we start pulling, prevent browser's native overscroll
+        // This stops the browser from canceling our touch after ~1s
+        if (distance > 10) {
+          e.preventDefault();
+        }
+        
         // Apply resistance to make it feel more natural
         const resistedDistance = Math.min(distance * 0.5, 120);
         pullDistanceRef.current = resistedDistance;
         setPullDistance(resistedDistance);
-      } else {
-        // Reset if user scrolls up or content is scrolled
+      } else if (isPullingRef.current && scrollTop > 0) {
+        // Reset if content is scrolled
         isPullingRef.current = false;
         pullDistanceRef.current = 0;
         setPullDistance(0);
@@ -137,14 +144,25 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       isPullingRef.current = false;
     };
 
+    // Handle touchcancel - browser may fire this if it takes over the gesture
+    const handleTouchCancel = () => {
+      // Reset state without triggering refresh
+      setPullDistance(0);
+      pullDistanceRef.current = 0;
+      isPullingRef.current = false;
+    };
+
     mainContent.addEventListener('touchstart', handleTouchStart, { passive: true });
-    mainContent.addEventListener('touchmove', handleTouchMove, { passive: true });
+    // Use passive: false so we can call preventDefault to keep the gesture alive
+    mainContent.addEventListener('touchmove', handleTouchMove, { passive: false });
     mainContent.addEventListener('touchend', handleTouchEnd, { passive: true });
+    mainContent.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
     return () => {
       mainContent.removeEventListener('touchstart', handleTouchStart);
       mainContent.removeEventListener('touchmove', handleTouchMove);
       mainContent.removeEventListener('touchend', handleTouchEnd);
+      mainContent.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, []); // Empty dependency array - listeners stay stable
 
