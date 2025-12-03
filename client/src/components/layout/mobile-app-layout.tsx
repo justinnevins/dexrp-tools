@@ -60,8 +60,20 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const { isSubmitting } = useFormSubmission();
   const touchStartYRef = useRef<number>(0);
   const isPullingRef = useRef<boolean>(false);
+  const pullDistanceRef = useRef<number>(0);
   const [pullDistance, setPullDistance] = useState(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isSubmittingRef = useRef(isSubmitting);
+  const isRefreshingRef = useRef(isRefreshing);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    isSubmittingRef.current = isSubmitting;
+  }, [isSubmitting]);
+
+  useEffect(() => {
+    isRefreshingRef.current = isRefreshing;
+  }, [isRefreshing]);
 
   const toggleTheme = () => {
     if (theme === 'light') {
@@ -79,13 +91,13 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     if (!mainContent) return;
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (isSubmitting || isRefreshing) return;
+      if (isSubmittingRef.current || isRefreshingRef.current) return;
       touchStartYRef.current = e.touches[0].clientY;
       isPullingRef.current = mainContent.scrollTop === 0;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isSubmitting || isRefreshing || !isPullingRef.current) return;
+      if (isSubmittingRef.current || isRefreshingRef.current || !isPullingRef.current) return;
 
       const currentY = e.touches[0].clientY;
       const scrollTop = mainContent.scrollTop;
@@ -95,21 +107,24 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         const distance = currentY - touchStartYRef.current;
         // Apply resistance to make it feel more natural
         const resistedDistance = Math.min(distance * 0.5, 120);
+        pullDistanceRef.current = resistedDistance;
         setPullDistance(resistedDistance);
       } else {
         // Reset if user scrolls up or content is scrolled
         isPullingRef.current = false;
+        pullDistanceRef.current = 0;
         setPullDistance(0);
       }
     };
 
     const handleTouchEnd = () => {
-      if (isSubmitting || isRefreshing) return;
+      if (isSubmittingRef.current || isRefreshingRef.current) return;
 
-      if (pullDistance >= PULL_THRESHOLD) {
+      if (pullDistanceRef.current >= PULL_THRESHOLD) {
         // Trigger refresh
         setIsRefreshing(true);
         setPullDistance(0);
+        pullDistanceRef.current = 0;
         // Small delay to show the refreshing state
         setTimeout(() => {
           window.location.reload();
@@ -117,6 +132,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       } else {
         // Reset without refreshing
         setPullDistance(0);
+        pullDistanceRef.current = 0;
       }
       isPullingRef.current = false;
     };
@@ -130,7 +146,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       mainContent.removeEventListener('touchmove', handleTouchMove);
       mainContent.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isSubmitting, isRefreshing, pullDistance]);
+  }, []); // Empty dependency array - listeners stay stable
 
   // Fetch XRP/RLUSD price from DEX order book
   useEffect(() => {
