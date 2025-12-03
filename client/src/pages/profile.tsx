@@ -1,5 +1,5 @@
 import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical } from 'lucide-react';
-import { Reorder } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,107 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
+
+interface DraggableWalletItemProps {
+  wallet: WalletType;
+  index: number;
+  isActive: boolean;
+  onEdit: (wallet: WalletType) => void;
+  onRemove: (walletId: number) => void;
+}
+
+function DraggableWalletItem({ wallet, index, isActive, onEdit, onRemove }: DraggableWalletItemProps) {
+  const controls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={wallet}
+      dragListener={false}
+      dragControls={controls}
+      className={`flex items-center justify-between p-4 rounded-lg border ${
+        isActive
+          ? 'border-primary bg-primary/5'
+          : 'border-border bg-muted/30'
+      }`}
+      data-testid={`wallet-item-${wallet.id}`}
+      whileDrag={{ 
+        scale: 1.02, 
+        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+        zIndex: 50
+      }}
+    >
+      <div className="flex items-center space-x-3 flex-1">
+        <div className="flex items-center gap-2">
+          <div
+            className="p-1 cursor-grab active:cursor-grabbing touch-none"
+            onPointerDown={(e) => controls.start(e)}
+          >
+            <GripVertical className="w-5 h-5 text-muted-foreground" />
+          </div>
+          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+            <Wallet className="w-5 h-5 text-white" />
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="font-medium">{wallet.name || `Account ${index + 1}`}</h3>
+            {isActive && (
+              <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">
+                Active
+              </span>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded-full ${
+              wallet.network === 'mainnet' 
+                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+            }`}>
+              {wallet.network === 'mainnet' ? 'Mainnet' : 'Testnet'}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {AddressFormat.long(wallet.address)}
+          </p>
+          {wallet.walletType === 'watchOnly' ? (
+            <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
+              <Eye className="w-3 h-3" />
+              Watch-Only
+            </p>
+          ) : wallet.hardwareWalletType && (
+            <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
+              <Shield className="w-3 h-3" />
+              {wallet.hardwareWalletType}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(wallet);
+          }}
+          variant="ghost"
+          size="sm"
+          data-testid={`edit-wallet-${wallet.id}`}
+        >
+          <Edit2 className="w-4 h-4" />
+        </Button>
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(wallet.id);
+          }}
+          variant="ghost"
+          size="sm"
+          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+          data-testid={`remove-account-${wallet.id}`}
+        >
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </Reorder.Item>
+  );
+}
 
 export default function Profile() {
   const { currentWallet, wallets, setCurrentWallet, updateWallet, reorderWallets } = useWallet();
@@ -322,87 +423,14 @@ export default function Profile() {
             className="space-y-3"
           >
             {wallets.data.map((wallet, index) => (
-              <Reorder.Item
+              <DraggableWalletItem
                 key={wallet.id}
-                value={wallet}
-                className={`flex items-center justify-between p-4 rounded-lg border cursor-grab active:cursor-grabbing ${
-                  currentWallet?.id === wallet.id
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border bg-muted/30'
-                }`}
-                style={{ touchAction: 'none' }}
-                data-testid={`wallet-item-${wallet.id}`}
-                whileDrag={{ 
-                  scale: 1.02, 
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-                  zIndex: 50
-                }}
-              >
-                <div className="flex items-center space-x-3 flex-1">
-                  <div className="flex items-center gap-2">
-                    <GripVertical className="w-4 h-4 text-muted-foreground" />
-                    <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-                      <Wallet className="w-5 h-5 text-white" />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-medium">{wallet.name || `Account ${index + 1}`}</h3>
-                      {currentWallet?.id === wallet.id && (
-                        <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">
-                          Active
-                        </span>
-                      )}
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        wallet.network === 'mainnet' 
-                          ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                          : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
-                      }`}>
-                        {wallet.network === 'mainnet' ? 'Mainnet' : 'Testnet'}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {AddressFormat.long(wallet.address)}
-                    </p>
-                    {wallet.walletType === 'watchOnly' ? (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-1">
-                        <Eye className="w-3 h-3" />
-                        Watch-Only
-                      </p>
-                    ) : wallet.hardwareWalletType && (
-                      <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1 mt-1">
-                        <Shield className="w-3 h-3" />
-                        {wallet.hardwareWalletType}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditWallet(wallet);
-                    }}
-                    variant="ghost"
-                    size="sm"
-                    data-testid={`edit-wallet-${wallet.id}`}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveAccount(wallet.id);
-                    }}
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                    data-testid={`remove-account-${wallet.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </Reorder.Item>
+                wallet={wallet}
+                index={index}
+                isActive={currentWallet?.id === wallet.id}
+                onEdit={handleEditWallet}
+                onRemove={handleRemoveAccount}
+              />
             ))}
           </Reorder.Group>
         ) : (
@@ -410,7 +438,7 @@ export default function Profile() {
         )}
         {wallets.data && wallets.data.length > 1 && (
           <p className="text-xs text-muted-foreground text-center mt-3">
-            Drag accounts to reorder
+            Drag the grip icon to reorder
           </p>
         )}
       </div>
