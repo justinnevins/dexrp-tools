@@ -93,7 +93,8 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     const handleTouchStart = (e: TouchEvent) => {
       if (isSubmittingRef.current || isRefreshingRef.current) return;
       touchStartYRef.current = e.touches[0].clientY;
-      isPullingRef.current = mainContent.scrollTop === 0;
+      // Only enable pull mode if we're exactly at the top
+      isPullingRef.current = mainContent.scrollTop <= 0;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -101,23 +102,32 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
       const currentY = e.touches[0].clientY;
       const scrollTop = mainContent.scrollTop;
+      const distance = currentY - touchStartYRef.current;
 
-      // Only track pull when at the very top and pulling down
-      if (scrollTop === 0 && currentY > touchStartYRef.current && isPullingRef.current) {
-        const distance = currentY - touchStartYRef.current;
-        
-        // Once we start pulling, prevent browser's native overscroll
-        // This stops the browser from canceling our touch after ~1s
-        if (distance > 10) {
-          e.preventDefault();
+      // If user scrolls down into content, disable pull mode permanently for this touch
+      if (scrollTop > 0) {
+        if (isPullingRef.current) {
+          isPullingRef.current = false;
+          pullDistanceRef.current = 0;
+          setPullDistance(0);
         }
-        
-        // Apply resistance to make it feel more natural
-        const resistedDistance = Math.min(distance * 0.5, 120);
-        pullDistanceRef.current = resistedDistance;
-        setPullDistance(resistedDistance);
-      } else if (isPullingRef.current && scrollTop > 0) {
-        // Reset if content is scrolled
+        return; // Let normal scrolling happen
+      }
+
+      // Only track pull when at the very top, pulling down, and pull mode is active
+      if (scrollTop <= 0 && distance > 0 && isPullingRef.current) {
+        // Only prevent default and show pull UI after a meaningful pull distance
+        // This gives the browser a chance to start normal scroll first
+        if (distance > 15) {
+          e.preventDefault();
+          
+          // Apply resistance to make it feel more natural
+          const resistedDistance = Math.min((distance - 15) * 0.5, 120);
+          pullDistanceRef.current = resistedDistance;
+          setPullDistance(resistedDistance);
+        }
+      } else if (distance < 0) {
+        // User is scrolling up (to see content below) - disable pull mode
         isPullingRef.current = false;
         pullDistanceRef.current = 0;
         setPullDistance(0);
