@@ -1,6 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link, useLocation } from 'wouter';
-import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart } from 'lucide-react';
+import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
@@ -48,6 +48,8 @@ interface MobileAppLayoutProps {
   children: React.ReactNode;
 }
 
+const PULL_THRESHOLD = 80; // pixels needed to trigger refresh
+
 export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const { theme, setTheme } = useTheme();
   const [location] = useLocation();
@@ -57,6 +59,9 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
   const mainContentRef = useRef<HTMLElement>(null);
   const { isSubmitting } = useFormSubmission();
   const touchStartYRef = useRef<number>(0);
+  const isPullingRef = useRef<boolean>(false);
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const toggleTheme = () => {
     if (theme === 'light') {
@@ -74,33 +79,58 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
     if (!mainContent) return;
 
     const handleTouchStart = (e: TouchEvent) => {
+      if (isSubmitting || isRefreshing) return;
       touchStartYRef.current = e.touches[0].clientY;
+      isPullingRef.current = mainContent.scrollTop === 0;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isSubmitting) return;
+      if (isSubmitting || isRefreshing || !isPullingRef.current) return;
 
       const currentY = e.touches[0].clientY;
       const scrollTop = mainContent.scrollTop;
 
-      // Only detect pull-to-refresh when at the top
+      // Only track pull when at the very top and pulling down
       if (scrollTop === 0 && currentY > touchStartYRef.current) {
-        const pullDistance = currentY - touchStartYRef.current;
-        // Refresh when pulled down by 100px or more
-        if (pullDistance > 100) {
-          window.location.reload();
-        }
+        const distance = currentY - touchStartYRef.current;
+        // Apply resistance to make it feel more natural
+        const resistedDistance = Math.min(distance * 0.5, 120);
+        setPullDistance(resistedDistance);
+      } else {
+        // Reset if user scrolls up or content is scrolled
+        isPullingRef.current = false;
+        setPullDistance(0);
       }
     };
 
-    mainContent.addEventListener('touchstart', handleTouchStart);
-    mainContent.addEventListener('touchmove', handleTouchMove);
+    const handleTouchEnd = () => {
+      if (isSubmitting || isRefreshing) return;
+
+      if (pullDistance >= PULL_THRESHOLD) {
+        // Trigger refresh
+        setIsRefreshing(true);
+        setPullDistance(0);
+        // Small delay to show the refreshing state
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      } else {
+        // Reset without refreshing
+        setPullDistance(0);
+      }
+      isPullingRef.current = false;
+    };
+
+    mainContent.addEventListener('touchstart', handleTouchStart, { passive: true });
+    mainContent.addEventListener('touchmove', handleTouchMove, { passive: true });
+    mainContent.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
       mainContent.removeEventListener('touchstart', handleTouchStart);
       mainContent.removeEventListener('touchmove', handleTouchMove);
+      mainContent.removeEventListener('touchend', handleTouchEnd);
     };
-  }, [isSubmitting]);
+  }, [isSubmitting, isRefreshing, pullDistance]);
 
   // Fetch XRP/RLUSD price from DEX order book
   useEffect(() => {
@@ -200,11 +230,43 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
           </div>
         </header>
 
+        {/* Pull to Refresh Indicator */}
+        {(pullDistance > 0 || isRefreshing) && (
+          <div 
+            className="flex items-center justify-center bg-muted/50 overflow-hidden transition-all duration-150"
+            style={{ height: isRefreshing ? 50 : pullDistance }}
+          >
+            <div 
+              className={`flex items-center gap-2 text-sm text-muted-foreground transition-all ${
+                pullDistance >= PULL_THRESHOLD || isRefreshing ? 'text-primary' : ''
+              }`}
+            >
+              <RefreshCw 
+                className={`w-5 h-5 transition-transform ${
+                  isRefreshing ? 'animate-spin' : ''
+                }`}
+                style={{ 
+                  transform: isRefreshing 
+                    ? undefined 
+                    : `rotate(${Math.min(pullDistance / PULL_THRESHOLD * 180, 180)}deg)` 
+                }}
+              />
+              <span>
+                {isRefreshing 
+                  ? 'Refreshing...' 
+                  : pullDistance >= PULL_THRESHOLD 
+                    ? 'Release to refresh' 
+                    : 'Pull to refresh'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Main Content */}
         <main 
           ref={mainContentRef}
           className="flex-1 overflow-y-auto pb-20 lg:pb-6"
-          style={{ overscrollBehavior: 'none' }}
+          style={{ overscrollBehavior: 'contain' }}
         >
           {children}
         </main>
