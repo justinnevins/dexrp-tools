@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical, Download, Upload, FileArchive } from 'lucide-react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,11 +7,12 @@ import { useWallet } from '@/hooks/use-wallet';
 import { useAccountInfo } from '@/hooks/use-xrpl';
 import { useHardwareWallet } from '@/hooks/use-hardware-wallet';
 import { useTheme } from '@/lib/theme-provider';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
 import { xrplClient } from '@/lib/xrpl-client';
+import { createBackup, downloadBackup, readBackupFile, getImportPreview, restoreBackup, type BackupData, type ImportPreview, type ImportMode } from '@/lib/backup-utils';
 import { AddressFormat } from '@/lib/format-address';
 import type { Wallet as WalletType } from '@shared/schema';
 import {
@@ -166,6 +167,12 @@ export default function Profile() {
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [walletToRemove, setWalletToRemove] = useState<number | null>(null);
   const [removeAllConfirmOpen, setRemoveAllConfirmOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importPreview, setImportPreview] = useState<ImportPreview | null>(null);
+  const [pendingBackupData, setPendingBackupData] = useState<BackupData | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
@@ -392,8 +399,85 @@ export default function Profile() {
     });
   };
 
+  const handleExportBackup = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await createBackup();
+      downloadBackup(blob);
+      toast({
+        title: "Backup Created",
+        description: "Your data has been exported successfully. Check your downloads folder.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : "Failed to create backup",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
 
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    try {
+      const backupData = await readBackupFile(file);
+      const preview = getImportPreview(backupData);
+      setImportPreview(preview);
+      setPendingBackupData(backupData);
+      setImportDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "Invalid Backup File",
+        description: error instanceof Error ? error.message : "Failed to read backup file",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRestoreBackup = async (mode: ImportMode) => {
+    if (!pendingBackupData) return;
+
+    try {
+      const result = restoreBackup(pendingBackupData, mode);
+      
+      await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+      
+      toast({
+        title: "Backup Restored",
+        description: mode === 'replace' 
+          ? "All data restored successfully. Reloading..."
+          : `Added ${result.merged} new items, updated ${result.restored} settings. Reloading...`,
+      });
+
+      setImportDialogOpen(false);
+      setImportPreview(null);
+      setPendingBackupData(null);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: "Restore Failed",
+        description: error instanceof Error ? error.message : "Failed to restore backup",
+        variant: "destructive",
+      });
+    }
+  };
 
 
   return (
@@ -441,6 +525,47 @@ export default function Profile() {
             Drag the grip icon to reorder
           </p>
         )}
+
+        {/* Backup & Restore Section */}
+        <div className="border-t border-border mt-6 pt-6">
+          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+            <FileArchive className="w-4 h-4 text-muted-foreground" />
+            Backup & Restore
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Export your accounts, settings, and data to a backup file, or restore from a previous backup.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={handleExportBackup}
+              variant="outline"
+              size="sm"
+              disabled={isExporting}
+              data-testid="button-export-backup"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {isExporting ? 'Exporting...' : 'Export Backup'}
+            </Button>
+            <Button
+              onClick={handleImportClick}
+              variant="outline"
+              size="sm"
+              disabled={isImporting}
+              data-testid="button-import-backup"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {isImporting ? 'Reading...' : 'Import Backup'}
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip"
+              onChange={handleFileSelect}
+              className="hidden"
+              data-testid="input-backup-file"
+            />
+          </div>
+        </div>
       </div>
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
@@ -735,6 +860,83 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Backup Confirmation Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileArchive className="w-5 h-5" />
+              Restore Backup
+            </DialogTitle>
+            <DialogDescription>
+              Review the backup contents before restoring.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {importPreview && (
+            <div className="space-y-4 py-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Created:</span>
+                  <span>{new Date(importPreview.manifest.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Accounts:</span>
+                  <span>{importPreview.walletCount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Includes:</span>
+                  <span className="text-right">
+                    {[
+                      importPreview.hasTransactions && 'Transactions',
+                      importPreview.hasTrustlines && 'Trustlines',
+                      importPreview.hasOffers && 'DEX Offers',
+                      importPreview.hasSettings && 'Settings',
+                    ].filter(Boolean).join(', ') || 'Basic data'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Choose restore mode:</p>
+                <div className="grid gap-3">
+                  <Button
+                    onClick={() => handleRestoreBackup('replace')}
+                    variant="default"
+                    className="w-full justify-start"
+                    data-testid="button-restore-replace"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Replace All</div>
+                      <div className="text-xs opacity-80">Clear existing data and restore from backup</div>
+                    </div>
+                  </Button>
+                  <Button
+                    onClick={() => handleRestoreBackup('merge')}
+                    variant="outline"
+                    className="w-full justify-start"
+                    data-testid="button-restore-merge"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Merge</div>
+                      <div className="text-xs opacity-80">Add new accounts, keep existing data</div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setImportDialogOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
