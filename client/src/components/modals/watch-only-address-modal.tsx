@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Eye, Globe, AlertCircle, Camera } from 'lucide-react';
+import { Eye, Globe, AlertCircle, QrCode } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { xrplClient } from '@/lib/xrpl-client';
 import { GeneralQRScanner } from '@/components/general-qr-scanner';
@@ -73,130 +73,136 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
     }
   };
 
-  return (
-    <>
-      <Dialog open={isOpen && !isScanning} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md mx-auto p-6 bg-background">
-          <DialogHeader>
-            <DialogTitle className="flex items-center space-x-2">
-              <Eye className="w-5 h-5 text-primary" />
-              <span>Add Watch-Only Address</span>
-            </DialogTitle>
-            <DialogDescription>
-              Monitor any XRPL address without signing capabilities. You can view balances, transactions, and tokens but cannot send or sign transactions.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label htmlFor="xrpl-address">XRPL Address</Label>
-              <Input
-                id="xrpl-address"
-                placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-                value={address}
-                onChange={(e) => {
-                  setAddress(e.target.value);
-                  setError(null);
-                }}
-                data-testid="input-watch-only-address"
-                className="font-mono text-sm"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter any valid XRPL address to monitor
-              </p>
-            </div>
-
-            <Button
-              onClick={() => setIsScanning(true)}
-              variant="outline"
-              className="w-full"
-              data-testid="button-scan-watch-only-address"
-            >
-              <Camera className="w-4 h-4 mr-2" />
-              Scan QR Code
-            </Button>
-
-            <div className="space-y-2">
-              <Label htmlFor="watch-wallet-name">Account Name (Optional)</Label>
-              <Input
-                id="watch-wallet-name"
-                placeholder="e.g., Exchange Wallet"
-                value={walletName}
-                onChange={(e) => setWalletName(e.target.value)}
-                data-testid="input-watch-only-name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                Network
-              </Label>
-              <RadioGroup 
-                value={selectedNetwork} 
-                onValueChange={(value: 'mainnet' | 'testnet') => setSelectedNetwork(value)}
-              >
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
-                  <RadioGroupItem value="mainnet" id="watch-mainnet" data-testid="radio-watch-mainnet" />
-                  <Label htmlFor="watch-mainnet" className="flex-1 cursor-pointer">
-                    <div className="font-medium text-sm">Mainnet</div>
-                    <div className="text-xs text-muted-foreground">Production network</div>
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
-                  <RadioGroupItem value="testnet" id="watch-testnet" data-testid="radio-watch-testnet" />
-                  <Label htmlFor="watch-testnet" className="flex-1 cursor-pointer">
-                    <div className="font-medium text-sm">Testnet</div>
-                    <div className="text-xs text-muted-foreground">Test network</div>
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {error && (
-              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
-                <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
-
-            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-              <p className="text-xs text-amber-700 dark:text-amber-300">
-                <strong>Watch-only accounts</strong> can view balances and transaction history, but cannot send funds, create DEX offers, or manage trustlines. To perform transactions, connect a Keystone 3 Pro hardware wallet.
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={handleAddAddress} 
-                className="flex-1" 
-                disabled={isValidating || createWallet.isPending}
-                data-testid="button-add-watch-only"
-              >
-                {isValidating || createWallet.isPending ? 'Adding...' : 'Add Watch-Only Address'}
-              </Button>
-              <Button 
-                onClick={handleClose} 
-                variant="outline" 
-                className="flex-1"
-                data-testid="button-cancel-watch-only"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
+  if (isScanning) {
+    return (
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md mx-auto p-0 bg-background overflow-hidden">
+          <GeneralQRScanner
+            mode="address"
+            onScan={handleScannedAddress}
+            onClose={() => setIsScanning(false)}
+            title="Scan XRPL Address"
+            description="Point your camera at the QR code containing the XRPL address"
+          />
         </DialogContent>
       </Dialog>
+    );
+  }
 
-      {isScanning && (
-        <GeneralQRScanner
-          mode="address"
-          onScan={handleScannedAddress}
-          onClose={() => setIsScanning(false)}
-          title="Scan XRPL Address"
-          description="Point your camera at the QR code containing the XRPL address"
-        />
-      )}
-    </>
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md mx-auto p-6 bg-background">
+        <DialogHeader>
+          <DialogTitle className="flex items-center space-x-2">
+            <Eye className="w-5 h-5 text-primary" />
+            <span>Add Watch-Only Address</span>
+          </DialogTitle>
+          <DialogDescription>
+            Monitor any XRPL address without signing capabilities. You can view balances, transactions, and tokens but cannot send or sign transactions.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="xrpl-address">XRPL Address</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsScanning(true)}
+                data-testid="button-scan-watch-only-address"
+                className="text-primary hover:text-primary/80"
+              >
+                <QrCode className="w-4 h-4 mr-1" />
+                Scan
+              </Button>
+            </div>
+            <Input
+              id="xrpl-address"
+              placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              value={address}
+              onChange={(e) => {
+                setAddress(e.target.value);
+                setError(null);
+              }}
+              data-testid="input-watch-only-address"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter any valid XRPL address or scan a QR code
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="watch-wallet-name">Account Name (Optional)</Label>
+            <Input
+              id="watch-wallet-name"
+              placeholder="e.g., Exchange Wallet"
+              value={walletName}
+              onChange={(e) => setWalletName(e.target.value)}
+              data-testid="input-watch-only-name"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Globe className="w-4 h-4" />
+              Network
+            </Label>
+            <RadioGroup 
+              value={selectedNetwork} 
+              onValueChange={(value: 'mainnet' | 'testnet') => setSelectedNetwork(value)}
+            >
+              <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
+                <RadioGroupItem value="mainnet" id="watch-mainnet" data-testid="radio-watch-mainnet" />
+                <Label htmlFor="watch-mainnet" className="flex-1 cursor-pointer">
+                  <div className="font-medium text-sm">Mainnet</div>
+                  <div className="text-xs text-muted-foreground">Production network</div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 border rounded-lg p-3 hover:bg-muted/50 cursor-pointer">
+                <RadioGroupItem value="testnet" id="watch-testnet" data-testid="radio-watch-testnet" />
+                <Label htmlFor="watch-testnet" className="flex-1 cursor-pointer">
+                  <div className="font-medium text-sm">Testnet</div>
+                  <div className="text-xs text-muted-foreground">Test network</div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              <strong>Watch-only accounts</strong> can view balances and transaction history, but cannot send funds, create DEX offers, or manage trustlines. To perform transactions, connect a Keystone 3 Pro hardware wallet.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button 
+              onClick={handleAddAddress} 
+              className="flex-1" 
+              disabled={isValidating || createWallet.isPending}
+              data-testid="button-add-watch-only"
+            >
+              {isValidating || createWallet.isPending ? 'Adding...' : 'Add Watch-Only Address'}
+            </Button>
+            <Button 
+              onClick={handleClose} 
+              variant="outline" 
+              className="flex-1"
+              data-testid="button-cancel-watch-only"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
