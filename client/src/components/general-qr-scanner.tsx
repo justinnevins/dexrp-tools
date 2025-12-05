@@ -118,6 +118,7 @@ export function GeneralQRScanner({
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [cameraStarted, setCameraStarted] = useState(false);
 
   const handleSuccessfulScan = useCallback((validatedData: string) => {
     if (hasScannedRef.current) return;
@@ -126,8 +127,8 @@ export function GeneralQRScanner({
     cleanup();
   }, [onScan]);
 
+  // Don't auto-start camera - iOS requires user gesture
   useEffect(() => {
-    initCamera();
     return () => {
       cleanup();
     };
@@ -135,13 +136,24 @@ export function GeneralQRScanner({
 
   const initCamera = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      setCameraStarted(true);
+      
+      // Try environment camera first, fall back to any camera
+      let mediaStream: MediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+      } catch (envError) {
+        console.log('[GeneralQRScanner] Environment camera failed, trying any camera');
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true
+        });
+      }
 
       setStream(mediaStream);
       
@@ -149,32 +161,58 @@ export function GeneralQRScanner({
         const video = videoRef.current;
         video.srcObject = mediaStream;
         
-        video.addEventListener('loadedmetadata', () => {
-          video.play().then(() => {
-            setIsActive(true);
-            setError(null);
-            
-            setTimeout(() => {
-              startQRDetection();
-            }, 500);
-          }).catch(() => {
-            setError('Failed to start camera playback');
-          });
+        // iOS requires these attributes
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.playsInline = true;
+        video.muted = true;
+        
+        // Wait for video to be ready
+        await new Promise<void>((resolve, reject) => {
+          const onCanPlay = () => {
+            video.removeEventListener('canplay', onCanPlay);
+            video.removeEventListener('error', onError);
+            resolve();
+          };
+          
+          const onError = () => {
+            video.removeEventListener('canplay', onCanPlay);
+            video.removeEventListener('error', onError);
+            reject(new Error('Video failed to load'));
+          };
+          
+          video.addEventListener('canplay', onCanPlay);
+          video.addEventListener('error', onError);
+          
+          if (video.readyState >= 3) {
+            video.removeEventListener('canplay', onCanPlay);
+            video.removeEventListener('error', onError);
+            resolve();
+          }
         });
+        
+        await video.play();
+        setIsActive(true);
+        setError(null);
+        
+        setTimeout(() => {
+          startQRDetection();
+        }, 300);
       }
 
-    } catch (err) {
-      if (err instanceof Error) {
-        if (err.name === 'NotAllowedError') {
-          setError('Camera permission denied. Please allow camera access.');
-        } else if (err.name === 'NotFoundError') {
-          setError('No camera found on this device.');
-        } else {
-          setError(`Camera error: ${err.message}`);
-        }
-      } else {
-        setError('Failed to access camera.');
+    } catch (err: any) {
+      let errorMessage = 'Failed to access camera.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = 'Camera is in use by another application.';
+      } else if (err.message) {
+        errorMessage = `Camera error: ${err.message}`;
       }
+      setError(errorMessage);
+      setCameraStarted(false);
     }
   };
 
@@ -328,9 +366,9 @@ export function GeneralQRScanner({
               >
                 <video
                   ref={videoRef}
-                  autoPlay
                   playsInline
                   muted
+                  autoPlay={false}
                   style={{
                     width: '100%',
                     height: '100%',
@@ -339,10 +377,21 @@ export function GeneralQRScanner({
                   }}
                 />
                 
-                {!isActive && (
+                {!cameraStarted && !isActive && (
+                  <button
+                    onClick={initCamera}
+                    className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 cursor-pointer hover:bg-opacity-70 transition-colors"
+                  >
+                    <Camera className="h-10 w-10 text-white mb-2" />
+                    <span className="text-white font-medium">Tap to Start Camera</span>
+                    <span className="text-white/70 text-xs mt-1">Camera access required</span>
+                  </button>
+                )}
+                
+                {cameraStarted && !isActive && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="text-white text-center">
-                      <Camera className="h-8 w-8 mx-auto mb-2" />
+                      <Camera className="h-8 w-8 mx-auto mb-2 animate-pulse" />
                       <div className="text-sm">Starting camera...</div>
                     </div>
                   </div>

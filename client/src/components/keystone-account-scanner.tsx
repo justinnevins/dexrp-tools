@@ -12,14 +12,15 @@ interface KeystoneAccountScannerProps {
 export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const hasScannedRef = useRef(false);
 
+  // Don't auto-start camera - iOS requires user gesture
   useEffect(() => {
-    startScanning();
     return () => {
       stopScanning();
     };
@@ -35,39 +36,93 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     try {
       setError(null);
       hasScannedRef.current = false;
+      setCameraReady(false);
 
       console.log('[KeystoneScanner] Requesting camera access...');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
+      
+      // Try environment camera first, fall back to any camera
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          }
+        });
+      } catch (envError) {
+        console.log('[KeystoneScanner] Environment camera failed, trying any camera:', envError);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true
+        });
+      }
 
       console.log('[KeystoneScanner] Camera stream obtained:', stream.getVideoTracks().length, 'video tracks');
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
+      
+      // iOS requires these attributes set before play
+      videoRef.current.setAttribute('playsinline', 'true');
+      videoRef.current.setAttribute('webkit-playsinline', 'true');
       videoRef.current.playsInline = true;
       videoRef.current.muted = true;
 
-      videoRef.current.onloadedmetadata = () => {
-        console.log('[KeystoneScanner] Video metadata loaded, dimensions:', videoRef.current?.videoWidth, 'x', videoRef.current?.videoHeight);
-        if (videoRef.current) {
-          videoRef.current.play().then(() => {
-            console.log('[KeystoneScanner] Video playing, starting jsQR scanning');
-            setIsScanning(true);
-            startJsQRScanning();
-          }).catch((err) => {
-            console.log('[KeystoneScanner] Video play failed:', err);
-            setError('Failed to play video stream');
-          });
+      // Wait for video to be ready
+      await new Promise<void>((resolve, reject) => {
+        const video = videoRef.current!;
+        
+        const onCanPlay = () => {
+          video.removeEventListener('canplay', onCanPlay);
+          video.removeEventListener('error', onError);
+          resolve();
+        };
+        
+        const onError = (e: Event) => {
+          video.removeEventListener('canplay', onCanPlay);
+          video.removeEventListener('error', onError);
+          reject(new Error('Video failed to load'));
+        };
+        
+        video.addEventListener('canplay', onCanPlay);
+        video.addEventListener('error', onError);
+        
+        // Also check if already ready
+        if (video.readyState >= 3) {
+          video.removeEventListener('canplay', onCanPlay);
+          video.removeEventListener('error', onError);
+          resolve();
         }
-      };
-    } catch (err) {
+      });
+
+      console.log('[KeystoneScanner] Video ready, attempting to play');
+      
+      // Play the video (this should work now that it's from a user gesture)
+      await videoRef.current.play();
+      
+      console.log('[KeystoneScanner] Video playing, starting jsQR scanning');
+      setCameraReady(true);
+      setIsScanning(true);
+      startJsQRScanning();
+      
+    } catch (err: any) {
       console.log('[KeystoneScanner] Camera access failed:', err);
-      setError('Failed to access camera. Please ensure camera permissions are granted.');
+      
+      let errorMessage = 'Failed to access camera.';
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        errorMessage = 'Camera permission denied. Please allow camera access in your browser settings and try again.';
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+        errorMessage = 'No camera found on this device.';
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+        errorMessage = 'Camera is in use by another application. Please close other apps using the camera.';
+      } else if (err.name === 'OverconstrainedError') {
+        errorMessage = 'Camera does not support the required settings.';
+      } else if (err.message) {
+        errorMessage = `Camera error: ${err.message}`;
+      }
+      
+      setError(errorMessage);
       setIsScanning(false);
+      setCameraReady(false);
     }
   };
 
@@ -138,6 +193,7 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
       streamRef.current = null;
     }
     setIsScanning(false);
+    setCameraReady(false);
   };
 
   const handleScanResult = async (data: string) => {
@@ -397,28 +453,49 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
         <div className="relative">
           <video
             ref={videoRef}
-            className="w-full h-64 bg-black rounded-lg"
+            className="w-full h-64 bg-black rounded-lg object-cover"
             playsInline
             muted
+            autoPlay={false}
           />
           <canvas ref={canvasRef} style={{ display: 'none' }} />
-          {!isScanning && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
-              <Camera className="h-12 w-12 text-white" />
+          {!cameraReady && !isScanning && (
+            <button
+              onClick={startScanning}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 rounded-lg cursor-pointer hover:bg-black/70 transition-colors"
+            >
+              <Camera className="h-12 w-12 text-white mb-2" />
+              <span className="text-white font-medium">Tap to Start Camera</span>
+              <span className="text-white/70 text-sm mt-1">Camera access required</span>
+            </button>
+          )}
+          {cameraReady && isScanning && (
+            <div className="absolute bottom-2 left-2 right-2 bg-green-500/80 text-white text-center py-1 px-2 rounded text-sm">
+              Scanning... Point at QR code
             </div>
           )}
         </div>
 
         <div className="flex gap-2">
-          <Button
-            onClick={startScanning}
-            disabled={isScanning}
-            variant="outline"
-            className="flex-1"
-          >
-            <Camera className="h-4 w-4 mr-2" />
-            {isScanning ? 'Scanning...' : 'Start Scan'}
-          </Button>
+          {cameraReady ? (
+            <Button
+              onClick={stopScanning}
+              variant="outline"
+              className="flex-1"
+            >
+              Stop Camera
+            </Button>
+          ) : (
+            <Button
+              onClick={startScanning}
+              disabled={isScanning}
+              variant="outline"
+              className="flex-1"
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              {isScanning ? 'Starting...' : 'Start Camera'}
+            </Button>
+          )}
           <Button onClick={onClose} variant="secondary" className="flex-1">
             Cancel
           </Button>
