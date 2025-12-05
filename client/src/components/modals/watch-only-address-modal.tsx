@@ -73,8 +73,9 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md mx-auto p-6 bg-background">
+    <>
+      <Dialog open={isOpen} onOpenChange={handleClose}>
+        <DialogContent className="max-w-md mx-auto p-6 bg-background">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Eye className="w-5 h-5 text-primary" />
@@ -184,7 +185,8 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
             </Button>
           </div>
         </div>
-      </DialogContent>
+        </DialogContent>
+      </Dialog>
 
       {showAddressScanner && (
         <GeneralQRScanner
@@ -195,6 +197,6 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
           description="Scan the QR code containing the XRP address to monitor"
         />
       )}
-    </Dialog>
+    </>
   );
 }
