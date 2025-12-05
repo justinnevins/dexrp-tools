@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Eye, Globe, AlertCircle } from 'lucide-react';
+import { Eye, Globe, AlertCircle, QrCode } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { xrplClient } from '@/lib/xrpl-client';
+import { GeneralQRScanner } from '@/components/general-qr-scanner';
 
 interface WatchOnlyAddressModalProps {
   isOpen: boolean;
@@ -19,7 +20,14 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
   const [selectedNetwork, setSelectedNetwork] = useState<'mainnet' | 'testnet'>('mainnet');
   const [isValidating, setIsValidating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAddressScanner, setShowAddressScanner] = useState(false);
   const { createWallet } = useWallet();
+
+  const handleAddressQRScan = (validatedAddress: string) => {
+    setAddress(validatedAddress);
+    setError(null);
+    setShowAddressScanner(false);
+  };
 
   const handleClose = () => {
     setAddress('');
@@ -80,17 +88,28 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
         <div className="space-y-4 mt-4">
           <div className="space-y-2">
             <Label htmlFor="xrpl-address">XRPL Address</Label>
-            <Input
-              id="xrpl-address"
-              placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                setError(null);
-              }}
-              data-testid="input-watch-only-address"
-              className="font-mono text-sm"
-            />
+            <div className="flex space-x-2">
+              <Input
+                id="xrpl-address"
+                placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                value={address}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setError(null);
+                }}
+                data-testid="input-watch-only-address"
+                className="font-mono text-sm"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowAddressScanner(true)}
+                data-testid="button-scan-watch-only-address"
+              >
+                <QrCode className="w-4 h-4" />
+              </Button>
+            </div>
             <p className="text-xs text-muted-foreground">
               Enter any valid XRPL address to monitor
             </p>
@@ -166,6 +185,16 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
           </div>
         </div>
       </DialogContent>
+
+      {showAddressScanner && (
+        <GeneralQRScanner
+          mode="address"
+          onScan={handleAddressQRScan}
+          onClose={() => setShowAddressScanner(false)}
+          title="Scan Address QR Code"
+          description="Scan the QR code containing the XRP address to monitor"
+        />
+      )}
     </Dialog>
   );
 }
