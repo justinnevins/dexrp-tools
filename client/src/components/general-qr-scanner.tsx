@@ -330,7 +330,7 @@ export function GeneralQRScanner({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999] p-4" style={{ pointerEvents: 'auto' }}>
       <Card className="w-full max-w-md bg-white dark:bg-gray-900">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
@@ -379,8 +379,14 @@ export function GeneralQRScanner({
                 
                 {!cameraStarted && !isActive && (
                   <button
-                    onClick={initCamera}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      initCamera();
+                    }}
                     className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 cursor-pointer hover:bg-opacity-70 transition-colors"
+                    style={{ pointerEvents: 'auto' }}
                   >
                     <Camera className="h-10 w-10 text-white mb-2" />
                     <span className="text-white font-medium">Tap to Start Camera</span>
