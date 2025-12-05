@@ -74,7 +74,11 @@ export function WatchOnlyAddressModal({ isOpen, onClose }: WatchOnlyAddressModal
 
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={handleClose}>
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open && !showAddressScanner) {
+          handleClose();
+        }
+      }}>
         <DialogContent className="max-w-md mx-auto p-6 bg-background">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
