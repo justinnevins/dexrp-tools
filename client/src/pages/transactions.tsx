@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, Filter, ArrowLeftRight } from 'lucide-react';
+import { ArrowUp, ArrowDown, Filter, ArrowLeftRight, Settings, Link, ShieldCheck, Key, Users, Clock, CreditCard, CheckCircle, Ticket, Image, Droplets, FileText, Lock, Unlock, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet, useTransactions } from '@/hooks/use-wallet';
 import { useAccountTransactions } from '@/hooks/use-xrpl';
@@ -17,8 +17,41 @@ import {
 
 import { useEffect, useState } from 'react';
 
+// Helper to get human-readable transaction type labels
+function getTransactionLabel(tx: any): string {
+  if (tx.type === 'sent') return 'Sent';
+  if (tx.type === 'received') return 'Received';
+  if (tx.type === 'dex-fill') return 'DEX Fill';
+  if (tx.type === 'exchange') {
+    if (tx.transactionType === 'OfferCreate') return 'DEX Offer Created';
+    if (tx.transactionType === 'OfferCancel') return 'DEX Offer Cancelled';
+    return 'DEX Trade';
+  }
+  if (tx.type === 'trustline') return 'Trust Line';
+  if (tx.type === 'account-set') return 'Account Settings';
+  if (tx.type === 'regular-key') return 'Regular Key';
+  if (tx.type === 'signer-list') return 'Multi-Signature';
+  if (tx.type === 'escrow') return tx.transactionType?.replace('Escrow', 'Escrow ') || 'Escrow';
+  if (tx.type === 'payment-channel') return tx.transactionType?.replace('PaymentChannel', 'Channel ') || 'Payment Channel';
+  if (tx.type === 'check') return tx.transactionType?.replace('Check', 'Check ') || 'Check';
+  if (tx.type === 'ticket') return 'Ticket Created';
+  if (tx.type === 'deposit-preauth') return 'Deposit Auth';
+  if (tx.type === 'nft') {
+    const nftType = tx.transactionType?.replace('NFToken', '') || '';
+    return `NFT ${nftType}`;
+  }
+  if (tx.type === 'uri-token') return 'URI Token';
+  if (tx.type === 'amm') {
+    const ammType = tx.transactionType?.replace('AMM', '') || '';
+    return `AMM ${ammType}`;
+  }
+  if (tx.type === 'clawback') return 'Clawback';
+  if (tx.type === 'other') return tx.transactionType || 'Transaction';
+  return tx.transactionType || 'Transaction';
+}
+
 export default function Transactions() {
-  const [filterType, setFilterType] = useState<'all' | 'sent' | 'received' | 'dex'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'sent' | 'received' | 'dex' | 'trustlines' | 'nft' | 'other'>('all');
   
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
@@ -391,6 +424,423 @@ export default function Transactions() {
               });
             }
           }
+        } else if (transaction?.TransactionType === 'TrustSet') {
+          // TrustSet - Adding or modifying trust lines
+          const limitAmount = transaction.LimitAmount;
+          let currency = 'Unknown';
+          let issuer = 'Unknown';
+          let limit = '0';
+          
+          if (typeof limitAmount === 'object' && limitAmount.currency) {
+            currency = xrplClient.decodeCurrency(limitAmount.currency);
+            issuer = limitAmount.issuer || 'Unknown';
+            limit = limitAmount.value || '0';
+          }
+          
+          const isRemovingTrust = limit === '0';
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'trustline',
+            transactionType: 'TrustSet',
+            amount: isRemovingTrust ? `Removed ${currency} trustline` : `Set ${currency} limit: ${limit}`,
+            address: `Issuer: ${truncateAddress(issuer)}`,
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: isRemovingTrust ? X : Link,
+            iconBg: isRemovingTrust ? 'bg-red-100 dark:bg-red-900/30' : 'bg-cyan-100 dark:bg-cyan-900/30',
+            iconColor: isRemovingTrust ? 'text-red-600 dark:text-red-400' : 'text-cyan-600 dark:text-cyan-400',
+            amountColor: isRemovingTrust ? 'text-red-600 dark:text-red-400' : 'text-cyan-600 dark:text-cyan-400',
+          });
+        } else if (transaction?.TransactionType === 'AccountSet') {
+          // AccountSet - Account settings changes
+          let description = 'Account settings updated';
+          
+          // Check for common account flags
+          if (transaction.SetFlag !== undefined || transaction.ClearFlag !== undefined) {
+            const flagDescriptions: Record<number, string> = {
+              1: 'Require Destination Tag',
+              2: 'Require Authorization',
+              3: 'Disallow XRP',
+              4: 'Disable Master Key',
+              5: 'Account Transaction ID',
+              6: 'No Freeze',
+              7: 'Global Freeze',
+              8: 'Default Ripple',
+              9: 'Deposit Auth',
+              10: 'Authorized NFT Minter',
+              12: 'Disallow Incoming NFT Offers',
+              13: 'Disallow Incoming Checks',
+              14: 'Disallow Incoming Payment Channels',
+              15: 'Disallow Incoming Trust Lines',
+              16: 'Allow Trustline Clawback',
+            };
+            
+            if (transaction.SetFlag !== undefined) {
+              description = `Enabled: ${flagDescriptions[transaction.SetFlag] || `Flag ${transaction.SetFlag}`}`;
+            } else if (transaction.ClearFlag !== undefined) {
+              description = `Disabled: ${flagDescriptions[transaction.ClearFlag] || `Flag ${transaction.ClearFlag}`}`;
+            }
+          } else if (transaction.Domain) {
+            description = 'Domain updated';
+          } else if (transaction.EmailHash) {
+            description = 'Email hash updated';
+          } else if (transaction.MessageKey) {
+            description = 'Message key updated';
+          } else if (transaction.TransferRate) {
+            description = `Transfer rate: ${(transaction.TransferRate / 1000000000 * 100 - 100).toFixed(2)}%`;
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'account-set',
+            transactionType: 'AccountSet',
+            amount: description,
+            address: 'Account Configuration',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: Settings,
+            iconBg: 'bg-gray-100 dark:bg-gray-800',
+            iconColor: 'text-gray-600 dark:text-gray-400',
+            amountColor: 'text-gray-600 dark:text-gray-400',
+          });
+        } else if (transaction?.TransactionType === 'SetRegularKey') {
+          // SetRegularKey - Setting a regular key for the account
+          const hasKey = !!transaction.RegularKey;
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'regular-key',
+            transactionType: 'SetRegularKey',
+            amount: hasKey ? 'Regular key set' : 'Regular key removed',
+            address: hasKey ? `Key: ${truncateAddress(transaction.RegularKey)}` : 'Security Update',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: Key,
+            iconBg: 'bg-amber-100 dark:bg-amber-900/30',
+            iconColor: 'text-amber-600 dark:text-amber-400',
+            amountColor: 'text-amber-600 dark:text-amber-400',
+          });
+        } else if (transaction?.TransactionType === 'SignerListSet') {
+          // SignerListSet - Multi-signature configuration
+          const signerCount = transaction.SignerEntries?.length || 0;
+          const quorum = transaction.SignerQuorum || 0;
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'signer-list',
+            transactionType: 'SignerListSet',
+            amount: signerCount > 0 ? `Multi-sig: ${signerCount} signers, quorum ${quorum}` : 'Multi-sig removed',
+            address: 'Multi-signature Setup',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: Users,
+            iconBg: 'bg-indigo-100 dark:bg-indigo-900/30',
+            iconColor: 'text-indigo-600 dark:text-indigo-400',
+            amountColor: 'text-indigo-600 dark:text-indigo-400',
+          });
+        } else if (transaction?.TransactionType?.startsWith('Escrow')) {
+          // Escrow transactions
+          let amount = '0 XRP';
+          if (transaction.Amount) {
+            amount = `${xrplClient.formatXRPAmount(transaction.Amount)} XRP`;
+          }
+          
+          let escrowType = transaction.TransactionType.replace('Escrow', '');
+          let IconComponent = Clock;
+          let bgColor = 'bg-orange-100 dark:bg-orange-900/30';
+          let textColor = 'text-orange-600 dark:text-orange-400';
+          
+          if (escrowType === 'Create') {
+            IconComponent = Lock;
+          } else if (escrowType === 'Finish') {
+            IconComponent = Unlock;
+            bgColor = 'bg-green-100 dark:bg-green-900/30';
+            textColor = 'text-green-600 dark:text-green-400';
+          } else if (escrowType === 'Cancel') {
+            IconComponent = X;
+            bgColor = 'bg-red-100 dark:bg-red-900/30';
+            textColor = 'text-red-600 dark:text-red-400';
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'escrow',
+            transactionType: transaction.TransactionType,
+            amount: `Escrow ${escrowType}: ${amount}`,
+            address: transaction.Destination ? `To: ${truncateAddress(transaction.Destination)}` : 'Escrow',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: IconComponent,
+            iconBg: bgColor,
+            iconColor: textColor,
+            amountColor: textColor,
+          });
+        } else if (transaction?.TransactionType?.startsWith('PaymentChannel')) {
+          // Payment Channel transactions
+          let amount = '';
+          if (transaction.Amount) {
+            amount = `${xrplClient.formatXRPAmount(transaction.Amount)} XRP`;
+          } else if (transaction.Balance) {
+            amount = `${xrplClient.formatXRPAmount(transaction.Balance)} XRP`;
+          }
+          
+          let channelType = transaction.TransactionType.replace('PaymentChannel', '');
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'payment-channel',
+            transactionType: transaction.TransactionType,
+            amount: `Channel ${channelType}${amount ? `: ${amount}` : ''}`,
+            address: transaction.Destination ? `To: ${truncateAddress(transaction.Destination)}` : 'Payment Channel',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: CreditCard,
+            iconBg: 'bg-violet-100 dark:bg-violet-900/30',
+            iconColor: 'text-violet-600 dark:text-violet-400',
+            amountColor: 'text-violet-600 dark:text-violet-400',
+          });
+        } else if (transaction?.TransactionType?.startsWith('Check')) {
+          // Check transactions
+          let amount = '';
+          if (transaction.SendMax) {
+            if (typeof transaction.SendMax === 'string') {
+              amount = `${xrplClient.formatXRPAmount(transaction.SendMax)} XRP`;
+            } else if (transaction.SendMax.value) {
+              amount = `${transaction.SendMax.value} ${xrplClient.decodeCurrency(transaction.SendMax.currency)}`;
+            }
+          } else if (transaction.Amount) {
+            if (typeof transaction.Amount === 'string') {
+              amount = `${xrplClient.formatXRPAmount(transaction.Amount)} XRP`;
+            } else if (transaction.Amount.value) {
+              amount = `${transaction.Amount.value} ${xrplClient.decodeCurrency(transaction.Amount.currency)}`;
+            }
+          }
+          
+          let checkType = transaction.TransactionType.replace('Check', '');
+          let IconComponent = CheckCircle;
+          let bgColor = 'bg-teal-100 dark:bg-teal-900/30';
+          let textColor = 'text-teal-600 dark:text-teal-400';
+          
+          if (checkType === 'Cancel') {
+            IconComponent = X;
+            bgColor = 'bg-red-100 dark:bg-red-900/30';
+            textColor = 'text-red-600 dark:text-red-400';
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'check',
+            transactionType: transaction.TransactionType,
+            amount: `Check ${checkType}${amount ? `: ${amount}` : ''}`,
+            address: transaction.Destination ? `To: ${truncateAddress(transaction.Destination)}` : 'Check',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: IconComponent,
+            iconBg: bgColor,
+            iconColor: textColor,
+            amountColor: textColor,
+          });
+        } else if (transaction?.TransactionType === 'TicketCreate') {
+          // Ticket creation
+          const ticketCount = transaction.TicketCount || 1;
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'ticket',
+            transactionType: 'TicketCreate',
+            amount: `Created ${ticketCount} ticket${ticketCount > 1 ? 's' : ''}`,
+            address: 'Ticket Reservation',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: Ticket,
+            iconBg: 'bg-pink-100 dark:bg-pink-900/30',
+            iconColor: 'text-pink-600 dark:text-pink-400',
+            amountColor: 'text-pink-600 dark:text-pink-400',
+          });
+        } else if (transaction?.TransactionType === 'DepositPreauth') {
+          // Deposit preauthorization
+          const isAuthorize = !!transaction.Authorize;
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'deposit-preauth',
+            transactionType: 'DepositPreauth',
+            amount: isAuthorize ? 'Deposit authorized' : 'Authorization removed',
+            address: `Account: ${truncateAddress(transaction.Authorize || transaction.Unauthorize || '')}`,
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: ShieldCheck,
+            iconBg: isAuthorize ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30',
+            iconColor: isAuthorize ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+            amountColor: isAuthorize ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400',
+          });
+        } else if (transaction?.TransactionType?.startsWith('NFToken')) {
+          // NFT transactions
+          let nftType = transaction.TransactionType.replace('NFToken', '');
+          let description = `NFT ${nftType}`;
+          let IconComponent = Image;
+          let bgColor = 'bg-fuchsia-100 dark:bg-fuchsia-900/30';
+          let textColor = 'text-fuchsia-600 dark:text-fuchsia-400';
+          
+          if (nftType === 'Mint') {
+            description = 'NFT Minted';
+          } else if (nftType === 'Burn') {
+            description = 'NFT Burned';
+            bgColor = 'bg-red-100 dark:bg-red-900/30';
+            textColor = 'text-red-600 dark:text-red-400';
+          } else if (nftType === 'CreateOffer') {
+            description = transaction.Flags & 1 ? 'NFT Sell Offer' : 'NFT Buy Offer';
+          } else if (nftType === 'AcceptOffer') {
+            description = 'NFT Offer Accepted';
+            bgColor = 'bg-green-100 dark:bg-green-900/30';
+            textColor = 'text-green-600 dark:text-green-400';
+          } else if (nftType === 'CancelOffer') {
+            description = 'NFT Offer Cancelled';
+            bgColor = 'bg-gray-100 dark:bg-gray-800';
+            textColor = 'text-gray-600 dark:text-gray-400';
+          }
+          
+          // Add price if available
+          if (transaction.Amount) {
+            if (typeof transaction.Amount === 'string') {
+              description += ` - ${xrplClient.formatXRPAmount(transaction.Amount)} XRP`;
+            } else if (transaction.Amount.value) {
+              description += ` - ${transaction.Amount.value} ${xrplClient.decodeCurrency(transaction.Amount.currency)}`;
+            }
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'nft',
+            transactionType: transaction.TransactionType,
+            amount: description,
+            address: transaction.NFTokenID ? `Token: ${truncateAddress(transaction.NFTokenID)}` : 'NFT',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: IconComponent,
+            iconBg: bgColor,
+            iconColor: textColor,
+            amountColor: textColor,
+          });
+        } else if (transaction?.TransactionType?.startsWith('URIToken')) {
+          // URI Token transactions
+          let uriType = transaction.TransactionType.replace('URIToken', '');
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'uri-token',
+            transactionType: transaction.TransactionType,
+            amount: `URI Token ${uriType}`,
+            address: 'URI Token',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: FileText,
+            iconBg: 'bg-slate-100 dark:bg-slate-800',
+            iconColor: 'text-slate-600 dark:text-slate-400',
+            amountColor: 'text-slate-600 dark:text-slate-400',
+          });
+        } else if (transaction?.TransactionType?.startsWith('AMM')) {
+          // AMM (Automated Market Maker) transactions
+          let ammType = transaction.TransactionType.replace('AMM', '');
+          let description = `AMM ${ammType}`;
+          let IconComponent = Droplets;
+          let bgColor = 'bg-sky-100 dark:bg-sky-900/30';
+          let textColor = 'text-sky-600 dark:text-sky-400';
+          
+          // Parse amounts if available
+          const amounts: string[] = [];
+          if (transaction.Amount) {
+            if (typeof transaction.Amount === 'string') {
+              amounts.push(`${xrplClient.formatXRPAmount(transaction.Amount)} XRP`);
+            } else if (transaction.Amount.value) {
+              amounts.push(`${transaction.Amount.value} ${xrplClient.decodeCurrency(transaction.Amount.currency)}`);
+            }
+          }
+          if (transaction.Amount2) {
+            if (typeof transaction.Amount2 === 'string') {
+              amounts.push(`${xrplClient.formatXRPAmount(transaction.Amount2)} XRP`);
+            } else if (transaction.Amount2.value) {
+              amounts.push(`${transaction.Amount2.value} ${xrplClient.decodeCurrency(transaction.Amount2.currency)}`);
+            }
+          }
+          
+          if (amounts.length > 0) {
+            description += `: ${amounts.join(' + ')}`;
+          }
+          
+          if (ammType === 'Delete') {
+            bgColor = 'bg-red-100 dark:bg-red-900/30';
+            textColor = 'text-red-600 dark:text-red-400';
+          } else if (ammType === 'Withdraw') {
+            bgColor = 'bg-orange-100 dark:bg-orange-900/30';
+            textColor = 'text-orange-600 dark:text-orange-400';
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'amm',
+            transactionType: transaction.TransactionType,
+            amount: description,
+            address: 'Liquidity Pool',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: IconComponent,
+            iconBg: bgColor,
+            iconColor: textColor,
+            amountColor: textColor,
+          });
+        } else if (transaction?.TransactionType === 'Clawback') {
+          // Clawback transaction
+          let amount = '';
+          if (transaction.Amount) {
+            if (typeof transaction.Amount === 'object' && transaction.Amount.value) {
+              amount = `${transaction.Amount.value} ${xrplClient.decodeCurrency(transaction.Amount.currency)}`;
+            }
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'clawback',
+            transactionType: 'Clawback',
+            amount: `Clawback${amount ? `: ${amount}` : ''}`,
+            address: transaction.Amount?.issuer ? `From: ${truncateAddress(transaction.Amount.issuer)}` : 'Clawback',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: ArrowDown,
+            iconBg: 'bg-red-100 dark:bg-red-900/30',
+            iconColor: 'text-red-600 dark:text-red-400',
+            amountColor: 'text-red-600 dark:text-red-400',
+          });
+        } else if (transaction?.TransactionType) {
+          // Catch-all for any other transaction types not explicitly handled
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'other',
+            transactionType: transaction.TransactionType,
+            amount: transaction.TransactionType,
+            address: 'Transaction',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000),
+            hash: transaction.hash || tx.hash,
+            status: tx.meta?.TransactionResult === 'tesSUCCESS' ? 'confirmed' : 'failed',
+            icon: FileText,
+            iconBg: 'bg-gray-100 dark:bg-gray-800',
+            iconColor: 'text-gray-600 dark:text-gray-400',
+            amountColor: 'text-gray-600 dark:text-gray-400',
+          });
         }
       });
     }
@@ -426,7 +876,10 @@ export default function Transactions() {
     if (filterType === 'all') return true;
     if (filterType === 'sent') return tx.type === 'sent';
     if (filterType === 'received') return tx.type === 'received';
-    if (filterType === 'dex') return tx.isDEXFill || tx.type === 'exchange';
+    if (filterType === 'dex') return tx.isDEXFill || tx.type === 'exchange' || tx.type === 'amm';
+    if (filterType === 'trustlines') return tx.type === 'trustline';
+    if (filterType === 'nft') return tx.type === 'nft' || tx.type === 'uri-token';
+    if (filterType === 'other') return ['account-set', 'regular-key', 'signer-list', 'escrow', 'payment-channel', 'check', 'ticket', 'deposit-preauth', 'clawback', 'other'].includes(tx.type);
     return true;
   });
 
@@ -498,7 +951,7 @@ export default function Transactions() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Transaction History</h1>
         <Select value={filterType} onValueChange={(value: any) => setFilterType(value)}>
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-44">
             <Filter className="w-4 h-4 mr-2" />
             <SelectValue />
           </SelectTrigger>
@@ -506,7 +959,10 @@ export default function Transactions() {
             <SelectItem value="all">All Transactions</SelectItem>
             <SelectItem value="sent">Sent</SelectItem>
             <SelectItem value="received">Received</SelectItem>
-            <SelectItem value="dex">DEX Trades</SelectItem>
+            <SelectItem value="dex">DEX & AMM</SelectItem>
+            <SelectItem value="trustlines">Trust Lines</SelectItem>
+            <SelectItem value="nft">NFTs</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -537,24 +993,28 @@ export default function Transactions() {
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.isDEXFill ? 'DEX Fill' : 
-                         transaction.type === 'sent' ? 'Sent' : 
-                         transaction.type === 'received' ? 'Received' : 
-                         transaction.address?.startsWith('Payment to Fill') ? transaction.address :
-                         transaction.address?.startsWith('Offer #') ? transaction.address :
-                         transaction.transactionType === 'OfferCreate' ? 'Offer Created' : 
-                         transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
+                        {getTransactionLabel(transaction)}
                       </p>
-                      {transaction.type !== 'exchange' && !transaction.isDEXFill && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && (
-                        <p className="text-sm text-muted-foreground">
-                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + truncateAddress(transaction.address, 6, 6)}
-                        </p>
-                      )}
-                      {transaction.isDEXFill && (
-                        <p className="text-sm text-muted-foreground">
-                          Offer executed automatically
-                        </p>
-                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {transaction.type === 'sent' && `To: ${truncateAddress(transaction.address, 6, 6)}`}
+                        {transaction.type === 'received' && `From: ${truncateAddress(transaction.address, 6, 6)}`}
+                        {transaction.type === 'dex-fill' && 'Offer executed automatically'}
+                        {transaction.type === 'exchange' && transaction.address}
+                        {transaction.type === 'trustline' && transaction.address}
+                        {transaction.type === 'account-set' && transaction.address}
+                        {transaction.type === 'regular-key' && transaction.address}
+                        {transaction.type === 'signer-list' && transaction.address}
+                        {transaction.type === 'escrow' && transaction.address}
+                        {transaction.type === 'payment-channel' && transaction.address}
+                        {transaction.type === 'check' && transaction.address}
+                        {transaction.type === 'ticket' && transaction.address}
+                        {transaction.type === 'deposit-preauth' && transaction.address}
+                        {transaction.type === 'nft' && transaction.address}
+                        {transaction.type === 'uri-token' && transaction.address}
+                        {transaction.type === 'amm' && transaction.address}
+                        {transaction.type === 'clawback' && transaction.address}
+                        {transaction.type === 'other' && transaction.address}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">

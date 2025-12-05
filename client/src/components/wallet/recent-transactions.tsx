@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowDown, ArrowLeftRight } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowLeftRight, Link, Settings, Image, Droplets, FileText, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useWallet } from '@/hooks/use-wallet';
 import { useTransactions } from '@/hooks/use-wallet';
@@ -6,7 +6,7 @@ import { useAccountTransactions } from '@/hooks/use-xrpl';
 import { xrplClient } from '@/lib/xrpl-client';
 import { calculateBalanceChanges, extractOfferFills, enrichOfferWithStatus } from '@/lib/dex-utils';
 import { browserStorage } from '@/lib/browser-storage';
-import { AddressFormat } from '@/lib/format-address';
+import { AddressFormat, truncateAddress } from '@/lib/format-address';
 
 interface RecentTransactionsProps {
   onViewAllClick: () => void;
@@ -138,6 +138,107 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
             iconBg: isDEXFill ? 'bg-purple-100 dark:bg-purple-900/30' : (isOutgoing ? 'bg-red-100 dark:bg-red-900/30' : 'bg-green-100 dark:bg-green-900/30'),
             iconColor: isDEXFill ? 'text-purple-600 dark:text-purple-400' : (isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'),
             amountColor: isDEXFill ? 'text-purple-600 dark:text-purple-400' : (isOutgoing ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'),
+          });
+        } else if (transaction?.TransactionType === 'TrustSet') {
+          // TrustSet - Adding or modifying trust lines
+          const limitAmount = transaction.LimitAmount;
+          let currency = 'Unknown';
+          let limit = '0';
+          
+          if (typeof limitAmount === 'object' && limitAmount.currency) {
+            currency = xrplClient.decodeCurrency(limitAmount.currency);
+            limit = limitAmount.value || '0';
+          }
+          
+          const isRemovingTrust = limit === '0';
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'trustline',
+            amount: isRemovingTrust ? `Removed ${currency}` : `${currency} trustline set`,
+            address: isRemovingTrust ? 'Trust line removed' : `Limit: ${limit}`,
+            time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
+            icon: isRemovingTrust ? X : Link,
+            iconBg: isRemovingTrust ? 'bg-red-100 dark:bg-red-900/30' : 'bg-cyan-100 dark:bg-cyan-900/30',
+            iconColor: isRemovingTrust ? 'text-red-600 dark:text-red-400' : 'text-cyan-600 dark:text-cyan-400',
+            amountColor: isRemovingTrust ? 'text-red-600 dark:text-red-400' : 'text-cyan-600 dark:text-cyan-400',
+          });
+        } else if (transaction?.TransactionType === 'AccountSet') {
+          // AccountSet - Account settings changes
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'account-set',
+            amount: 'Account settings updated',
+            address: 'Configuration',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
+            icon: Settings,
+            iconBg: 'bg-gray-100 dark:bg-gray-800',
+            iconColor: 'text-gray-600 dark:text-gray-400',
+            amountColor: 'text-gray-600 dark:text-gray-400',
+          });
+        } else if (transaction?.TransactionType?.startsWith('NFToken')) {
+          // NFT transactions
+          let nftType = transaction.TransactionType.replace('NFToken', '');
+          let description = `NFT ${nftType}`;
+          let bgColor = 'bg-fuchsia-100 dark:bg-fuchsia-900/30';
+          let textColor = 'text-fuchsia-600 dark:text-fuchsia-400';
+          
+          if (nftType === 'Burn') {
+            bgColor = 'bg-red-100 dark:bg-red-900/30';
+            textColor = 'text-red-600 dark:text-red-400';
+          } else if (nftType === 'AcceptOffer') {
+            bgColor = 'bg-green-100 dark:bg-green-900/30';
+            textColor = 'text-green-600 dark:text-green-400';
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'nft',
+            amount: description,
+            address: 'NFT',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
+            icon: Image,
+            iconBg: bgColor,
+            iconColor: textColor,
+            amountColor: textColor,
+          });
+        } else if (transaction?.TransactionType?.startsWith('AMM')) {
+          // AMM transactions
+          let ammType = transaction.TransactionType.replace('AMM', '');
+          let bgColor = 'bg-sky-100 dark:bg-sky-900/30';
+          let textColor = 'text-sky-600 dark:text-sky-400';
+          
+          if (ammType === 'Delete' || ammType === 'Withdraw') {
+            bgColor = 'bg-orange-100 dark:bg-orange-900/30';
+            textColor = 'text-orange-600 dark:text-orange-400';
+          }
+          
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'amm',
+            amount: `AMM ${ammType}`,
+            address: 'Liquidity Pool',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
+            icon: Droplets,
+            iconBg: bgColor,
+            iconColor: textColor,
+            amountColor: textColor,
+          });
+        } else if (transaction?.TransactionType && 
+                   !['Payment', 'OfferCreate', 'OfferCancel', 'TrustSet', 'AccountSet'].includes(transaction.TransactionType) &&
+                   !transaction.TransactionType.startsWith('NFToken') &&
+                   !transaction.TransactionType.startsWith('AMM')) {
+          // Catch-all for other transaction types
+          transactions.push({
+            id: transaction.hash || tx.hash,
+            type: 'other',
+            amount: transaction.TransactionType,
+            address: 'Transaction',
+            time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
+            icon: FileText,
+            iconBg: 'bg-gray-100 dark:bg-gray-800',
+            iconColor: 'text-gray-600 dark:text-gray-400',
+            amountColor: 'text-gray-600 dark:text-gray-400',
           });
         } else if (transaction?.TransactionType === 'OfferCreate' || transaction?.TransactionType === 'OfferCancel') {
           // Handle DEX offer transactions
@@ -364,16 +465,28 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                         {transaction.type === 'dex-fill' ? 'DEX Fill' : 
                          transaction.type === 'sent' ? 'Sent' : 
                          transaction.type === 'received' ? 'Received' : 
+                         transaction.type === 'trustline' ? 'Trust Line' :
+                         transaction.type === 'account-set' ? 'Account Settings' :
+                         transaction.type === 'nft' ? transaction.amount :
+                         transaction.type === 'amm' ? transaction.amount :
+                         transaction.type === 'other' ? transaction.amount :
                          transaction.address?.startsWith('Payment to Fill') ? transaction.address :
                          transaction.address?.startsWith('Offer #') ? transaction.address :
                          transaction.transactionType === 'OfferCreate' ? 'Offer Created' : 
                          transaction.transactionType === 'OfferCancel' ? 'Offer Cancelled' : 'DEX Trade'}
                       </p>
-                      {transaction.type !== 'exchange' && transaction.type !== 'dex-fill' && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && (
-                        <p className="text-sm text-muted-foreground">
-                          {(transaction.type === 'sent' ? 'To:' : 'From:') + ' ' + AddressFormat.short(transaction.address)}
-                        </p>
-                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {transaction.type === 'sent' && `To: ${AddressFormat.short(transaction.address)}`}
+                        {transaction.type === 'received' && `From: ${AddressFormat.short(transaction.address)}`}
+                        {transaction.type === 'dex-fill' && 'Offer filled'}
+                        {transaction.type === 'exchange' && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && transaction.address}
+                        {(transaction.address?.startsWith('Payment to Fill') || transaction.address?.startsWith('Offer #')) && ''}
+                        {transaction.type === 'trustline' && transaction.address}
+                        {transaction.type === 'account-set' && transaction.address}
+                        {transaction.type === 'nft' && transaction.address}
+                        {transaction.type === 'amm' && transaction.address}
+                        {transaction.type === 'other' && transaction.address}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
