@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { WalletProvider } from "@/contexts/wallet-context";
+import { AuthProvider } from "@/contexts/auth-context";
 import { FormSubmissionProvider } from "@/contexts/form-submission-context";
 import { MobileAppLayout } from "@/components/layout/mobile-app-layout";
 import { App as CapacitorApp } from "@capacitor/app";
@@ -73,16 +74,18 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="system" storageKey="xrpl-wallet-theme">
-        <WalletProvider>
-          <FormSubmissionProvider>
-            <TooltipProvider>
-              <Toaster />
-              <MobileAppLayout>
-                <Router />
-              </MobileAppLayout>
-            </TooltipProvider>
-          </FormSubmissionProvider>
-        </WalletProvider>
+        <AuthProvider>
+          <WalletProvider>
+            <FormSubmissionProvider>
+              <TooltipProvider>
+                <Toaster />
+                <MobileAppLayout>
+                  <Router />
+                </MobileAppLayout>
+              </TooltipProvider>
+            </FormSubmissionProvider>
+          </WalletProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
