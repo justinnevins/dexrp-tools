@@ -3,7 +3,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X, Scan } from 'lucide-react';
 import QrScanner from 'qr-scanner';
+import jsQR from 'jsqr';
 import { xrplClient } from '@/lib/xrpl-client';
+
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[GeneralQRScanner]', ...args);
 
 type ScanMode = 'address' | 'generic' | 'ur-code';
 
@@ -218,6 +222,9 @@ export function GeneralQRScanner({
 
   const startCanvasAnalysis = () => {
     if (!videoRef.current || !canvasRef.current) return;
+    
+    log('Starting canvas analysis with jsQR');
+    let frameCount = 0;
 
     const analyzeFrame = () => {
       if (!videoRef.current || !canvasRef.current || hasScannedRef.current) return;
@@ -226,25 +233,36 @@ export function GeneralQRScanner({
       const canvas = canvasRef.current;
       const ctx = canvas.getContext('2d');
       
-      if (!ctx || video.readyState < 2) {
+      if (!ctx || video.readyState < 2 || video.videoWidth === 0) {
         frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);
         return;
       }
 
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      QrScanner.scanImage(canvas).then(result => {
-        if (hasScannedRef.current) return;
+      
+      frameCount++;
+      
+      try {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert'
+        });
         
-        const qrData = (typeof result === 'string' ? result : String(result)).trim();
-        const validatedData = validateAndProcessData(qrData);
-        if (validatedData) {
-          handleSuccessfulScan(validatedData);
+        if (code && code.data) {
+          log('jsQR detected code:', code.data.substring(0, 50));
+          const validatedData = validateAndProcessData(code.data);
+          if (validatedData) {
+            handleSuccessfulScan(validatedData);
+            return;
+          }
         }
-      }).catch(() => {
-      });
+      } catch (err) {
+        if (frameCount % 100 === 0) {
+          log('jsQR analysis error:', err);
+        }
+      }
 
       if (!hasScannedRef.current) {
         frameAnalysisRef.current = requestAnimationFrame(analyzeFrame);

@@ -3,6 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Camera, X } from 'lucide-react';
 import { URDecoder } from '@ngraveio/bc-ur';
+import jsQR from 'jsqr';
+
+const isDev = import.meta.env.DEV;
+const log = (...args: any[]) => isDev && console.log('[KeystoneQRScanner]', ...args);
 
 interface KeystoneQRScannerProps {
   onScan: (data: string) => void;
@@ -80,19 +84,27 @@ export function KeystoneQRScanner({ onScan, onClose, title = "Scan Signed Transa
 
   const startQRScanning = async () => {
     try {
-      const QrScanner = (await import('qr-scanner')).default;
-      
-      if (videoRef.current) {
+      if (videoRef.current && canvasRef.current) {
         setIsScanning(true);
         decoderRef.current = new URDecoder();
         
-        scanIntervalRef.current = setInterval(async () => {
-          if (videoRef.current && canvasRef.current) {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        
+        scanIntervalRef.current = setInterval(() => {
+          if (videoRef.current && ctx && videoRef.current.readyState >= 2 && videoRef.current.videoWidth > 0) {
             try {
-              const result = await QrScanner.scanImage(videoRef.current);
+              canvas.width = videoRef.current.videoWidth;
+              canvas.height = videoRef.current.videoHeight;
+              ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
               
-              if (result) {
-                const qrData = (typeof result === 'string' ? result : (result as any).data || result).trim();
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: 'dontInvert'
+              });
+              
+              if (code && code.data) {
+                const qrData = code.data.trim();
                 
                 if (qrData.toUpperCase().startsWith('UR:')) {
                   const upperQR = qrData.toUpperCase();
