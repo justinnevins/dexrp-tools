@@ -362,7 +362,7 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                 const offerSeqDisplay = filledOfferSequences.length === 1 
                   ? `Offer #${filledOfferSequences[0]}`
                   : `Offers #${filledOfferSequences.join(', #')}`;
-                displayAddress = `Payment to Fill ${offerSeqDisplay}`;
+                displayAddress = `Partial Fill - ${offerSeqDisplay}`;
                 // For fills, highlight the received amount in green
                 displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
               } else if (!isFromOtherWallet && hasBalanceChanges) {
@@ -491,8 +491,8 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                         {transaction.type === 'received' && `From: ${AddressFormat.short(transaction.address)}`}
                         {transaction.type === 'dex-fill' && transaction.transactionType === 'DEX Trade' && 'Instant trade'}
                         {transaction.type === 'dex-fill' && transaction.transactionType !== 'DEX Trade' && 'Offer filled'}
-                        {transaction.type === 'exchange' && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && transaction.address}
-                        {(transaction.address?.startsWith('Payment to Fill') || transaction.address?.startsWith('Offer #')) && ''}
+                        {transaction.type === 'exchange' && !transaction.address?.startsWith('Partial Fill -') && !transaction.address?.startsWith('Offer #') && transaction.address}
+                        {(transaction.address?.startsWith('Partial Fill -') || transaction.address?.startsWith('Offer #')) && ''}
                         {transaction.type === 'trustline' && transaction.address}
                         {transaction.type === 'account-set' && transaction.address}
                         {transaction.type === 'nft' && transaction.address}

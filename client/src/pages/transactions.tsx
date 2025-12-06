@@ -385,7 +385,7 @@ export default function Transactions() {
                 const offerSeqDisplay = filledOfferSequences.length === 1 
                   ? `Offer #${filledOfferSequences[0]}`
                   : `Offers #${filledOfferSequences.join(', #')}`;
-                displayAddress = `Payment to Fill ${offerSeqDisplay}`;
+                displayAddress = `Partial Fill - ${offerSeqDisplay}`;
                 // For fills, highlight the received amount in green
                 displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
                 if (pricePerXRP) {
