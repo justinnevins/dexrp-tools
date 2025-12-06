@@ -20,6 +20,32 @@ function formatAmount(amount: any) {
   return `${parseFloat(amount.value).toFixed(6)} ${xrplClient.decodeCurrency(amount.currency)}`;
 }
 
+function calculatePricePerUnit(pays: any, gets: any) {
+  let payValue = 0;
+  let payLabel = '';
+  
+  if (typeof pays === 'string') {
+    payValue = parseFloat(xrplClient.formatXRPAmount(pays));
+    payLabel = 'XRP';
+  } else {
+    payValue = parseFloat(pays.value);
+    payLabel = xrplClient.decodeCurrency(pays.currency);
+  }
+  
+  let getsValue = 0;
+  
+  if (typeof gets === 'string') {
+    getsValue = parseFloat(xrplClient.formatXRPAmount(gets));
+  } else {
+    getsValue = parseFloat(gets.value);
+  }
+  
+  if (getsValue === 0) return null;
+  
+  const price = payValue / getsValue;
+  return `${price.toFixed(6)} ${payLabel}`;
+}
+
 export function ActiveOffersList({
   offers,
   isLoading,
@@ -95,6 +121,12 @@ export function ActiveOffersList({
                           <span className="text-muted-foreground">Remaining:</span>
                           <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
                         </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Price per Unit:</span>
+                          <span className="font-mono text-xs">
+                            {calculatePricePerUnit(enrichedOffer.originalTakerPays, enrichedOffer.originalTakerGets)}
+                          </span>
+                        </div>
                       </div>
                       {enrichedOffer && enrichedOffer.fillPercentage >= 0.1 && enrichedOffer.fills && enrichedOffer.fills.length > 0 && (
                         <div className="mt-2 pt-2 border-t">
@@ -130,6 +162,12 @@ export function ActiveOffersList({
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">to Receive:</span>
                         <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Price per Unit:</span>
+                        <span className="font-mono text-xs">
+                          {calculatePricePerUnit(offer.taker_pays, offer.taker_gets)}
+                        </span>
                       </div>
                     </div>
                   )}
