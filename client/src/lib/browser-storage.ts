@@ -91,6 +91,18 @@ class BrowserStorage {
       localStorage.setItem('xrpl_wallet_type_migration_v1', 'completed');
     }
     
+    // Migration: Remove deprecated balance and reservedBalance fields
+    const balanceFieldsMigrationCompleted = localStorage.getItem('xrpl_wallet_remove_balance_fields_v1');
+    
+    if (!balanceFieldsMigrationCompleted) {
+      wallets = wallets.map(wallet => {
+        const { balance, reservedBalance, ...cleanWallet } = wallet as any;
+        return cleanWallet;
+      });
+      needsSave = true;
+      localStorage.setItem('xrpl_wallet_remove_balance_fields_v1', 'completed');
+    }
+    
     if (needsSave) {
       this.saveData(this.STORAGE_KEYS.WALLETS, wallets);
     }
@@ -130,8 +142,6 @@ class BrowserStorage {
       name: insertWallet.name || defaultName,
       address: insertWallet.address,
       publicKey: insertWallet.publicKey || null,
-      balance: insertWallet.balance || '0',
-      reservedBalance: insertWallet.reservedBalance || '1',
       hardwareWalletType: insertWallet.hardwareWalletType || null,
       walletType: (insertWallet.walletType || 'full') as 'full' | 'watchOnly',
       network: network as 'mainnet' | 'testnet',

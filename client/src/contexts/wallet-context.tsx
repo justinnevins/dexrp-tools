@@ -19,10 +19,6 @@ interface WalletContextType {
     mutateAsync: (data: { id: number; updates: Partial<Wallet> }) => Promise<Wallet | null>;
     isPending: boolean;
   };
-  updateWalletBalance: {
-    mutateAsync: (data: { id: number; balance: string; reservedBalance: string }) => Promise<Wallet | null>;
-    isPending: boolean;
-  };
   reorderWallets: {
     mutateAsync: (orderedIds: number[]) => Promise<Wallet[]>;
     isPending: boolean;
@@ -76,8 +72,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         walletType: walletData.walletType,
         network: walletData.network,
         name: walletData.name,
-        balance: '0',
-        reservedBalance: '20',
         isConnected: false
       });
       return wallet;
@@ -103,16 +97,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: ['accountLines'] });
         queryClient.invalidateQueries({ queryKey: ['accountOffers'] });
       }
-    },
-  });
-
-  const updateWalletBalance = useMutation({
-    mutationFn: async ({ id, balance, reservedBalance }: { id: number; balance: string; reservedBalance: string }) => {
-      const wallet = browserStorage.updateWallet(id, { balance, reservedBalance });
-      return wallet;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
     },
   });
 
@@ -143,10 +127,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         updateWallet: {
           mutateAsync: updateWallet.mutateAsync,
           isPending: updateWallet.isPending,
-        },
-        updateWalletBalance: {
-          mutateAsync: updateWalletBalance.mutateAsync,
-          isPending: updateWalletBalance.isPending,
         },
         reorderWallets: {
           mutateAsync: reorderWalletsMutation.mutateAsync,
