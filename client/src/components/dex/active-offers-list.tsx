@@ -67,7 +67,7 @@ export function ActiveOffersList({
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="w-4 h-4 text-primary" />
                     <span className="font-medium">Order #{offer.seq}</span>
-                    {enrichedOffer && enrichedOffer.fillPercentage > 0 && (
+                    {enrichedOffer && enrichedOffer.fillPercentage >= 0.1 && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                         {enrichedOffer.fillPercentage.toFixed(1)}% Filled
                       </span>
@@ -96,7 +96,7 @@ export function ActiveOffersList({
                           <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
                         </div>
                       </div>
-                      {enrichedOffer && enrichedOffer.fillPercentage > 0 && enrichedOffer.fills && enrichedOffer.fills.length > 0 && (
+                      {enrichedOffer && enrichedOffer.fillPercentage >= 0.1 && enrichedOffer.fills && enrichedOffer.fills.length > 0 && (
                         <div className="mt-2 pt-2 border-t">
                           <p className="text-xs text-muted-foreground mb-1">
                             Fill History ({enrichedOffer.fills.length} fill{enrichedOffer.fills.length > 1 ? 's' : ''})
