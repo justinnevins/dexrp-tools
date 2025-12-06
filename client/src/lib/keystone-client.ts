@@ -50,6 +50,11 @@ interface SignatureResult {
  * });
  */
 export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestResult {
+  const isDev = import.meta.env.DEV;
+  const log = (...args: any[]) => isDev && console.log('[Keystone]', ...args);
+  
+  log('Input transaction:', JSON.stringify(transaction, null, 2));
+  
   const keystoneSDK = new KeystoneSDK();
   
   const xrpTransaction: any = {
@@ -97,7 +102,13 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     }
   }
   
+  log('Formatted transaction for Keystone SDK:', JSON.stringify(xrpTransaction, null, 2));
+  
   const ur = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
+  
+  log('Generated UR type:', ur.type);
+  log('CBOR length:', ur.cbor.length);
+  log('CBOR hex (first 100 chars):', ur.cbor.toString('hex').substring(0, 100));
   
   return {
     type: ur.type,
