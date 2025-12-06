@@ -23,6 +23,7 @@ function formatAmount(amount: any) {
 function calculatePricePerUnit(pays: any, gets: any) {
   let payValue = 0;
   let payLabel = '';
+  let getLabel = '';
   
   if (typeof pays === 'string') {
     payValue = parseFloat(xrplClient.formatXRPAmount(pays));
@@ -36,14 +37,17 @@ function calculatePricePerUnit(pays: any, gets: any) {
   
   if (typeof gets === 'string') {
     getsValue = parseFloat(xrplClient.formatXRPAmount(gets));
+    getLabel = 'XRP';
   } else {
     getsValue = parseFloat(gets.value);
+    getLabel = xrplClient.decodeCurrency(gets.currency);
   }
   
-  if (getsValue === 0) return null;
+  if (getsValue === 0 || payValue === 0) return null;
   
   const price = payValue / getsValue;
-  return `${price.toFixed(6)} ${payLabel}`;
+  const inversePrice = getsValue / payValue;
+  return `${price.toFixed(4)} ${payLabel} (${inversePrice.toFixed(4)} ${getLabel})`;
 }
 
 export function ActiveOffersList({
