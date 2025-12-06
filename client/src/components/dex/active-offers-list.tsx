@@ -96,7 +96,7 @@ export function ActiveOffersList({
                           <span className="font-mono">{formatAmount(offer.taker_pays)}</span>
                         </div>
                       </div>
-                      {enrichedOffer.fills.length > 0 && (
+                      {enrichedOffer && enrichedOffer.fillPercentage > 0 && enrichedOffer.fills && enrichedOffer.fills.length > 0 && (
                         <div className="mt-2 pt-2 border-t">
                           <p className="text-xs text-muted-foreground mb-1">
                             Fill History ({enrichedOffer.fills.length} fill{enrichedOffer.fills.length > 1 ? 's' : ''})
