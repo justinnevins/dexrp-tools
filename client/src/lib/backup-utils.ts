@@ -1,4 +1,7 @@
 import JSZip from 'jszip';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 
 const BACKUP_VERSION = '1.0';
 
@@ -79,10 +82,35 @@ export async function createBackup(): Promise<Blob> {
   return blob;
 }
 
-export function downloadBackup(blob: Blob): void {
+export async function downloadBackup(blob: Blob): Promise<void> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `dexrp-backup-${timestamp}.zip`;
   
+  if (Capacitor.isNativePlatform()) {
+    await downloadBackupNative(blob, filename);
+  } else {
+    downloadBackupWeb(blob, filename);
+  }
+}
+
+async function downloadBackupNative(blob: Blob, filename: string): Promise<void> {
+  const base64Data = await blobToBase64(blob);
+  
+  const result = await Filesystem.writeFile({
+    path: filename,
+    data: base64Data,
+    directory: Directory.Cache,
+  });
+  
+  await Share.share({
+    title: 'DEXrp Backup',
+    text: 'Save your DEXrp wallet backup',
+    url: result.uri,
+    dialogTitle: 'Save Backup File',
+  });
+}
+
+function downloadBackupWeb(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -91,6 +119,19 @@ export function downloadBackup(blob: Blob): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 export async function readBackupFile(file: File): Promise<BackupData> {

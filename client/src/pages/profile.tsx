@@ -403,10 +403,10 @@ export default function Profile() {
     setIsExporting(true);
     try {
       const blob = await createBackup();
-      downloadBackup(blob);
+      await downloadBackup(blob);
       toast({
         title: "Backup Created",
-        description: "Your data has been exported successfully. Check your downloads folder.",
+        description: "Your wallet data has been exported successfully.",
       });
     } catch (error) {
       toast({
