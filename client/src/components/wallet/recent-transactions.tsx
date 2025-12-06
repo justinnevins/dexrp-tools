@@ -281,45 +281,46 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
               let paysAmount = '0';
               let paysCurrency = 'XRP';
               
-              if (isFromOtherWallet) {
-                // For OfferCreate from another wallet, show only the balance changes to OUR wallet
-                const balanceChanges = calculateBalanceChanges(tx, currentWallet!.address);
+              // For all OfferCreate transactions, use actual balance changes to show what really happened
+              const balanceChanges = calculateBalanceChanges(tx, currentWallet!.address);
+              
+              // Track if we found actual balance changes (indicating the offer was filled)
+              let hasBalanceChanges = balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0;
+              
+              if (hasBalanceChanges) {
+                // Extract what was paid (decreased) and received (increased) from actual balance changes
                 
-                if (balanceChanges.xrpChange || balanceChanges.tokenChanges.length > 0) {
-                  // Extract what was paid (decreased) and received (increased)
-                  
-                  // Check XRP changes
-                  if (balanceChanges.xrpChange) {
-                    const xrpAmount = balanceChanges.xrpChange.replace('-', '');
-                    if (balanceChanges.xrpChange.startsWith('-')) {
-                      // XRP was paid
-                      getsAmount = xrpAmount;
-                      getsCurrency = 'XRP';
-                    } else {
-                      // XRP was received
-                      paysAmount = xrpAmount;
-                      paysCurrency = 'XRP';
-                    }
+                // Check XRP changes
+                if (balanceChanges.xrpChange) {
+                  const xrpAmount = balanceChanges.xrpChange.replace('-', '');
+                  if (balanceChanges.xrpChange.startsWith('-')) {
+                    // XRP was paid (we spent XRP)
+                    getsAmount = xrpAmount;
+                    getsCurrency = 'XRP';
+                  } else {
+                    // XRP was received (we got XRP)
+                    paysAmount = xrpAmount;
+                    paysCurrency = 'XRP';
                   }
-                  
-                  // Check token changes
-                  balanceChanges.tokenChanges.forEach(tokenChange => {
-                    const amount = tokenChange.change.replace('-', '');
-                    const currency = xrplClient.decodeCurrency(tokenChange.currency);
-                    
-                    if (tokenChange.change.startsWith('-')) {
-                      // Token was paid
-                      getsAmount = amount;
-                      getsCurrency = currency;
-                    } else {
-                      // Token was received
-                      paysAmount = amount;
-                      paysCurrency = currency;
-                    }
-                  });
                 }
-              } else {
-                // For our own OfferCreate, show the full transaction amounts
+                
+                // Check token changes
+                balanceChanges.tokenChanges.forEach(tokenChange => {
+                  const amount = tokenChange.change.replace('-', '');
+                  const currency = xrplClient.decodeCurrency(tokenChange.currency);
+                  
+                  if (tokenChange.change.startsWith('-')) {
+                    // Token was paid (we spent token)
+                    getsAmount = amount;
+                    getsCurrency = currency;
+                  } else {
+                    // Token was received (we got token)
+                    paysAmount = amount;
+                    paysCurrency = currency;
+                  }
+                });
+              } else if (!isFromOtherWallet) {
+                // No balance changes detected - show the submitted offer amounts (unfilled offer)
                 // Parse TakerGets (what taker gets = what YOU pay as offer creator)
                 if (typeof takerGets === 'string') {
                   getsAmount = xrplClient.formatXRPAmount(takerGets);
@@ -354,47 +355,56 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
               
               let displayAmount = '';
               let displayAddress = 'DEX Trading';
+              let transactionTypeOverride: string | undefined;
               
               if (isFromOtherWallet && filledOfferSequences.length > 0) {
-                // Show which of our offers was filled
+                // Show which of our offers was filled by another wallet's OfferCreate
                 const offerSeqDisplay = filledOfferSequences.length === 1 
                   ? `Offer #${filledOfferSequences[0]}`
                   : `Offers #${filledOfferSequences.join(', #')}`;
                 displayAddress = `Payment to Fill ${offerSeqDisplay}`;
-                // For fills, highlight the received amount in green (stored in custom field)
+                // For fills, highlight the received amount in green
                 displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
-              } else {
+              } else if (!isFromOtherWallet && hasBalanceChanges) {
+                // Our own OfferCreate that was immediately filled (taker trade)
+                // Show the actual amounts traded with "Traded" label
+                displayAddress = `DEX Trade`;
+                transactionTypeOverride = 'DEX Trade';
+                displayAmount = `Paid: ${roundedGetsAmount} ${getsCurrency} - <span class="text-green-600 dark:text-green-400">Received: ${roundedPaysAmount} ${paysCurrency}</span>`;
+              } else if (!isFromOtherWallet) {
+                // Our own OfferCreate that created an offer on the book (unfilled or partial)
+                displayAddress = `Offer #${transaction.Sequence}`;
                 displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
                 
-                if (!isFromOtherWallet) {
-                  // Always show offer number for our own offers
-                  displayAddress = `Offer #${transaction.Sequence}`;
-                  
-                  // Add fill status if there are fills
-                  if (storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
-                    // Use enrichOfferWithStatus to properly calculate fill percentage
-                    const enriched = enrichOfferWithStatus(storedOffer as any);
-                    const fillStatus = enriched.isFullyExecuted 
-                      ? 'Fully Filled'
-                      : `${enriched.fillPercentage.toFixed(0)}% Filled`;
-                    displayAmount = `${fillStatus} - ${displayAmount}`;
-                  }
+                // Add fill status if there are fills from stored offer data
+                if (storedOffer && (storedOffer as any).fills && (storedOffer as any).fills.length > 0) {
+                  const enriched = enrichOfferWithStatus(storedOffer as any);
+                  const fillStatus = enriched.isFullyExecuted 
+                    ? 'Fully Filled'
+                    : `${enriched.fillPercentage.toFixed(0)}% Filled`;
+                  displayAmount = `${fillStatus} - ${displayAmount}`;
                 }
+              } else {
+                // Other wallet's OfferCreate that didn't fill our offers
+                displayAmount = `Pay: ${roundedGetsAmount} ${getsCurrency} to Receive: ${roundedPaysAmount} ${paysCurrency}`;
               }
+              
+              // Use green styling for filled trades to indicate XRP/tokens received
+              const isFilled = hasBalanceChanges && !isFromOtherWallet;
               
               transactions.push({
                 id: txHash,
-                type: 'exchange',
-                transactionType: transaction.TransactionType,
+                type: isFilled ? 'dex-fill' : 'exchange',
+                transactionType: transactionTypeOverride || transaction.TransactionType,
                 amount: displayAmount,
                 paidAmount: `${getsAmount} ${getsCurrency}`,
                 receivedAmount: `${paysAmount} ${paysCurrency}`,
                 address: displayAddress,
                 time: new Date((transaction.date || 0) * 1000 + 946684800000).toLocaleDateString() || 'Recently',
                 icon: ArrowLeftRight,
-                iconBg: 'bg-blue-100 dark:bg-blue-900/30',
-                iconColor: 'text-blue-600 dark:text-blue-400',
-                amountColor: 'text-blue-600 dark:text-blue-400',
+                iconBg: isFilled ? 'bg-green-100 dark:bg-green-900/30' : 'bg-blue-100 dark:bg-blue-900/30',
+                iconColor: isFilled ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400',
+                amountColor: isFilled ? 'text-green-600 dark:text-green-400' : 'text-blue-600 dark:text-blue-400',
               });
             }
           }
@@ -462,7 +472,8 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                     </div>
                     <div>
                       <p className="font-medium">
-                        {transaction.type === 'dex-fill' ? 'DEX Fill' : 
+                        {transaction.type === 'dex-fill' && transaction.transactionType === 'DEX Trade' ? 'DEX Trade' :
+                         transaction.type === 'dex-fill' ? 'DEX Fill' : 
                          transaction.type === 'sent' ? 'Sent' : 
                          transaction.type === 'received' ? 'Received' : 
                          transaction.type === 'trustline' ? 'Trust Line' :
@@ -478,7 +489,8 @@ export function RecentTransactions({ onViewAllClick }: RecentTransactionsProps) 
                       <p className="text-sm text-muted-foreground">
                         {transaction.type === 'sent' && `To: ${AddressFormat.short(transaction.address)}`}
                         {transaction.type === 'received' && `From: ${AddressFormat.short(transaction.address)}`}
-                        {transaction.type === 'dex-fill' && 'Offer filled'}
+                        {transaction.type === 'dex-fill' && transaction.transactionType === 'DEX Trade' && 'Instant trade'}
+                        {transaction.type === 'dex-fill' && transaction.transactionType !== 'DEX Trade' && 'Offer filled'}
                         {transaction.type === 'exchange' && !transaction.address?.startsWith('Payment to Fill') && !transaction.address?.startsWith('Offer #') && transaction.address}
                         {(transaction.address?.startsWith('Payment to Fill') || transaction.address?.startsWith('Offer #')) && ''}
                         {transaction.type === 'trustline' && transaction.address}
