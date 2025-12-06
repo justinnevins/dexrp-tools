@@ -71,6 +71,32 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     }
   }
   
+  // Handle OfferCreate TakerGets and TakerPays fields
+  if (transaction.TransactionType === 'OfferCreate') {
+    if (transaction.TakerGets) {
+      if (typeof transaction.TakerGets === 'object') {
+        xrpTransaction.TakerGets = {
+          currency: transaction.TakerGets.currency,
+          value: String(transaction.TakerGets.value),
+          issuer: transaction.TakerGets.issuer
+        };
+      } else {
+        xrpTransaction.TakerGets = String(transaction.TakerGets);
+      }
+    }
+    if (transaction.TakerPays) {
+      if (typeof transaction.TakerPays === 'object') {
+        xrpTransaction.TakerPays = {
+          currency: transaction.TakerPays.currency,
+          value: String(transaction.TakerPays.value),
+          issuer: transaction.TakerPays.issuer
+        };
+      } else {
+        xrpTransaction.TakerPays = String(transaction.TakerPays);
+      }
+    }
+  }
+  
   const ur = keystoneSDK.xrp.generateSignRequest(xrpTransaction);
   
   return {
