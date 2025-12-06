@@ -12,7 +12,7 @@ import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
 import { xrplClient } from '@/lib/xrpl-client';
-import { createBackup, downloadBackup, readBackupFile, getImportPreview, restoreBackup, type BackupData, type ImportPreview, type ImportMode } from '@/lib/backup-utils';
+import { createBackup, downloadBackup, readBackupFile, getImportPreview, restoreBackup, type BackupData, type ImportPreview, type ImportMode, type BackupResult } from '@/lib/backup-utils';
 import { AddressFormat } from '@/lib/format-address';
 import type { Wallet as WalletType } from '@shared/schema';
 import {
@@ -403,10 +403,10 @@ export default function Profile() {
     setIsExporting(true);
     try {
       const blob = await createBackup();
-      await downloadBackup(blob);
+      const result = await downloadBackup(blob);
       toast({
         title: "Backup Created",
-        description: "Your wallet data has been exported successfully.",
+        description: `Saved as ${result.filename}`,
       });
     } catch (error) {
       toast({

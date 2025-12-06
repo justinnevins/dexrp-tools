@@ -1,7 +1,13 @@
 import JSZip from 'jszip';
 import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+
+export interface BackupResult {
+  success: boolean;
+  filename: string;
+  location?: string;
+}
 
 const BACKUP_VERSION = '1.0';
 
@@ -82,18 +88,19 @@ export async function createBackup(): Promise<Blob> {
   return blob;
 }
 
-export async function downloadBackup(blob: Blob): Promise<void> {
+export async function downloadBackup(blob: Blob): Promise<BackupResult> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `dexrp-backup-${timestamp}.zip`;
   
   if (Capacitor.isNativePlatform()) {
-    await downloadBackupNative(blob, filename);
+    return await downloadBackupNative(blob, filename);
   } else {
     downloadBackupWeb(blob, filename);
+    return { success: true, filename, location: 'Downloads folder' };
   }
 }
 
-async function downloadBackupNative(blob: Blob, filename: string): Promise<void> {
+async function downloadBackupNative(blob: Blob, filename: string): Promise<BackupResult> {
   const base64Data = await blobToBase64(blob);
   
   const result = await Filesystem.writeFile({
@@ -103,11 +110,11 @@ async function downloadBackupNative(blob: Blob, filename: string): Promise<void>
   });
   
   await Share.share({
-    title: 'DEXrp Backup',
-    text: 'Save your DEXrp wallet backup',
-    url: result.uri,
+    files: [result.uri],
     dialogTitle: 'Save Backup File',
   });
+  
+  return { success: true, filename, location: 'Saved via share' };
 }
 
 function downloadBackupWeb(blob: Blob, filename: string): void {
