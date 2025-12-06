@@ -154,12 +154,6 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
     }
 
     try {
-      const isDev = import.meta.env.DEV;
-      const log = (...args: any[]) => isDev && console.log('[DEX Transaction]', ...args);
-      
-      log('Order params:', { orderSide, baseAsset, quoteAsset, amount, effectivePrice, calculatedTotal });
-      log('Parsed assets:', { baseInfo, quoteInfo });
-      
       let transactionSequence = 1;
       let transactionLedger = 1000;
       
@@ -174,13 +168,10 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
       // Check if quote is XRP (handle both 'XRP' string and empty issuer as XRP indicator)
       const quoteIsXRP = quoteInfo.currency === 'XRP' || quoteAsset === 'XRP';
       const baseIsXRP = baseInfo.currency === 'XRP' || baseAsset === 'XRP';
-      
-      log('XRP detection:', { quoteIsXRP, baseIsXRP });
 
       if (orderSide === 'buy') {
         if (quoteIsXRP) {
           const drops = xrplClient.convertXRPToDrops(calculatedTotal);
-          log('Converting quote XRP to drops:', calculatedTotal, '->', drops);
           if (drops === '0' || parseInt(drops) === 0) {
             toast({
               title: "Amount Too Small",
@@ -196,7 +187,6 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         
         if (baseIsXRP) {
           const drops = xrplClient.convertXRPToDrops(amount);
-          log('Converting base XRP to drops:', amount, '->', drops);
           if (drops === '0' || parseInt(drops) === 0) {
             toast({
               title: "Amount Too Small",
@@ -212,7 +202,6 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
       } else {
         if (baseIsXRP) {
           const drops = xrplClient.convertXRPToDrops(amount);
-          log('Converting base XRP to drops:', amount, '->', drops);
           if (drops === '0' || parseInt(drops) === 0) {
             toast({
               title: "Amount Too Small",
@@ -228,7 +217,6 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         
         if (quoteIsXRP) {
           const drops = xrplClient.convertXRPToDrops(calculatedTotal);
-          log('Converting quote XRP to drops:', calculatedTotal, '->', drops);
           if (drops === '0' || parseInt(drops) === 0) {
             toast({
               title: "Amount Too Small",
@@ -242,9 +230,6 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
           takerPays = { currency: quoteInfo.currency, issuer: quoteInfo.issuer, value: calculatedTotal };
         }
       }
-      
-      log('Final TakerGets:', takerGets);
-      log('Final TakerPays:', takerPays);
 
       const transaction: any = {
         TransactionType: 'OfferCreate',
