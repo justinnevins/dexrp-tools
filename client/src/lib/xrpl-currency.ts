@@ -3,7 +3,8 @@ export function formatXRPAmount(drops: string): string {
 }
 
 export function convertXRPToDrops(xrp: string): string {
-  return (parseFloat(xrp) * 1000000).toString();
+  // Drops must be integers - round to avoid floating point issues
+  return Math.round(parseFloat(xrp) * 1000000).toString();
 }
 
 export function encodeCurrency(currencyCode: string): string {
