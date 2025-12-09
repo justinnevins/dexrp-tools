@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { Plus, Coins, Trash2, RefreshCw, Eye, AlertCircle, Wallet, Users } from 'lucide-react';
+import { Plus, Coins, Trash2, RefreshCw, Eye, EyeOff, AlertCircle, Wallet, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -46,6 +46,7 @@ export default function Assets() {
   const [trustlineToDelete, setTrustlineToDelete] = useState<AssetData | null>(null);
   const [removeTrustlineData, setRemoveTrustlineData] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hidePortfolioValue, setHidePortfolioValue] = useState(false);
   // Load saved preferences from localStorage
   const [viewMode, setViewMode] = useState<'all' | 'current'>(() => {
     const saved = localStorage.getItem('assets_view_mode');
@@ -425,11 +426,30 @@ export default function Assets() {
       </div>
       {/* Portfolio Value Card */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-white rounded-xl p-6 mb-6">
-        <p className="text-sm opacity-80 mb-1">Total Portfolio Value</p>
-        <p className="text-3xl font-bold" data-testid="text-portfolio-value">
-          {formatPrice(totalPortfolioValue)}
-        </p>
-        <p className="text-xs opacity-70 mt-2">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-sm opacity-80 mb-1">Total Portfolio Value</p>
+            {hidePortfolioValue ? (
+              <p className="text-3xl font-bold" data-testid="text-portfolio-value">
+                ••••••
+              </p>
+            ) : (
+              <p className="text-3xl font-bold" data-testid="text-portfolio-value">
+                {formatPrice(totalPortfolioValue)}
+              </p>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setHidePortfolioValue(!hidePortfolioValue)}
+            className="text-white hover:bg-white/20"
+            data-testid="button-toggle-portfolio-visibility"
+          >
+            {hidePortfolioValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </Button>
+        </div>
+        <p className="text-xs opacity-70">
           {selectedNetwork === 'mainnet' ? 'Mainnet' : 'Testnet'} • {viewMode === 'all' ? `${networkWallets.length} wallet${networkWallets.length !== 1 ? 's' : ''}` : 'Current wallet'}
         </p>
       </div>
