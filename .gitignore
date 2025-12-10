@@ -10,10 +10,6 @@ build
 server/public
 *.local
 
-# Capacitor Temp Files
-android/app/capacitor.build.gradle
-android/app/capacitor.settings.gradle
-
 # Environment variables
 .env
 .env.local
