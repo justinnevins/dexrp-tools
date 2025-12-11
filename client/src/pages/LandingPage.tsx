@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalLink, Heart } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
+import { Footer } from '@/components/layout/footer';
 
 const DONATION_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
 const DEFAULT_DONATION_AMOUNT = '2';
@@ -197,42 +198,7 @@ export default function LandingPage() {
         </div>
       </div>
       {/* Footer */}
-      <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 bg-gray-950 border-t border-gray-800">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 sm:gap-8 mb-6 sm:mb-8">
-            <a href="https://x.com/JustinNevins" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-x">
-              X (@JustinNevins)
-            </a>
-            <a
-              href={KEYSTONE_AFFILIATE_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm"
-              data-testid="footer-keystone"
-            >
-              Get Keystone
-            </a>
-            <a 
-              href={`/send?donate=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Donation`}
-              className="text-gray-400 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center gap-1" 
-              data-testid="footer-donate"
-            >
-              <Heart className="w-3 h-3" />
-              Donate
-            </a>
-            <a href="/privacy" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-privacy">
-              Privacy
-            </a>
-            <a href="https://x.com/JustinNevins" className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm" data-testid="footer-contact">
-              Contact
-            </a>
-          </div>
-
-          <div className="border-t border-gray-800 pt-6 sm:pt-8">
-            <p className="text-center text-gray-500 text-xs sm:text-sm">© 2025 DEXrp — Self-custodial XRPL Wallet by CarbonVibe</p>
-          </div>
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 }

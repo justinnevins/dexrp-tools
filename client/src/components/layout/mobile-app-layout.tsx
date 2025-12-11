@@ -9,6 +9,7 @@ import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-
 import { fetchXRPToRLUSDPrice, formatPrice, type DEXPriceData } from '@/lib/xrp-price';
 import { useWallet } from '@/hooks/use-wallet';
 import { useFormSubmission } from '@/hooks/use-form-submission';
+import { Footer } from './footer';
 
 function ThemeToggleIcon({ theme }: { theme: 'light' | 'dark' | 'system' }) {
   const [systemPrefersDark, setSystemPrefersDark] = useState(
@@ -316,6 +317,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
           style={{ overscrollBehavior: 'contain' }}
         >
           {children}
+          <Footer />
         </main>
 
         {/* Mobile Bottom Navigation (hidden on desktop) */}
