@@ -15,11 +15,11 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 - **Real-Time DEX Pricing**: Live XRP/RLUSD price sourced directly from XRPL DEX order book
 
 ### Wallet Management
-- **Multiple Wallets**: Add both hardware-secured and watch-only accounts simultaneously
-- **Send & Receive XRP**: Secure payment functionality with QR code-based signing (hardware wallets only)
+- **Multiple Wallets**: Add both hardware-secured and watch-only accounts
+- **Send & Receive XRP**: Secure payment functionality with QR code-based signing for supported hardware wallets
 - **Transaction History**: Complete transaction tracking with detailed status information
 - **Balance Overview**: Real-time account balance with RLUSD conversion from DEX
-- **Reserve Calculation**: Automatic XRPL reserve and fee accounting
+- **Reserve Calculation**: Automatic XRPL reserve and fee accounting (from the XRPL)
 
 ### Token Management
 - **Trustlines**: Add, view, and remove token trustlines
@@ -28,8 +28,15 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 
 ### DEX Trading
 - **Create Offers**: Place buy/sell orders on the XRPL DEX
+- **Active Offer Tracking**: Monitor your open offers with fill percentages and per-unit pricing
+- **Fill History**: Track partial fills with detailed history persistence
 - **Quick Amount Selection**: 25%, 50%, 75%, and Max buttons with smart reserve calculations
 - **Enhanced Currency Selection**: Easy-to-use currency picker for trading pairs
+
+### Data Management
+- **Backup & Restore**: Export all wallet data, transactions, and settings to a ZIP file
+- **Cross-Browser Portability**: Import backups to migrate between browsers or devices
+- **Merge Mode**: Intelligently merge imported data without duplicating existing records
 
 ## Technology Stack
 
@@ -40,7 +47,8 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 - **Styling**: Tailwind CSS
 - **State Management**: TanStack Query
 - **Routing**: Wouter
-- **Data Storage**: Browser localStorage (no backend database required)
+- **Data Storage**: Browser localStorage (no backend database required!)
+- **Mobile Apps**: Capacitor for native Android and iOS builds
 
 ### Backend
 - **Server**: Express.js with TypeScript
@@ -83,8 +91,8 @@ Each wallet maintains its own network setting (Mainnet/Testnet), enabling:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/justinnevins/keystone3-xrpl.git
-cd keystone3-xrpl
+git clone https://github.com/justinnevins/dexrp-tools.git
+cd dexrp-tools
 ```
 
 2. Install dependencies:
@@ -205,6 +213,17 @@ For issues or questions:
 - Open an issue on GitHub
 - Review the XRPL documentation at https://xrpl.org
 - Check Keystone 3 Pro documentation at https://keyst.one
+
+### Donations
+
+If you find DEXrp useful, consider sending a tip to support development:
+
+**XRP Address**: `rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv`
+
+### Get a Keystone 3 Pro
+
+Purchase a Keystone 3 Pro hardware wallet using our affiliate link:
+[keyst.one](https://keyst.one/?rfsn=8924031.c9a3ff&utm_source=refersion&utm_medium=affiliate&utm_campaign=8924031.c9a3ff)
 
 ## Acknowledgments
 
