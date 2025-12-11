@@ -10,7 +10,7 @@ export function Footer() {
   return (
     <div className="px-4 py-6 sm:py-8 bg-gray-950 dark:bg-gray-950 border-t border-gray-800">
       <div className="max-w-6xl mx-auto">
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 sm:gap-6 mb-4 sm:mb-6 text-center sm:text-left">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-4 sm:mb-6 text-center">
           <a 
             href="https://x.com/JustinNevins" 
             target="_blank"
@@ -31,7 +31,7 @@ export function Footer() {
           </a>
           <a 
             href={`/send?donate=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Donation`}
-            className="text-gray-400 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center justify-center sm:justify-start gap-1" 
+            className="text-gray-400 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center justify-center gap-1" 
             data-testid="footer-donate"
           >
             <Heart className="w-3 h-3" />
@@ -57,7 +57,7 @@ export function Footer() {
             href={GITHUB_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm flex items-center justify-center sm:justify-start gap-1"
+            className="text-gray-400 hover:text-white transition-colors text-xs sm:text-sm flex items-center justify-center gap-1"
             data-testid="footer-github"
           >
             <SiGithub className="w-3 h-3" />
