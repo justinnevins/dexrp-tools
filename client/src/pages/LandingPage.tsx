@@ -2,7 +2,6 @@ import { Button } from '@/components/ui/button';
 import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalLink, Heart } from 'lucide-react';
 import { useState } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
-import { Footer } from '@/components/layout/footer';
 
 const DONATION_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
 const DEFAULT_DONATION_AMOUNT = '2';
@@ -197,8 +196,6 @@ export default function LandingPage() {
           </p>
         </div>
       </div>
-      {/* Footer */}
-      <Footer />
     </div>
   );
 }
