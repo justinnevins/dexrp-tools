@@ -4,7 +4,15 @@ const urlsToCache = [
   '/index.html'
 ];
 
+const isDevEnvironment = self.location.hostname.includes('replit') || 
+                         self.location.hostname.includes('localhost') ||
+                         self.location.hostname.includes('127.0.0.1');
+
 self.addEventListener('install', (event) => {
+  if (isDevEnvironment) {
+    self.skipWaiting();
+    return;
+  }
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
@@ -13,6 +21,19 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
+  if (isDevEnvironment) {
+    event.waitUntil(
+      Promise.all([
+        caches.keys().then((names) => Promise.all(names.map((name) => caches.delete(name)))),
+        self.registration.unregister()
+      ]).then(() => {
+        self.clients.matchAll().then((clients) => {
+          clients.forEach((client) => client.navigate(client.url));
+        });
+      })
+    );
+    return;
+  }
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
