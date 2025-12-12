@@ -26,6 +26,7 @@ const STORAGE_KEYS_TO_BACKUP = [
   'biometric_credential_id',
   'assets_view_mode',
   'assets_selected_network',
+  'assets_hide_values',
 ];
 
 export interface BackupManifest {

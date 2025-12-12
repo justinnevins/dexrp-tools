@@ -46,7 +46,9 @@ export default function Assets() {
   const [trustlineToDelete, setTrustlineToDelete] = useState<AssetData | null>(null);
   const [removeTrustlineData, setRemoveTrustlineData] = useState<any>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [hidePortfolioValue, setHidePortfolioValue] = useState(false);
+  const [hideValues, setHideValues] = useState(() => {
+    return localStorage.getItem('assets_hide_values') === 'true';
+  });
   // Load saved preferences from localStorage
   const [viewMode, setViewMode] = useState<'all' | 'current'>(() => {
     const saved = localStorage.getItem('assets_view_mode');
@@ -429,7 +431,7 @@ export default function Assets() {
         <div className="flex items-start justify-between mb-3">
           <div>
             <p className="text-sm opacity-80 mb-1">Total Portfolio Value</p>
-            {hidePortfolioValue ? (
+            {hideValues ? (
               <p className="text-3xl font-bold" data-testid="text-portfolio-value">
                 ••••••
               </p>
@@ -442,11 +444,15 @@ export default function Assets() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setHidePortfolioValue(!hidePortfolioValue)}
+            onClick={() => {
+              const newValue = !hideValues;
+              setHideValues(newValue);
+              localStorage.setItem('assets_hide_values', String(newValue));
+            }}
             className="text-white hover:bg-white/20"
             data-testid="button-toggle-portfolio-visibility"
           >
-            {hidePortfolioValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {hideValues ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </Button>
         </div>
         <p className="text-xs opacity-70">
@@ -544,7 +550,7 @@ export default function Assets() {
                       </p>
                       {usdValue !== null && (
                         <p className="text-sm text-muted-foreground">
-                          {formatPrice(usdValue)}
+                          {hideValues ? '••••••' : formatPrice(usdValue)}
                         </p>
                       )}
                     </div>
