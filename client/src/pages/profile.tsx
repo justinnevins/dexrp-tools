@@ -47,6 +47,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
+import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
 
 interface DraggableWalletItemProps {
   wallet: WalletType;
@@ -176,6 +177,7 @@ export default function Profile() {
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const [qrScanDialogOpen, setQrScanDialogOpen] = useState(false);
+  const [qrFullscreen, setQrFullscreen] = useState(false);
   const [pendingQRBackupData, setPendingQRBackupData] = useState<QRBackupData | null>(null);
   const [qrImportDialogOpen, setQrImportDialogOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -1099,20 +1101,28 @@ export default function Profile() {
 
       {/* QR Code Display Dialog */}
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <QrCode className="w-5 h-5" />
               QR Backup
             </DialogTitle>
             <DialogDescription>
-              Scan this QR code on another device to restore your accounts.
+              Scan this QR code on another device to restore your accounts. Tap the code for fullscreen.
             </DialogDescription>
           </DialogHeader>
           
           {qrCodeDataUrl && (
-            <div className="flex justify-center py-4">
-              <img src={qrCodeDataUrl} alt="Backup QR Code" className="max-w-full" />
+            <div 
+              className="flex justify-center py-4 cursor-pointer"
+              onClick={() => setQrFullscreen(true)}
+              data-testid="qr-backup-image-container"
+            >
+              <img 
+                src={qrCodeDataUrl} 
+                alt="Backup QR Code" 
+                className="w-72 h-72 max-w-full"
+              />
             </div>
           )}
 
@@ -1123,6 +1133,13 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Fullscreen QR Viewer */}
+      {qrFullscreen && qrCodeDataUrl && (
+        <FullscreenQRViewer onClose={() => setQrFullscreen(false)}>
+          <img src={qrCodeDataUrl} alt="Backup QR Code" />
+        </FullscreenQRViewer>
+      )}
 
       {/* QR Scanner Dialog */}
       <Dialog open={qrScanDialogOpen} onOpenChange={(open) => {
