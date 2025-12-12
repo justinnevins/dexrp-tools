@@ -9,6 +9,7 @@ dist
 build
 server/public
 *.local
+*.gradle
 
 # Environment variables
 .env
