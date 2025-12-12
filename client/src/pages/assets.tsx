@@ -548,9 +548,9 @@ export default function Assets() {
                       <p className="font-semibold">
                         {formatBalance(asset.totalBalance)} {asset.currency}
                       </p>
-                      {usdValue !== null && !hideValues && (
+                      {usdValue !== null && (
                         <p className="text-sm text-muted-foreground">
-                          {formatPrice(usdValue)}
+                          {hideValues ? '••••••' : formatPrice(usdValue)}
                         </p>
                       )}
                     </div>
