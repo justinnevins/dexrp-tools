@@ -214,7 +214,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
       }}
     >
       {/* Desktop Sidebar Navigation */}
-      <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:border-r border-border bg-white dark:bg-card">
+      <aside className="hidden md:flex md:flex-col md:w-64 md:border-r border-border bg-white dark:bg-card">
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
@@ -246,7 +246,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         </nav>
       </aside>
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col max-w-md lg:max-w-4xl mx-auto w-full h-full overflow-hidden">
+      <div className="flex-1 flex flex-col max-w-md md:max-w-4xl mx-auto w-full h-full overflow-hidden">
         {/* Testnet Banner */}
         <TestnetBanner />
 
@@ -313,7 +313,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         {/* Main Content */}
         <main 
           ref={mainContentRef}
-          className="flex-1 overflow-y-auto pb-20 lg:pb-6"
+          className="flex-1 overflow-y-auto pb-20 md:pb-6"
           style={{ overscrollBehavior: 'contain' }}
         >
           {children}
@@ -322,7 +322,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
 
         {/* Mobile Bottom Navigation (hidden on desktop) */}
         <nav 
-          className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-border z-50"
+          className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-card border-t border-border z-50"
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           <div className="flex items-center justify-around py-2">
