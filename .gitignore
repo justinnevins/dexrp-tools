@@ -9,6 +9,8 @@ dist
 build
 server/public
 *.local
+android/capacitor.settings.gradle
+android/app/capacitor.build.gradle
 
 # Environment variables
 .env
