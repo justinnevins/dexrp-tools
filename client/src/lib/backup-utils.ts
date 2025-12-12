@@ -2,6 +2,7 @@ import JSZip from 'jszip';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import QRCode from 'qrcode';
 
 export interface BackupResult {
   success: boolean;
@@ -285,4 +286,105 @@ function getIdField(key: string): string | null {
     default:
       return null;
   }
+}
+
+export interface QRBackupWallet {
+  a: string;
+  n?: string;
+  t: 'm' | 't';
+  w: 'k' | 'w' | 'h';
+  h?: string;
+}
+
+export interface QRBackupData {
+  v: string;
+  d: string;
+  w: QRBackupWallet[];
+}
+
+export function createQRBackupData(): QRBackupData {
+  const walletsStr = localStorage.getItem('xrpl_wallets');
+  let wallets: any[] = [];
+  try {
+    wallets = JSON.parse(walletsStr || '[]');
+  } catch {
+    wallets = [];
+  }
+
+  const compactWallets: QRBackupWallet[] = wallets.map((w: any) => {
+    const compact: QRBackupWallet = {
+      a: w.address,
+      t: w.network === 'mainnet' ? 'm' : 't',
+      w: w.walletType === 'keystone' ? 'k' : w.walletType === 'watchOnly' ? 'w' : 'h',
+    };
+    if (w.name) compact.n = w.name;
+    if (w.hardwareWalletType) compact.h = w.hardwareWalletType;
+    return compact;
+  });
+
+  return {
+    v: '1',
+    d: new Date().toISOString().slice(0, 10),
+    w: compactWallets,
+  };
+}
+
+export async function generateQRCodeDataUrl(data: QRBackupData): Promise<string> {
+  const jsonStr = JSON.stringify(data);
+  return await QRCode.toDataURL(jsonStr, {
+    errorCorrectionLevel: 'M',
+    margin: 2,
+    width: 300,
+  });
+}
+
+export function parseQRBackupData(jsonStr: string): QRBackupData {
+  const data = JSON.parse(jsonStr);
+  if (!data.v || !data.w || !Array.isArray(data.w)) {
+    throw new Error('Invalid QR backup format');
+  }
+  return data as QRBackupData;
+}
+
+export function restoreFromQRBackup(qrData: QRBackupData, mode: ImportMode): { restored: number; merged: number } {
+  const expandedWallets = qrData.w.map((w, index) => ({
+    id: Date.now() + index,
+    address: w.a,
+    name: w.n || `Account ${index + 1}`,
+    network: w.t === 'm' ? 'mainnet' : 'testnet',
+    walletType: w.w === 'k' ? 'keystone' : w.w === 'w' ? 'watchOnly' : 'hardware',
+    hardwareWalletType: w.h || null,
+  }));
+
+  const backupData: BackupData = {
+    manifest: {
+      version: '1.0',
+      createdAt: qrData.d,
+      appName: 'DEXrp',
+      walletCount: expandedWallets.length,
+      keys: ['xrpl_wallets'],
+    },
+    data: {
+      xrpl_wallets: JSON.stringify(expandedWallets),
+    },
+  };
+
+  return restoreBackup(backupData, mode);
+}
+
+export function getQRBackupPreview(qrData: QRBackupData): ImportPreview {
+  return {
+    manifest: {
+      version: qrData.v,
+      createdAt: qrData.d,
+      appName: 'DEXrp',
+      walletCount: qrData.w.length,
+      keys: ['xrpl_wallets'],
+    },
+    walletCount: qrData.w.length,
+    hasTransactions: false,
+    hasTrustlines: false,
+    hasOffers: false,
+    hasSettings: false,
+  };
 }

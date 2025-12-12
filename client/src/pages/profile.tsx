@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical, Download, Upload, FileArchive } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical, Download, Upload, FileArchive, QrCode, Camera } from 'lucide-react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { browserStorage } from '@/lib/browser-storage';
 import { xrplClient } from '@/lib/xrpl-client';
-import { createBackup, downloadBackup, readBackupFile, getImportPreview, restoreBackup, type BackupData, type ImportPreview, type ImportMode, type BackupResult } from '@/lib/backup-utils';
+import { createBackup, downloadBackup, readBackupFile, getImportPreview, restoreBackup, createQRBackupData, generateQRCodeDataUrl, parseQRBackupData, restoreFromQRBackup, getQRBackupPreview, type BackupData, type ImportPreview, type ImportMode, type BackupResult, type QRBackupData } from '@/lib/backup-utils';
 import { AddressFormat } from '@/lib/format-address';
 import type { Wallet as WalletType } from '@shared/schema';
 import {
@@ -173,6 +173,14 @@ export default function Profile() {
   const [pendingBackupData, setPendingBackupData] = useState<BackupData | null>(null);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [qrScanDialogOpen, setQrScanDialogOpen] = useState(false);
+  const [pendingQRBackupData, setPendingQRBackupData] = useState<QRBackupData | null>(null);
+  const [qrImportDialogOpen, setQrImportDialogOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const scanningRef = useRef(false);
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
@@ -479,6 +487,131 @@ export default function Profile() {
     }
   };
 
+  const handleShowQRBackup = async () => {
+    try {
+      const qrData = createQRBackupData();
+      if (qrData.w.length === 0) {
+        toast({
+          title: "No Accounts",
+          description: "Add accounts before creating a QR backup",
+          variant: "destructive",
+        });
+        return;
+      }
+      const dataUrl = await generateQRCodeDataUrl(qrData);
+      setQrCodeDataUrl(dataUrl);
+      setQrDialogOpen(true);
+    } catch (error) {
+      toast({
+        title: "QR Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate QR code",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleScanQR = async () => {
+    setQrScanDialogOpen(true);
+    scanningRef.current = true;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+        scanQRCode();
+      }
+    } catch (error) {
+      scanningRef.current = false;
+      toast({
+        title: "Camera Access Denied",
+        description: "Please allow camera access to scan QR codes",
+        variant: "destructive",
+      });
+      setQrScanDialogOpen(false);
+    }
+  };
+
+  const scanQRCode = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const scan = () => {
+      if (!scanningRef.current) return;
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        
+        import('jsqr').then(({ default: jsQR }) => {
+          if (!scanningRef.current) return;
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code) {
+            try {
+              const qrData = parseQRBackupData(code.data);
+              scanningRef.current = false;
+              stopCamera();
+              setQrScanDialogOpen(false);
+              const preview = getQRBackupPreview(qrData);
+              setImportPreview(preview);
+              setPendingQRBackupData(qrData);
+              setQrImportDialogOpen(true);
+            } catch {
+              if (scanningRef.current) requestAnimationFrame(scan);
+            }
+          } else {
+            if (scanningRef.current) requestAnimationFrame(scan);
+          }
+        });
+      } else {
+        if (scanningRef.current) requestAnimationFrame(scan);
+      }
+    };
+    requestAnimationFrame(scan);
+  };
+
+  const stopCamera = () => {
+    scanningRef.current = false;
+    if (videoRef.current?.srcObject) {
+      const tracks = (videoRef.current.srcObject as MediaStream).getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+  };
+
+  const handleQRRestore = async (mode: ImportMode) => {
+    if (!pendingQRBackupData) return;
+
+    try {
+      const result = restoreFromQRBackup(pendingQRBackupData, mode);
+      await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+      
+      toast({
+        title: "QR Backup Restored",
+        description: mode === 'replace' 
+          ? "All accounts restored successfully. Reloading..."
+          : `Added ${result.merged} new accounts. Reloading...`,
+      });
+
+      setQrImportDialogOpen(false);
+      setImportPreview(null);
+      setPendingQRBackupData(null);
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error) {
+      toast({
+        title: "Restore Failed",
+        description: error instanceof Error ? error.message : "Failed to restore from QR",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <div className="px-4 py-6">
@@ -564,6 +697,31 @@ export default function Profile() {
               className="hidden"
               data-testid="input-backup-file"
             />
+          </div>
+          <div className="mt-4 pt-4 border-t border-border/50">
+            <p className="text-xs text-muted-foreground mb-3">
+              QR backup contains account addresses only (no transaction history or settings).
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={handleShowQRBackup}
+                variant="outline"
+                size="sm"
+                data-testid="button-qr-backup"
+              >
+                <QrCode className="w-4 h-4 mr-2" />
+                Show QR Backup
+              </Button>
+              <Button
+                onClick={handleScanQR}
+                variant="outline"
+                size="sm"
+                data-testid="button-scan-qr"
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Scan QR Backup
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -933,6 +1091,139 @@ export default function Profile() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setImportDialogOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Code Display Dialog */}
+      <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5" />
+              QR Backup
+            </DialogTitle>
+            <DialogDescription>
+              Scan this QR code on another device to restore your accounts.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {qrCodeDataUrl && (
+            <div className="flex justify-center py-4">
+              <img src={qrCodeDataUrl} alt="Backup QR Code" className="max-w-full" />
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setQrDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Scanner Dialog */}
+      <Dialog open={qrScanDialogOpen} onOpenChange={(open) => {
+        if (!open) stopCamera();
+        setQrScanDialogOpen(open);
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="w-5 h-5" />
+              Scan QR Backup
+            </DialogTitle>
+            <DialogDescription>
+              Point your camera at the QR backup code.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="relative aspect-square bg-black rounded-lg overflow-hidden">
+            <video 
+              ref={videoRef} 
+              className="w-full h-full object-cover"
+              playsInline
+              muted
+            />
+            <canvas ref={canvasRef} className="hidden" />
+            <div className="absolute inset-0 border-2 border-white/30 rounded-lg pointer-events-none">
+              <div className="absolute inset-8 border-2 border-primary rounded-lg" />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => {
+              stopCamera();
+              setQrScanDialogOpen(false);
+            }}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* QR Import Confirmation Dialog */}
+      <Dialog open={qrImportDialogOpen} onOpenChange={setQrImportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <QrCode className="w-5 h-5" />
+              Restore from QR
+            </DialogTitle>
+            <DialogDescription>
+              Review the scanned backup before restoring.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {importPreview && (
+            <div className="space-y-4 py-4">
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Created:</span>
+                  <span>{importPreview.manifest.createdAt}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Accounts:</span>
+                  <span>{importPreview.walletCount}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Choose restore mode:</p>
+                <div className="grid gap-3">
+                  <Button
+                    onClick={() => handleQRRestore('replace')}
+                    variant="default"
+                    className="w-full justify-start"
+                    data-testid="button-qr-restore-replace"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Replace All</div>
+                      <div className="text-xs opacity-80">Clear existing accounts and restore from QR</div>
+                    </div>
+                  </Button>
+                  <Button
+                    onClick={() => handleQRRestore('merge')}
+                    variant="outline"
+                    className="w-full justify-start"
+                    data-testid="button-qr-restore-merge"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    <div className="text-left">
+                      <div className="font-medium">Merge</div>
+                      <div className="text-xs opacity-80">Add new accounts, keep existing ones</div>
+                    </div>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setQrImportDialogOpen(false)}>
               Cancel
             </Button>
           </DialogFooter>
