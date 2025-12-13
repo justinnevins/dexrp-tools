@@ -107,9 +107,4 @@ export const COMMON_TOKENS: CommonToken[] = [
     currency: CURRENCY_CODES.SOLO_HEX,
     mainnetIssuer: TOKEN_ISSUERS.SOLO_MAINNET,
   },
-  {
-    name: 'CasinoCoin (CSC)',
-    currency: 'CSC',
-    mainnetIssuer: TOKEN_ISSUERS.CSC_MAINNET,
-  },
 ];
