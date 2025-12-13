@@ -413,7 +413,7 @@ export default function Assets() {
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </Button>
-          {viewMode === 'current' && !isWatchOnly && (
+          {currentWallet && !isWatchOnly && (
             <Button 
               variant="outline" 
               size="sm"
