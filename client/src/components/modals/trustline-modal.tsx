@@ -11,6 +11,7 @@ import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { queryClient } from '@/lib/queryClient';
 import { COMMON_TOKENS } from '@/lib/constants';
+import { encodeCurrency } from '@/lib/xrpl-currency';
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
   try {
@@ -152,14 +153,14 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       return;
     }
 
-    // Validate currency format: either 3 chars OR 40 hex chars
-    const isStandardCurrency = /^[A-Z]{3}$/.test(currency);
+    // Validate currency format: 1-20 alphanumeric chars OR 40 hex chars
+    const isAlphanumericCurrency = /^[A-Za-z0-9]{1,20}$/.test(currency);
     const isHexCurrency = /^[0-9A-F]{40}$/i.test(currency);
     
-    if (!isStandardCurrency && !isHexCurrency) {
+    if (!isAlphanumericCurrency && !isHexCurrency) {
       toast({
         title: "Invalid Currency Code",
-        description: "Currency must be either a 3-letter code (e.g., USD) or a 40-character hex code (e.g., 524C555344...)",
+        description: "Currency must be 1-20 alphanumeric characters (e.g., USD, CORE) or a 40-character hex code",
         variant: "destructive",
       });
       return;
@@ -178,11 +179,13 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       }
 
+      const encodedCurrency = encodeCurrency(currency);
+      
       const trustSetTransaction = {
         Account: currentWallet.address,
         TransactionType: "TrustSet",
         LimitAmount: {
-          currency: currency,
+          currency: encodedCurrency,
           issuer: issuer,
           value: limit
         },
@@ -421,14 +424,14 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                 <Input
                   id="currency"
                   type="text"
-                  placeholder="USD or 524C555344000000000000000000000000000000"
+                  placeholder="USD, CORE, RLUSD..."
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                   className="touch-target font-mono"
                   maxLength={40}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Standard codes (3 chars) or hex codes (40 chars)
+                  1-20 characters (e.g., USD, CORE) or 40-char hex code
                 </p>
               </div>
 
