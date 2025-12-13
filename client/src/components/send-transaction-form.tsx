@@ -329,15 +329,7 @@ export function SendTransactionForm({
         description: "Scan the QR code with your Keystone 3 Pro to sign the transaction",
       });
 
-      // Wait for user to scan QR code and sign with Keystone device
-      setCurrentStep('signing');
-      
       setPendingTransactionData(data);
-      
-      toast({
-        title: "Waiting for Signature",
-        description: "After signing on your Keystone device, scan the signed transaction QR code",
-      });
 
     } catch (error) {
       toast({
@@ -472,7 +464,7 @@ export function SendTransactionForm({
         description: error instanceof Error ? error.message : "Failed to submit signed transaction",
         variant: "destructive",
       });
-      setCurrentStep('signing');
+      setCurrentStep('qr-display');
     } finally {
       setIsSubmitting(false);
       processingSignatureRef.current = false;
@@ -729,26 +721,16 @@ export function SendTransactionForm({
             
             <div className="text-center space-y-2">
               {currentStep === 'qr-display' && (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    1. Open the XRP app on your Keystone 3 Pro
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    2. Scan this QR code with your device
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    3. Verify and sign the transaction
-                  </p>
-                </>
-              )}
-              
-              {currentStep === 'signing' && (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <CheckCircle className="w-6 h-6 text-green-500 mx-auto" />
-                    <p className="text-sm font-medium">Transaction Signed</p>
                     <p className="text-sm text-muted-foreground">
-                      Now scan the signed transaction QR code from your Keystone 3 Pro
+                      1. Open the XRP app on your Keystone 3 Pro
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      2. Scan this QR code with your device
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      3. Verify and sign the transaction
                     </p>
                   </div>
                   <Button 
@@ -788,7 +770,7 @@ export function SendTransactionForm({
               onClick={handleQRDialogClose} 
               variant="outline" 
               className="w-full"
-              disabled={currentStep === 'signing' || currentStep === 'submitting'}
+              disabled={currentStep === 'submitting'}
             >
               {currentStep === 'complete' ? 'Close' : 'Cancel Transaction'}
             </Button>
