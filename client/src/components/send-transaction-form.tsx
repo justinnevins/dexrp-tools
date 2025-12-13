@@ -721,26 +721,13 @@ export function SendTransactionForm({
             
             <div className="text-center space-y-2">
               {currentStep === 'qr-display' && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm text-muted-foreground">
-                      1. Open the XRP app on your Keystone 3 Pro
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      2. Scan this QR code with your device
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      3. Verify and sign the transaction
-                    </p>
-                  </div>
-                  <Button 
-                    onClick={() => setShowSignedQRScanner(true)}
-                    className="w-full"
-                  >
-                    <Camera className="w-4 h-4 mr-2" />
-                    Scan Signed Transaction
-                  </Button>
-                </div>
+                <Button 
+                  onClick={() => setShowSignedQRScanner(true)}
+                  className="w-full"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Scan Signed Transaction
+                </Button>
               )}
               
               {currentStep === 'submitting' && (
