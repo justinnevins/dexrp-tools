@@ -49,7 +49,12 @@ export const TOKEN_ISSUERS = {
   USDC_MAINNET: 'rGm7WCVp9gb4jZHWTEtGUr4dd74z2XuWhE',
   USDC_TESTNET: 'rHuGNhqTG32mfmAvWA8hUyWRLV3tCSwKQt',
   SOLO_MAINNET: 'rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz',
-  CSC_MAINNET: 'rCSCManTZ8ME9EoLrSHHYKW8PPwWMgkwr',
+  CORE_MAINNET: 'rcoreNywaoz2ZCQ8Lg2EbSLnGuRBmun6D',
+  FUZZY_MAINNET: 'rhCAT4hRdi2Y9puNdkpMzxrdKa5wkppR62',
+  PHNIX_MAINNET: 'rDFXbW2ZZCG5WgPtqwNiA2xZokLMm9ivmN',
+  ARMY_MAINNET: 'rGG3wQ4KUzd7jnMk1n5nwPZjjuT62kcbfc',
+  REAL_MAINNET: 'rKVyXn1AhqMTvNA9hS6XkFjQNn2VE8Nz88',
+  XRPH_MAINNET: 'rM8hNqA3jRJ5Zgp3Xf3xzdZcx2G37guiZk',
 };
 
 interface CommonToken {
@@ -106,5 +111,35 @@ export const COMMON_TOKENS: CommonToken[] = [
     name: 'Sologenic (SOLO)',
     currency: CURRENCY_CODES.SOLO_HEX,
     mainnetIssuer: TOKEN_ISSUERS.SOLO_MAINNET,
+  },
+  {
+    name: 'Coreum (CORE)',
+    currency: 'CORE',
+    mainnetIssuer: TOKEN_ISSUERS.CORE_MAINNET,
+  },
+  {
+    name: 'FUZZY',
+    currency: 'FUZZY',
+    mainnetIssuer: TOKEN_ISSUERS.FUZZY_MAINNET,
+  },
+  {
+    name: 'Phoenix (PHNIX)',
+    currency: 'PHNIX',
+    mainnetIssuer: TOKEN_ISSUERS.PHNIX_MAINNET,
+  },
+  {
+    name: 'ARMY',
+    currency: 'ARMY',
+    mainnetIssuer: TOKEN_ISSUERS.ARMY_MAINNET,
+  },
+  {
+    name: 'REAL',
+    currency: 'REAL',
+    mainnetIssuer: TOKEN_ISSUERS.REAL_MAINNET,
+  },
+  {
+    name: 'XRP Healthcare (XRPH)',
+    currency: 'XRPH',
+    mainnetIssuer: TOKEN_ISSUERS.XRPH_MAINNET,
   },
 ];
