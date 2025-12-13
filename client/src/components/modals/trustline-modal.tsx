@@ -293,25 +293,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                       key={trustline.id}
                       className="bg-muted rounded-xl p-4"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                            {trustline.currency.slice(0, 3)}
-                          </div>
-                          <div>
-                            <p className="font-medium">{trustline.currency} ({trustline.issuerName})</p>
-                            <p className="text-sm text-muted-foreground">
-                              Balance: {formatBalance(trustline.balance)} {trustline.currency}
-                            </p>
-                          </div>
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {trustline.currency.slice(0, 3)}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary text-sm font-medium"
-                        >
-                          Manage
-                        </Button>
+                        <div>
+                          <p className="font-medium">{trustline.currency} ({trustline.issuerName})</p>
+                          <p className="text-sm text-muted-foreground">
+                            Balance: {formatBalance(trustline.balance)} {trustline.currency}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Limit: {formatBalance(trustline.limit)} {trustline.currency}
