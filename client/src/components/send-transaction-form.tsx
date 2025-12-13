@@ -685,7 +685,7 @@ export function SendTransactionForm({
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Send Transaction
+                    Sign Transaction
                   </>
                 )}
               </Button>
