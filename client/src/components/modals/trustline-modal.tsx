@@ -265,21 +265,28 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       <DialogContent className="max-w-md mx-auto max-h-[80vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-border sticky top-0 bg-background">
           <DialogTitle className="text-lg font-semibold">Trustline Manager</DialogTitle>
+          {currentWallet && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Wallet: {currentWallet.name} ({currentWallet.address.slice(0, 8)}...{currentWallet.address.slice(-6)})
+            </p>
+          )}
         </DialogHeader>
         
         <div className="pt-4 pb-6">
+          <div className="mb-6">
+            <Button
+              onClick={() => setShowAddForm(true)}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
+              disabled={showAddForm}
+              data-testid="button-add-trustline"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add New Trustline
+            </Button>
+          </div>
+
           {!showAddForm ? (
             <>
-              <div className="mb-6">
-                <Button
-                  onClick={() => setShowAddForm(true)}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 mb-4 touch-target"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add New Trustline
-                </Button>
-              </div>
-              
               <h4 className="font-semibold mb-3">Active Trustlines</h4>
               
               {trustlines.length === 0 ? (
