@@ -103,7 +103,7 @@ export function ReceiveModal({ isOpen, onClose }: ReceiveModalProps) {
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-md mx-auto">
           <DialogHeader className="pb-4 border-b border-border">
-            <DialogTitle className="text-lg font-semibold">Receive XRP</DialogTitle>
+            <DialogTitle className="text-lg font-semibold">Receive</DialogTitle>
             <DialogDescription className="sr-only">
               Share your XRP address with others to receive payments.
             </DialogDescription>
