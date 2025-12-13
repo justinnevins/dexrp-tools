@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, Shield } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { X, Plus, Shield, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
 import { queryClient } from '@/lib/queryClient';
+import { COMMON_TOKENS } from '@/lib/constants';
+import { encodeCurrency } from '@/lib/xrpl-currency';
 
 async function encodeKeystoneUR(transactionTemplate: any): Promise<{ type: string; cbor: string }> {
   try {
@@ -30,10 +32,11 @@ interface TrustlineModalProps {
 
 export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [tokenMode, setTokenMode] = useState<'select' | 'custom'>('select');
   const [currency, setCurrency] = useState('');
   const [issuer, setIssuer] = useState('');
   const [issuerName, setIssuerName] = useState('');
-  const [limit, setLimit] = useState('');
+  const [limit, setLimit] = useState('1000000000');
   const [showSigner, setShowSigner] = useState(false);
   const [transactionUR, setTransactionUR] = useState<{ type: string; cbor: string } | null>(null);
   const [unsignedTransaction, setUnsignedTransaction] = useState<any>(null);
@@ -61,7 +64,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
   const { toast } = useToast();
 
   // Combine trustlines from database and XRPL
-  const trustlines = [];
+  const trustlines: Array<{
+    id: string;
+    currency: string;
+    rawCurrency: string;
+    issuer: string;
+    issuerName: string;
+    balance: string;
+    limit: string;
+    isActive: boolean;
+  }> = [];
   
   // Add XRPL trustlines
   if (xrplLines?.lines) {
@@ -82,8 +94,43 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
 
   // Add database trustlines if no XRPL data
   if (trustlines.length === 0 && dbTrustlines) {
-    trustlines.push(...dbTrustlines);
+    dbTrustlines.forEach(t => {
+      trustlines.push({
+        id: String(t.id),
+        currency: t.currency,
+        rawCurrency: t.currency,
+        issuer: t.issuer,
+        issuerName: t.issuerName,
+        balance: t.balance,
+        limit: t.limit,
+        isActive: t.isActive,
+      });
+    });
   }
+
+  // Filter common tokens by network and exclude already-added trustlines
+  const availableCommonTokens = useMemo(() => {
+    return COMMON_TOKENS.filter(token => {
+      const issuer = network === 'mainnet' ? token.mainnetIssuer : token.testnetIssuer;
+      if (!issuer) return false;
+      
+      // Check if trustline already exists
+      const alreadyExists = trustlines.some(t => 
+        t.issuer === issuer && (t.rawCurrency === token.currency || t.currency === xrplClient.decodeCurrency(token.currency))
+      );
+      return !alreadyExists;
+    }).map(token => ({
+      ...token,
+      issuer: network === 'mainnet' ? token.mainnetIssuer! : token.testnetIssuer!,
+    }));
+  }, [network, trustlines]);
+
+  const handleSelectToken = (token: { name: string; currency: string; issuer: string }) => {
+    setCurrency(token.currency);
+    setIssuer(token.issuer);
+    setIssuerName(token.name.split('(')[0].trim());
+    setTokenMode('custom');
+  };
 
   const handleAddTrustline = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,14 +153,14 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       return;
     }
 
-    // Validate currency format: either 3 chars OR 40 hex chars
-    const isStandardCurrency = /^[A-Z]{3}$/.test(currency);
+    // Validate currency format: 1-20 alphanumeric chars OR 40 hex chars
+    const isAlphanumericCurrency = /^[A-Za-z0-9]{1,20}$/.test(currency);
     const isHexCurrency = /^[0-9A-F]{40}$/i.test(currency);
     
-    if (!isStandardCurrency && !isHexCurrency) {
+    if (!isAlphanumericCurrency && !isHexCurrency) {
       toast({
         title: "Invalid Currency Code",
-        description: "Currency must be either a 3-letter code (e.g., USD) or a 40-character hex code (e.g., 524C555344...)",
+        description: "Currency must be 1-20 alphanumeric characters (e.g., USD, CORE) or a 40-character hex code",
         variant: "destructive",
       });
       return;
@@ -132,11 +179,13 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       }
 
+      const encodedCurrency = encodeCurrency(currency);
+      
       const trustSetTransaction = {
         Account: currentWallet.address,
         TransactionType: "TrustSet",
         LimitAmount: {
-          currency: currency,
+          currency: encodedCurrency,
           issuer: issuer,
           value: limit
         },
@@ -216,6 +265,11 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       <DialogContent className="max-w-md mx-auto max-h-[80vh] overflow-y-auto">
         <DialogHeader className="pb-4 border-b border-border sticky top-0 bg-background">
           <DialogTitle className="text-lg font-semibold">Trustline Manager</DialogTitle>
+          {currentWallet && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Wallet: {currentWallet.name} ({currentWallet.address.slice(0, 8)}...{currentWallet.address.slice(-6)})
+            </p>
+          )}
         </DialogHeader>
         
         <div className="pt-4 pb-6">
@@ -224,7 +278,8 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
               <div className="mb-6">
                 <Button
                   onClick={() => setShowAddForm(true)}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 mb-4 touch-target"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 touch-target"
+                  data-testid="button-add-trustline"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Add New Trustline
@@ -247,25 +302,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                       key={trustline.id}
                       className="bg-muted rounded-xl p-4"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                            {trustline.currency.slice(0, 3)}
-                          </div>
-                          <div>
-                            <p className="font-medium">{trustline.currency} ({trustline.issuerName})</p>
-                            <p className="text-sm text-muted-foreground">
-                              Balance: {formatBalance(trustline.balance)} {trustline.currency}
-                            </p>
-                          </div>
+                      <div className="flex items-center space-x-3 mb-2">
+                        <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                          {trustline.currency.slice(0, 3)}
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-primary text-sm font-medium"
-                        >
-                          Manage
-                        </Button>
+                        <div>
+                          <p className="font-medium">{trustline.currency} ({trustline.issuerName})</p>
+                          <p className="text-sm text-muted-foreground">
+                            Balance: {formatBalance(trustline.balance)} {trustline.currency}
+                          </p>
+                        </div>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Limit: {formatBalance(trustline.limit)} {trustline.currency}
@@ -275,18 +321,91 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                 </div>
               )}
             </>
-          ) : (
-            <form onSubmit={handleAddTrustline} className="space-y-4">
+          ) : tokenMode === 'select' ? (
+            <div className="space-y-4">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold">Add New Trustline</h4>
+                <h4 className="font-semibold">Select Token</h4>
                 <Button
                   type="button"
-                  onClick={() => setShowAddForm(false)}
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setTokenMode('select');
+                    setCurrency('');
+                    setIssuer('');
+                    setIssuerName('');
+                  }}
                   variant="ghost"
                   size="sm"
                   className="text-muted-foreground"
                 >
                   Cancel
+                </Button>
+              </div>
+
+              {availableCommonTokens.length > 0 ? (
+                <div className="space-y-2">
+                  {availableCommonTokens.map((token) => (
+                    <button
+                      key={`${token.currency}-${token.issuer}`}
+                      type="button"
+                      onClick={() => handleSelectToken(token)}
+                      className="w-full flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors text-left"
+                      data-testid={`token-select-${token.name.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-primary text-sm font-bold">
+                          {xrplClient.decodeCurrency(token.currency).slice(0, 3)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{token.name}</p>
+                          <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                            {token.issuer}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-muted rounded-xl p-4 text-center">
+                  <p className="text-muted-foreground">No common tokens available for {network}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    You may have trustlines for all common tokens already
+                  </p>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-border">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setTokenMode('custom')}
+                  data-testid="button-add-custom-token"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Custom Token
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleAddTrustline} className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-semibold">Add Trustline</h4>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setTokenMode('select');
+                    setCurrency('');
+                    setIssuer('');
+                    setIssuerName('');
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                >
+                  Back
                 </Button>
               </div>
 
@@ -311,14 +430,14 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                 <Input
                   id="currency"
                   type="text"
-                  placeholder="USD or 524C555344000000000000000000000000000000"
+                  placeholder="USD, CORE, RLUSD..."
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                   className="touch-target font-mono"
                   maxLength={40}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Standard codes (3 chars) or hex codes (40 chars)
+                  1-20 characters (e.g., USD, CORE) or 40-char hex code
                 </p>
               </div>
 
@@ -357,13 +476,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
                 <Input
                   id="limit"
                   type="number"
-                  placeholder="10000"
+                  placeholder="1000000000"
                   value={limit}
                   onChange={(e) => setLimit(e.target.value)}
                   className="touch-target"
                   step="0.01"
                   min="0"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Maximum amount you trust the issuer to hold (default: 1 billion)
+                </p>
               </div>
 
               <Button
