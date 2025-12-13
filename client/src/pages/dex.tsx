@@ -7,7 +7,6 @@ import { useAccountOffers, useAccountInfo, useAccountLines } from '@/hooks/use-x
 import { useToast } from '@/hooks/use-toast';
 import { xrplClient } from '@/lib/xrpl-client';
 import { KeystoneTransactionSigner } from '@/components/keystone-transaction-signer';
-import { COMMON_TOKENS } from '@/lib/constants';
 
 import { useDexOrder } from '@/hooks/use-dex-order';
 import { useDexTransaction } from '@/hooks/use-dex-transaction';
@@ -59,25 +58,8 @@ export default function DEX() {
         });
     }
 
-    COMMON_TOKENS.forEach(token => {
-      const issuer = network === 'mainnet' ? token.mainnetIssuer : token.testnetIssuer;
-      if (issuer) {
-        const alreadyExists = currencies.some(
-          c => c.issuer === issuer && c.value.startsWith(token.currency + ':')
-        );
-        if (!alreadyExists) {
-          currencies.push({
-            label: token.name,
-            value: `${token.currency}:${issuer}`,
-            issuer,
-            key: `${token.currency}-${issuer}`
-          });
-        }
-      }
-    });
-
     return currencies;
-  }, [accountLines, network]);
+  }, [accountLines]);
 
   const handleFormSubmit = (e: React.FormEvent) => {
     transactionHook.handleCreateOffer(e, {
