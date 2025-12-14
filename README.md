@@ -205,7 +205,7 @@ Contributions are welcome! Please ensure:
 
 ## License
 
-This project is open source and available under the MIT License.
+*TBD: This project is open source and available under the ____ License.
 
 ## Support
 
