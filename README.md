@@ -205,7 +205,16 @@ Contributions are welcome! Please ensure:
 
 ## License
 
-This project is open source and available under the MIT License.
+This project is licensed under the **Sustainable Use License 1.0** (SUL-1.0).
+
+This is a source-available license that allows:
+- Personal and non-commercial use
+- Studying and modifying the code
+- Non-commercial distribution
+
+Commercial use requires a separate license. See the [LICENSE](LICENSE) file for full terms.
+
+For commercial licensing inquiries, contact: justin@dexrp.me
 
 ## Support
 
