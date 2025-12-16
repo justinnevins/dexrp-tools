@@ -66,7 +66,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-gray-800 pt-4 sm:pt-6">
-          <p className="text-center text-gray-500 text-xs sm:text-sm">© 2025 DEXrp Tools — Self-custodial XRPL Tools by CarbonVibe</p>
+          <p className="text-center text-gray-500 text-xs sm:text-sm">© 2025 DEXrp Tools  |  Self-custodial XRPL Tools by CarbonVibe</p>
         </div>
       </div>
     </div>
