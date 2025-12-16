@@ -189,7 +189,7 @@ Configure custom XRPL endpoints in Settings:
 - `client/src/lib/keystone-client.ts` - Keystone hardware wallet SDK operations
 - `client/src/components/keystone-transaction-signer.tsx` - Hardware wallet integration
 - `client/src/components/modals/watch-only-address-modal.tsx` - Watch-only wallet management
-- `server/routes.ts` - Backend API with transaction submission and XRPL proxy
+- `server/routes.ts` - Backend API endpoints
 
 ## Contributing
 
