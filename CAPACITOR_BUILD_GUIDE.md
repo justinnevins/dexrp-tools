@@ -14,21 +14,21 @@
 1. ✅ Installed Capacitor core packages (@capacitor/core, @capacitor/cli, @capacitor/android, @capacitor/ios)
 2. ✅ Created `capacitor.config.ts` with app configuration
 3. ✅ Added platform detection utility (`client/src/lib/platform.ts`)
-4. ✅ Modified XRPL client to bypass CORS proxy on native apps (direct JSON-RPC requests)
+4. ✅ XRPL client uses WebSocket connections for all platforms
 5. ✅ Installed native barcode scanning plugin (@capacitor-mlkit/barcode-scanning)
 6. ✅ Created Android and iOS project folders with proper package names
 
 ## Key Features
 
 ### Standalone Operation
-- Native apps make **direct requests** to XRPL nodes (no backend proxy needed)
+- Native apps connect directly to XRPL nodes via WebSocket
 - All data is stored in browser/native storage (no database dependency)
 - The APK/IPA works completely offline from your Replit backend
 
 ### Platform Detection
 The app automatically detects if it's running as:
-- Web browser (uses CORS proxy for JSON-RPC)
-- Native Android/iOS (bypasses proxy, makes direct requests)
+- Web browser
+- Native Android/iOS
 
 ## Building the Android APK
 

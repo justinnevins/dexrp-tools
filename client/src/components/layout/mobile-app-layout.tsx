@@ -220,7 +220,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <Coins className="w-4 h-4 text-white" />
             </div>
-            <h1 className="text-lg font-semibold">DEXrp Wallet</h1>
+            <h1 className="text-lg font-semibold">DEXrp Tools</h1>
           </div>
         </div>
         

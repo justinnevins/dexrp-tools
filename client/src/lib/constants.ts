@@ -3,8 +3,6 @@ export const XRPL_ENDPOINTS = {
   TESTNET_WS: import.meta.env.VITE_XRPL_TESTNET_WS || 'wss://s.altnet.rippletest.net:51233',
   MAINNET_WS_FULL_HISTORY: import.meta.env.VITE_XRPL_MAINNET_WS_FULL_HISTORY || 'wss://s1.ripple.com:51234',
   TESTNET_WS_FULL_HISTORY: import.meta.env.VITE_XRPL_TESTNET_WS_FULL_HISTORY || 'wss://s.altnet.rippletest.net:51234',
-  MAINNET_HTTP: import.meta.env.VITE_XRPL_MAINNET_HTTP || 'https://s1.ripple.com:51234',
-  TESTNET_HTTP: import.meta.env.VITE_XRPL_TESTNET_HTTP || 'https://s.altnet.rippletest.net:51234',
 };
 
 export const EXPLORER_URLS = {

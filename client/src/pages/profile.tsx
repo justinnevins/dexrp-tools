@@ -789,7 +789,7 @@ export default function Profile() {
             <AccordionContent className="px-6 pb-6 pt-0">
               <div className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground mb-4">Configure custom XRPL node (JSON-RPC or WebSocket). Supports custom ports. Leave empty to use defaults.</p>
+                  <p className="text-sm text-muted-foreground mb-4">Configure custom XRPL WebSocket node. Supports custom ports. Leave empty to use defaults.</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -800,13 +800,13 @@ export default function Profile() {
                   <Input
                     id="mainnet-node"
                     type="text"
-                    placeholder="https://s1.ripple.com:51234"
+                    placeholder="wss://xrplcluster.com"
                     value={customMainnetNode}
                     onChange={(e) => setCustomMainnetNode(e.target.value)}
                     data-testid="input-mainnet-node"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Examples: https://s1.ripple.com:51234 or wss://xrplcluster.com
+                    Example: wss://xrplcluster.com
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Default: {xrplClient.getEndpoint('mainnet')}
@@ -821,13 +821,13 @@ export default function Profile() {
                   <Input
                     id="testnet-node"
                     type="text"
-                    placeholder="https://s.altnet.rippletest.net:51234"
+                    placeholder="wss://s.altnet.rippletest.net:51233"
                     value={customTestnetNode}
                     onChange={(e) => setCustomTestnetNode(e.target.value)}
                     data-testid="input-testnet-node"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Examples: https://s.altnet.rippletest.net:51234 or wss://s.altnet.rippletest.net:51233
+                    Example: wss://s.altnet.rippletest.net:51233
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Default: {xrplClient.getEndpoint('testnet')}
@@ -847,13 +847,13 @@ export default function Profile() {
                       <Input
                         id="full-history-mainnet-node"
                         type="text"
-                        placeholder="https://s1.ripple.com:51234"
+                        placeholder="wss://s1.ripple.com:51234"
                         value={fullHistoryMainnetNode}
                         onChange={(e) => setFullHistoryMainnetNode(e.target.value)}
                         data-testid="input-full-history-mainnet-node"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Default: https://s1.ripple.com:51234
+                        Default: wss://s1.ripple.com:51234
                       </p>
                     </div>
                     
@@ -865,13 +865,13 @@ export default function Profile() {
                       <Input
                         id="full-history-testnet-node"
                         type="text"
-                        placeholder="https://s.altnet.rippletest.net:51234"
+                        placeholder="wss://s.altnet.rippletest.net:51234"
                         value={fullHistoryTestnetNode}
                         onChange={(e) => setFullHistoryTestnetNode(e.target.value)}
                         data-testid="input-full-history-testnet-node"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Default: https://s.altnet.rippletest.net:51234
+                        Default: wss://s.altnet.rippletest.net:51234
                       </p>
                     </div>
                   </div>

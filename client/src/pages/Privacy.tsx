@@ -46,12 +46,7 @@ export default function Privacy() {
 
           <section>
             <h2 className="text-xl font-semibold text-white mb-3">How DEXrp Works</h2>
-            <p className="leading-relaxed">
-              All wallet data is stored locally in your browser's storage. Your private keys never leave your 
-              Keystone 3 Pro hardware wallet. Transactions are signed offline via QR codes, ensuring complete 
-              air-gapped security. We connect directly to XRPL nodes to fetch public blockchain data — no 
-              intermediary servers are involved.
-            </p>
+            <p className="leading-relaxed">All wallet data is stored locally in your browser's storage. Your private keys never leave your Keystone 3 Pro hardware wallet. Transactions are signed offline via QR codes, ensuring complete air-gapped security. Your browser connects directly to XRPL nodes to fetch public blockchain data — no intermediary servers are involved.</p>
           </section>
 
           <section>

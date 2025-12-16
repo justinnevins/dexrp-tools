@@ -32,11 +32,6 @@ class XRPLClient {
     mainnet: XRPL_ENDPOINTS.MAINNET_WS_FULL_HISTORY,
     testnet: XRPL_ENDPOINTS.TESTNET_WS_FULL_HISTORY
   };
-  
-  private fallbackFullHistoryEndpoints = {
-    mainnet: XRPL_ENDPOINTS.MAINNET_HTTP,
-    testnet: XRPL_ENDPOINTS.TESTNET_HTTP
-  };
 
   private customEndpoints: {
     mainnet?: string;
@@ -331,9 +326,7 @@ class XRPLClient {
         }
       }
       
-      const fallbackHttps = this.fallbackFullHistoryEndpoints[network];
       let fallbackConnector: XRPLConnector | null = null;
-      
       try {
         fallbackConnector = createConnector(defaultFullHistory);
         await fallbackConnector.connect();
@@ -342,21 +335,7 @@ class XRPLClient {
         if (wsError.data?.error === 'actNotFound' || wsError.error === 'actNotFound') {
           return { transactions: [], account: address, marker: undefined };
         }
-        if (fallbackConnector) {
-          try { await fallbackConnector.disconnect(); } catch {}
-          fallbackConnector = null;
-        }
-      }
-      
-      try {
-        fallbackConnector = createConnector(fallbackHttps);
-        await fallbackConnector.connect();
-        return await makeRequest(fallbackConnector);
-      } catch (fallbackError: any) {
-        if (fallbackError.data?.error === 'actNotFound' || fallbackError.error === 'actNotFound') {
-          return { transactions: [], account: address, marker: undefined };
-        }
-        throw fallbackError;
+        throw wsError;
       } finally {
         if (fallbackConnector) {
           try { await fallbackConnector.disconnect(); } catch {}
@@ -364,25 +343,9 @@ class XRPLClient {
       }
     }
     
-    const fallbackHttps = this.fallbackFullHistoryEndpoints[network];
     let connector: XRPLConnector | null = null;
-    
     try {
       connector = createConnector(defaultFullHistory);
-      await connector.connect();
-      return await makeRequest(connector);
-    } catch (wsError: any) {
-      if (wsError.data?.error === 'actNotFound' || wsError.error === 'actNotFound') {
-        return { transactions: [], account: address, marker: undefined };
-      }
-      if (connector) {
-        try { await connector.disconnect(); } catch {}
-        connector = null;
-      }
-    }
-    
-    try {
-      connector = createConnector(fallbackHttps);
       await connector.connect();
       return await makeRequest(connector);
     } catch (error: any) {
