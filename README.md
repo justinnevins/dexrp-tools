@@ -10,7 +10,7 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 - **Hardware Wallet Security**: Integration with Keystone 3 Pro for air-gapped transaction signing
 - **Watch-Only Wallets**: View any XRPL address balance and transactions without signing capabilities
 - **Multi-Network Support**: Per-wallet configuration for both Mainnet and Testnet
-- **Custom Node Configuration**: Support for both WebSocket (ws/wss) and JSON-RPC (http/https) XRPL endpoints
+- **Custom Node Configuration**: Support for custom WebSocket (ws/wss) XRPL endpoints
 - **Full Transaction History**: Dedicated full-history server support with automatic fallback
 - **Real-Time DEX Pricing**: Live XRP/RLUSD price sourced directly from XRPL DEX order book
 
@@ -63,11 +63,8 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 
 ## Architecture Highlights
 
-### Protocol Auto-Detection
-Automatically detects and handles both WebSocket and JSON-RPC XRPL endpoints:
-- WebSocket connections for real-time updates
-- JSON-RPC support with CORS proxy for custom nodes
-- Seamless switching between protocols based on URL
+### WebSocket Connections
+All XRPL communication uses WebSocket connections for real-time updates and efficient data transfer.
 
 ### Full-History Server Strategy
 Ensures complete transaction history with intelligent fallback:
@@ -110,16 +107,16 @@ npm run dev
 ### Configuration
 
 #### Custom XRPL Nodes
-Configure custom XRPL endpoints in Settings:
-- **Mainnet Node**: Your preferred mainnet WebSocket or JSON-RPC endpoint
-- **Testnet Node**: Your preferred testnet WebSocket or JSON-RPC endpoint
+Configure custom WebSocket endpoints in Settings:
+- **Mainnet Node**: Your preferred mainnet WebSocket endpoint
+- **Testnet Node**: Your preferred testnet WebSocket endpoint
 - **Full-History Servers**: Optional dedicated servers for complete transaction history
 
 #### Default Endpoints
 - **Mainnet**: wss://xrplcluster.com
 - **Testnet**: wss://s.altnet.rippletest.net:51233
-- **Mainnet Full-History**: https://s1.ripple.com:51234
-- **Testnet Full-History**: https://s.altnet.rippletest.net:51234
+- **Mainnet Full-History**: wss://s1.ripple.com:51234
+- **Testnet Full-History**: wss://s.altnet.rippletest.net:51234
 
 ## Usage
 
@@ -167,7 +164,6 @@ Configure custom XRPL endpoints in Settings:
 - **Custom Node Support**: Connect to your own trusted XRPL validators
 - **Protocol Verification**: Transaction details displayed for verification before signing
 - **Watch-Only Protection**: Multiple layers prevent accidental signing with watch-only addresses
-- **SSRF Protection**: Backend proxy includes comprehensive protection against server-side request forgery attacks
 
 ## Development
 
@@ -188,12 +184,12 @@ Configure custom XRPL endpoints in Settings:
 ```
 
 ### Key Files
-- `client/src/lib/xrpl-client.ts` - XRPL connection management with protocol auto-detection
+- `client/src/lib/xrpl-client.ts` - XRPL WebSocket connection management
 - `client/src/lib/browser-storage.ts` - Client-side data persistence
 - `client/src/lib/keystone-client.ts` - Keystone hardware wallet SDK operations
 - `client/src/components/keystone-transaction-signer.tsx` - Hardware wallet integration
 - `client/src/components/modals/watch-only-address-modal.tsx` - Watch-only wallet management
-- `server/routes.ts` - Backend API with transaction submission and XRPL proxy
+- `server/routes.ts` - Backend API endpoints
 
 ## Contributing
 
