@@ -1,5 +1,5 @@
 {
-  "name": "DEXrp - XRPL DEX Trading",
+  "name": "DEXrp Tools - Self-custodial XRPL Tools",
   "short_name": "DEXrp",
   "description": "Secure XRPL DEX trading with hardware wallet integration via Keystone 3 Pro",
   "theme_color": "#3B82F6",
