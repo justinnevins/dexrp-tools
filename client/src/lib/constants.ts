@@ -10,10 +10,6 @@ export const EXPLORER_URLS = {
   XRPSCAN_TESTNET: import.meta.env.VITE_XRPSCAN_TESTNET_URL || 'https://testnet.xrpscan.com',
 };
 
-export const PRICE_API = {
-  INFTF_BASE_URL: import.meta.env.VITE_INFTF_API_URL || 'https://xrpldata.inftf.org/v1/iou/exchange_rates',
-};
-
 export const RLUSD_ISSUERS = {
   MAINNET: 'rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De',
   TESTNET: 'rQhWct2fv4Vc4KRjRgMrxa8xPN9Zx9iLKV',

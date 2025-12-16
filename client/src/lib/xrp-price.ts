@@ -1,5 +1,5 @@
 import { xrplClient } from './xrpl-client';
-import { PRICE_API, RLUSD_ISSUERS, GATEHUB_ISSUERS, CURRENCY_CODES } from './constants';
+import { RLUSD_ISSUERS, CURRENCY_CODES } from './constants';
 
 export interface XRPPriceData {
   price: number;
@@ -15,61 +15,6 @@ export interface DEXPriceData {
   currency: string;
   issuer: string;
   timestamp: number;
-}
-
-interface InFTFExchangeRate {
-  rate: number;
-  ledger_index: number;
-  tx_hash: string;
-  timestamp: string;
-}
-
-/**
- * Fetches XRP price from InFTF XRPL Data API
- * Uses actual executed trade rates for accuracy
- */
-export async function fetchXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet'): Promise<XRPPriceData | null> {
-  try {
-    const currentNetwork = network;
-    
-    let counter: string;
-    let currency: string;
-    let issuer: string;
-
-    if (currentNetwork === 'mainnet') {
-      counter = `${GATEHUB_ISSUERS.USD_MAINNET}_USD`;
-      currency = 'USD';
-      issuer = GATEHUB_ISSUERS.USD_MAINNET;
-    } else {
-      counter = `${RLUSD_ISSUERS.TESTNET}_RLUSD`;
-      currency = 'RLUSD';
-      issuer = RLUSD_ISSUERS.TESTNET;
-    }
-
-    const url = `${PRICE_API.INFTF_BASE_URL}/XRP/${counter}`;
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error(`InFTF API error: ${response.status}`);
-    }
-
-    const data: InFTFExchangeRate = await response.json();
-
-    if (!data.rate || data.rate === 0) {
-      return null;
-    }
-
-    return {
-      price: data.rate,
-      currency,
-      issuer,
-      timestamp: new Date(data.timestamp).getTime(),
-      ledgerIndex: data.ledger_index,
-      txHash: data.tx_hash
-    };
-  } catch {
-    return null;
-  }
 }
 
 /**
