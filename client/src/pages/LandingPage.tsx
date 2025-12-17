@@ -3,8 +3,8 @@ import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalL
 import { useState } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 
-const DONATION_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
-const DEFAULT_DONATION_AMOUNT = '2';
+const TIP_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
+const DEFAULT_TIP_AMOUNT = '2';
 
 const IS_MOBILE_APP = import.meta.env.VITE_IS_MOBILE_APP === 'true';
 
@@ -184,7 +184,7 @@ export default function LandingPage() {
             DEXrp is free to use. If you find it useful, consider supporting its development with a tip in XRP, RLUSD, or USDC.
           </p>
           <a
-            href={`/send?tip=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Tip`}
+            href={`/send?tip=true&destination=${TIP_ADDRESS}&amount=${DEFAULT_TIP_AMOUNT}&currency=XRP&memo=DEXrp%20Tip`}
             className="inline-flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
             data-testid="button-tip"
           >

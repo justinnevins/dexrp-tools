@@ -1,8 +1,8 @@
 import { Heart } from 'lucide-react';
 import { SiGithub } from 'react-icons/si';
 
-const DONATION_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
-const DEFAULT_DONATION_AMOUNT = '2';
+const TIP_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
+const DEFAULT_TIP_AMOUNT = '2';
 const KEYSTONE_AFFILIATE_URL = 'https://keyst.one/?rfsn=8924031.c9a3ff&utm_source=refersion&utm_medium=affiliate&utm_campaign=8924031.c9a3ff';
 const GITHUB_URL = 'https://github.com/justinnevins/dexrp-tools';
 
@@ -30,7 +30,7 @@ export function Footer() {
             Get Keystone
           </a>
           <a 
-            href={`/send?tip=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Tip`}
+            href={`/send?tip=true&destination=${TIP_ADDRESS}&amount=${DEFAULT_TIP_AMOUNT}&currency=XRP&memo=DEXrp%20Tip`}
             className="text-gray-400 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center justify-center gap-1" 
             data-testid="footer-tip"
           >
