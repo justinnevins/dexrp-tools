@@ -1,8 +1,10 @@
-# DEXrp - XRPL DEX Trading App
+# DEXrp Tools - Community Edition
 
-A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro hardware wallet integration using QR code-based air-gapped transaction signing. More air-gapped wallet support coming soon!
+A free, self-hostable XRP Ledger (XRPL) wallet and DEX trading PWA with Keystone 3 Pro hardware wallet integration using QR code-based air-gapped transaction signing.
 
-**Web Domain**: [dexrp.me](https://dexrp.me)
+**Community Edition** - Run your own instance without trusting any third party. All data stays in your browser.
+
+**Live Demo**: [dexrp.me](https://dexrp.me)
 
 ## Features
 
@@ -48,7 +50,7 @@ A secure, mobile-optimized XRP Ledger (XRPL) DEX trading app with Keystone 3 Pro
 - **State Management**: TanStack Query
 - **Routing**: Wouter
 - **Data Storage**: Browser localStorage (no backend database required!)
-- **Mobile Apps**: Capacitor for native Android and iOS builds
+- **PWA Support**: Install as a Progressive Web App on any device
 
 ### Backend
 - **Server**: Express.js with TypeScript
@@ -78,13 +80,15 @@ Each wallet maintains its own network setting (Mainnet/Testnet), enabling:
 - Independent custom node configuration per wallet
 - Network-specific transaction history and balance tracking
 
-## Getting Started
+## Self-Hosting
+
+DEXrp Tools is designed to be self-hosted. Run your own instance and never trust a third party with your wallet data.
 
 ### Prerequisites
 - Node.js 18+ installed
-- A Keystone 3 Pro hardware wallet (required for transaction signing)
+- A Keystone 3 Pro hardware wallet (for transaction signing) or use watch-only mode
 
-### Installation
+### Quick Start
 
 1. Clone the repository:
 ```bash
@@ -97,12 +101,23 @@ cd dexrp-tools
 npm install
 ```
 
-3. Start the development server:
+3. Start the server:
 ```bash
 npm run dev
 ```
 
 4. Open your browser and navigate to the provided local URL
+
+### Production Deployment
+
+For production deployment, build and serve the static files:
+
+```bash
+npm run build
+npm start
+```
+
+The app can be deployed to any hosting platform that supports Node.js (Replit, Vercel, Railway, your own VPS, etc.).
 
 ### Configuration
 

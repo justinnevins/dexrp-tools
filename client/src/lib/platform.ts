@@ -1,17 +1,11 @@
-import { Capacitor } from '@capacitor/core';
-
 export const isNativeApp = (): boolean => {
-  return Capacitor.isNativePlatform();
+  return false;
 };
 
 export const isWeb = (): boolean => {
-  return !Capacitor.isNativePlatform();
+  return true;
 };
 
-export const getPlatform = (): 'ios' | 'android' | 'web' => {
-  const platform = Capacitor.getPlatform();
-  if (platform === 'ios' || platform === 'android') {
-    return platform;
-  }
+export const getPlatform = (): 'web' => {
   return 'web';
 };

@@ -1,7 +1,4 @@
 import JSZip from 'jszip';
-import { Capacitor } from '@capacitor/core';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { Share } from '@capacitor/share';
 import QRCode from 'qrcode';
 
 export interface BackupResult {
@@ -94,29 +91,8 @@ export async function downloadBackup(blob: Blob): Promise<BackupResult> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `dexrp-backup-${timestamp}.zip`;
   
-  if (Capacitor.isNativePlatform()) {
-    return await downloadBackupNative(blob, filename);
-  } else {
-    downloadBackupWeb(blob, filename);
-    return { success: true, filename, location: 'Downloads folder' };
-  }
-}
-
-async function downloadBackupNative(blob: Blob, filename: string): Promise<BackupResult> {
-  const base64Data = await blobToBase64(blob);
-  
-  const result = await Filesystem.writeFile({
-    path: filename,
-    data: base64Data,
-    directory: Directory.Cache,
-  });
-  
-  await Share.share({
-    files: [result.uri],
-    dialogTitle: 'Save Backup File',
-  });
-  
-  return { success: true, filename, location: 'Saved via share' };
+  downloadBackupWeb(blob, filename);
+  return { success: true, filename, location: 'Downloads folder' };
 }
 
 function downloadBackupWeb(blob: Blob, filename: string): void {
@@ -128,19 +104,6 @@ function downloadBackupWeb(blob: Blob, filename: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-}
-
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(',')[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
 
 export async function readBackupFile(file: File): Promise<BackupData> {
