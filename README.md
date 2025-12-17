@@ -219,7 +219,7 @@ For issues or questions:
 - Review the XRPL documentation at https://xrpl.org
 - Check Keystone 3 Pro documentation at https://keyst.one
 
-### Donations
+### Supporting the Project
 
 If you find DEXrp useful, consider sending a tip to support development:
 
