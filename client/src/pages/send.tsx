@@ -12,14 +12,14 @@ export default function Send() {
 
   // Parse URL params for prefilling the form
   const params = new URLSearchParams(search);
-  const isDonation = params.get('donate') === 'true';
+  const isTip = params.get('tip') === 'true';
   const initialDestination = params.get('destination') || '';
   const initialAmount = params.get('amount') || '';
   const initialCurrency = params.get('currency') || 'XRP';
   const initialIssuer = params.get('issuer') || '';
   const initialMemo = params.get('memo') || '';
 
-  const pageTitle = isDonation ? 'Donate to DEXrp' : 'Send XRP';
+  const pageTitle = isTip ? 'Tip DEXrp' : 'Send XRP';
 
   return (
     <div className="px-4 py-6">
@@ -33,16 +33,16 @@ export default function Send() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-2xl font-bold flex items-center gap-2">
-          {isDonation && <Heart className="w-5 h-5 text-pink-500" />}
+          {isTip && <Heart className="w-5 h-5 text-pink-500" />}
           {pageTitle}
         </h1>
       </div>
 
-      {isDonation && (
+      {isTip && (
         <div className="mb-6 p-4 bg-pink-50 dark:bg-pink-950/30 border border-pink-200 dark:border-pink-800 rounded-lg">
           <p className="text-sm text-pink-800 dark:text-pink-200">
-            Thank you for considering a donation! Your support helps keep DEXrp free and maintained.
-            You can donate XRP, RLUSD, or USDC. The form is pre-filled but feel free to adjust the amount.
+            Thank you for considering a tip! Your support helps keep DEXrp free and maintained.
+            You can tip XRP, RLUSD, or USDC. The form is pre-filled but feel free to adjust the amount.
           </p>
         </div>
       )}

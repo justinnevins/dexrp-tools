@@ -3,8 +3,8 @@ import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalL
 import { useState } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 
-const DONATION_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
-const DEFAULT_DONATION_AMOUNT = '2';
+const TIP_ADDRESS = 'rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv';
+const DEFAULT_TIP_AMOUNT = '2';
 
 const IS_MOBILE_APP = import.meta.env.VITE_IS_MOBILE_APP === 'true';
 
@@ -171,7 +171,7 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-      {/* Donate Section */}
+      {/* Tips Section */}
       <div className="px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-16 border-b border-gray-800">
         <div className="max-w-2xl mx-auto text-center">
           <div className="mb-4 flex justify-center">
@@ -181,15 +181,15 @@ export default function LandingPage() {
           </div>
           <h2 className="text-2xl sm:text-3xl font-bold mb-3">Support DEXrp</h2>
           <p className="text-gray-400 mb-6 text-sm sm:text-base px-2">
-            DEXrp is free to use. If you find it useful, consider supporting its development with a donation in XRP, RLUSD, or USDC.
+            DEXrp is free to use. If you find it useful, consider supporting its development with a tip in XRP, RLUSD, or USDC.
           </p>
           <a
-            href={`/send?donate=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Donation`}
+            href={`/send?tip=true&destination=${TIP_ADDRESS}&amount=${DEFAULT_TIP_AMOUNT}&currency=XRP&memo=DEXrp%20Tip`}
             className="inline-flex items-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            data-testid="button-donate"
+            data-testid="button-tip"
           >
             <Heart className="w-5 h-5" />
-            Donate to DEXrp
+            Tip DEXrp
           </a>
           <p className="mt-4 text-xs text-gray-500">
             Default: 2 XRP — adjust the amount as you wish
