@@ -899,15 +899,15 @@ export default function Profile() {
           <div className="flex-1">
             <h2 className="text-lg font-semibold mb-1">Support DEXrp</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              DEXrp is free to use. If you find it helpful, consider supporting its continued development with a donation.
+              DEXrp is free to use. If you find it helpful, consider supporting its continued development with a tip.
             </p>
             <a
-              href="/send?donate=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP&memo=DEXrp%20Donation"
+              href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP&memo=DEXrp%20Tip"
               className="inline-flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              data-testid="button-donate-settings"
+              data-testid="button-tip-settings"
             >
               <Heart className="w-4 h-4" />
-              Donate XRP, RLUSD, or USDC
+              Tip XRP, RLUSD, or USDC
             </a>
           </div>
         </div>

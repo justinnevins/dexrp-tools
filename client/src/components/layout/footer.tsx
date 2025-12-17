@@ -30,12 +30,12 @@ export function Footer() {
             Get Keystone
           </a>
           <a 
-            href={`/send?donate=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Donation`}
+            href={`/send?tip=true&destination=${DONATION_ADDRESS}&amount=${DEFAULT_DONATION_AMOUNT}&currency=XRP&memo=DEXrp%20Tip`}
             className="text-gray-400 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center justify-center gap-1" 
-            data-testid="footer-donate"
+            data-testid="footer-tip"
           >
             <Heart className="w-3 h-3" />
-            Donate
+            Tips
           </a>
           <a 
             href="/privacy" 
