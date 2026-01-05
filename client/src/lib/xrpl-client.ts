@@ -268,19 +268,23 @@ class XRPLClient {
     }
   }
 
-  async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20) {
+  async getAccountTransactions(address: string, network: XRPLNetwork, limit: number = 20, marker?: unknown) {
     const customFullHistory = this.fullHistoryEndpoints[network];
     const customNode = this.customEndpoints[network];
     const defaultFullHistory = this.defaultFullHistoryEndpoints[network];
     
     const makeRequest = async (connector: XRPLConnector) => {
-      const response = await connector.request({
+      const request: any = {
         command: 'account_tx',
         account: address,
         limit,
         ledger_index_min: -1,
         ledger_index_max: -1
-      });
+      };
+      if (marker) {
+        request.marker = marker;
+      }
+      const response = await connector.request(request);
       return response.result;
     };
     

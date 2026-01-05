@@ -56,6 +56,10 @@ function getTransactionLabel(tx: any): string {
 
 export default function Transactions() {
   const [filterType, setFilterType] = useState<'all' | 'sent' | 'received' | 'dex' | 'trustlines' | 'nft' | 'other'>('all');
+  const [rawTransactions, setRawTransactions] = useState<any[]>([]);
+  const [marker, setMarker] = useState<unknown>(undefined);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   
   const { currentWallet } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
@@ -63,15 +67,47 @@ export default function Transactions() {
   const { data: xrplTransactions, isLoading: xrplLoading } = useAccountTransactions(currentWallet?.address || null, network);
 
   const isLoading = dbLoading || xrplLoading;
+  
+  useEffect(() => {
+    if (xrplTransactions?.transactions) {
+      setRawTransactions(xrplTransactions.transactions);
+      setMarker(xrplTransactions.marker);
+      setHasMore(!!xrplTransactions.marker);
+    }
+  }, [xrplTransactions]);
+  
+  useEffect(() => {
+    setRawTransactions([]);
+    setMarker(undefined);
+    setHasMore(true);
+  }, [currentWallet?.id, network]);
+  
+  const loadMoreTransactions = async () => {
+    if (!currentWallet?.address || !marker || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    try {
+      const result = await xrplClient.getAccountTransactions(currentWallet.address, network, 20, marker);
+      if (result?.transactions) {
+        setRawTransactions(prev => [...prev, ...result.transactions]);
+        setMarker(result.marker);
+        setHasMore(!!result.marker);
+      }
+    } catch (error) {
+      console.error('Failed to load more transactions:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
   const currentNetwork = network;
   
   // Process and save offer fills from transaction metadata (run once when transactions change)
   useEffect(() => {
-    if (!xrplTransactions?.transactions || !currentWallet) return;
+    if (!rawTransactions.length || !currentWallet) return;
     
     // FIRST PASS: Save all OfferCreate transactions with authoritative original amounts
     // This must happen BEFORE processing fills to avoid creating placeholders with wrong amounts
-    xrplTransactions.transactions.forEach((tx: any) => {
+    rawTransactions.forEach((tx: any) => {
       const transaction = tx.tx_json || tx.tx || tx;
       const txHash = transaction.hash || tx.hash;
       
@@ -98,7 +134,7 @@ export default function Transactions() {
     });
     
     // SECOND PASS: Process fills now that all offers have correct original amounts
-    xrplTransactions.transactions.forEach((tx: any) => {
+    rawTransactions.forEach((tx: any) => {
       const offerFills = extractOfferFills(tx, currentWallet.address);
       if (offerFills.length > 0) {
         offerFills.forEach(fill => {
@@ -113,7 +149,7 @@ export default function Transactions() {
         });
       }
     });
-  }, [xrplTransactions, currentWallet, network]);
+  }, [rawTransactions, currentWallet, network]);
   
   const getXRPScanUrl = (hash: string) => {
     const baseUrl = currentNetwork === 'mainnet' 
@@ -144,8 +180,8 @@ export default function Transactions() {
     );
 
     // Add XRPL transactions first
-    if (xrplTransactions?.transactions) {
-      xrplTransactions.transactions.forEach((tx: any) => {
+    if (rawTransactions.length > 0) {
+      rawTransactions.forEach((tx: any) => {
         // Handle both tx.tx_json (historical) and tx structure (real-time)
         const transaction = tx.tx_json || tx.tx || tx;
         
@@ -1068,6 +1104,26 @@ export default function Transactions() {
               </div>
             );
           })}
+          
+          {hasMore && transactions.length > 0 && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                onClick={loadMoreTransactions}
+                disabled={isLoadingMore}
+                data-testid="button-load-more-transactions"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <Clock className="w-4 h-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  'Load More'
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
