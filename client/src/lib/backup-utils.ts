@@ -11,14 +11,12 @@ const BACKUP_VERSION = '1.0';
 
 const STORAGE_KEYS_TO_BACKUP = [
   'xrpl_wallets',
-  'xrpl_transactions',
-  'xrpl_trustlines',
   'xrpl_counters',
   'xrpl_settings',
   'xrpl_dex_offers',
   'xrpl_current_wallet_id',
   'xrpl_target_network',
-  'ui-theme',
+  'xrpl-wallet-theme',
   'notifications_enabled',
   'biometric_enabled',
   'biometric_credential_id',
@@ -43,8 +41,8 @@ export interface BackupData {
 export interface ImportPreview {
   manifest: BackupManifest;
   walletCount: number;
-  hasTransactions: boolean;
-  hasTrustlines: boolean;
+  signingWalletCount: number;
+  watchOnlyWalletCount: number;
   hasOffers: boolean;
   hasSettings: boolean;
 }
@@ -91,11 +89,6 @@ export async function downloadBackup(blob: Blob): Promise<BackupResult> {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const filename = `dexrp-backup-${timestamp}.zip`;
   
-  downloadBackupWeb(blob, filename);
-  return { success: true, filename, location: 'Downloads folder' };
-}
-
-function downloadBackupWeb(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -104,6 +97,8 @@ function downloadBackupWeb(blob: Blob, filename: string): void {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  
+  return { success: true, filename, location: 'Downloads folder' };
 }
 
 export async function readBackupFile(file: File): Promise<BackupData> {
@@ -144,16 +139,17 @@ export function getImportPreview(backupData: BackupData): ImportPreview {
   };
   
   const wallets = parseJsonSafe(data['xrpl_wallets']);
-  const transactions = parseJsonSafe(data['xrpl_transactions']);
-  const trustlines = parseJsonSafe(data['xrpl_trustlines']);
   const offers = parseJsonSafe(data['xrpl_dex_offers']);
   const settings = data['xrpl_settings'];
+  
+  const signingWallets = wallets.filter((w: any) => w.walletType !== 'watchOnly');
+  const watchOnlyWallets = wallets.filter((w: any) => w.walletType === 'watchOnly');
   
   return {
     manifest,
     walletCount: wallets.length,
-    hasTransactions: transactions.length > 0,
-    hasTrustlines: trustlines.length > 0,
+    signingWalletCount: signingWallets.length,
+    watchOnlyWalletCount: watchOnlyWallets.length,
     hasOffers: offers.length > 0,
     hasSettings: settings !== undefined,
   };
@@ -209,7 +205,7 @@ export function restoreBackup(backupData: BackupData, mode: ImportMode): { resto
 }
 
 function isArrayKey(key: string): boolean {
-  return ['xrpl_wallets', 'xrpl_transactions', 'xrpl_trustlines', 'xrpl_dex_offers'].includes(key);
+  return ['xrpl_wallets', 'xrpl_dex_offers'].includes(key);
 }
 
 function getStoredArray(key: string): any[] {
@@ -336,6 +332,9 @@ export function restoreFromQRBackup(qrData: QRBackupData, mode: ImportMode): { r
 }
 
 export function getQRBackupPreview(qrData: QRBackupData): ImportPreview {
+  const signingWallets = qrData.w.filter(w => w.w !== 'w');
+  const watchOnlyWallets = qrData.w.filter(w => w.w === 'w');
+  
   return {
     manifest: {
       version: qrData.v,
@@ -345,8 +344,8 @@ export function getQRBackupPreview(qrData: QRBackupData): ImportPreview {
       keys: ['xrpl_wallets'],
     },
     walletCount: qrData.w.length,
-    hasTransactions: false,
-    hasTrustlines: false,
+    signingWalletCount: signingWallets.length,
+    watchOnlyWalletCount: watchOnlyWallets.length,
     hasOffers: false,
     hasSettings: false,
   };
