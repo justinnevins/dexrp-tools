@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'wouter';
+import { isCommunity } from '@/edition';
 
 const FREE_DISMISSED_KEY = 'dexrp.local-backup-banner.dismissed.v1';
 const PREMIUM_SYNC_DISMISSED_KEY = 'dexrp.premium-sync-banner.dismissed.v1';
@@ -18,6 +19,11 @@ export function LocalBackupBanner() {
     setIsFreeDismissed(localStorage.getItem(FREE_DISMISSED_KEY) === 'true');
     setIsPremiumSyncDismissed(localStorage.getItem(PREMIUM_SYNC_DISMISSED_KEY) === 'true');
   }, []);
+
+  // Community Edition: No subscription or cloud sync banners needed
+  if (isCommunity) {
+    return null;
+  }
 
   const handleDismissFree = () => {
     localStorage.setItem(FREE_DISMISSED_KEY, 'true');
