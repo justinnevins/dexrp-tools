@@ -253,6 +253,7 @@ export interface QRBackupWallet {
   t: 'm' | 't';
   w: 'k' | 'w' | 'h';
   h?: string;
+  p?: string; // publicKey - required for Keystone signing
 }
 
 export interface QRBackupData {
@@ -278,6 +279,7 @@ export function createQRBackupData(): QRBackupData {
     };
     if (w.name) compact.n = w.name;
     if (w.hardwareWalletType) compact.h = w.hardwareWalletType;
+    if (w.publicKey) compact.p = w.publicKey; // Include publicKey for signing
     return compact;
   });
 
@@ -313,6 +315,7 @@ export function restoreFromQRBackup(qrData: QRBackupData, mode: ImportMode): { r
     network: w.t === 'm' ? 'mainnet' : 'testnet',
     walletType: w.w === 'k' ? 'keystone' : w.w === 'w' ? 'watchOnly' : 'hardware',
     hardwareWalletType: w.h || null,
+    publicKey: w.p || null, // Restore publicKey for Keystone signing
   }));
 
   const backupData: BackupData = {
