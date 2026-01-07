@@ -77,6 +77,8 @@ class SyncManagerStub {
 
   clearWalletsClearedMarker(): void {}
 
+  markPendingPushAfterImport(): void {}
+
   clearPendingPushAfterImport(): void {}
 }
 
