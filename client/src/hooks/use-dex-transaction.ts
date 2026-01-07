@@ -231,6 +231,16 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         }
       }
 
+      // Validate public key is available
+      if (!currentWallet.publicKey) {
+        toast({
+          title: "Missing Public Key",
+          description: "Wallet public key is required for Keystone signing. Please re-import your wallet.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const transaction: any = {
         TransactionType: 'OfferCreate',
         Account: currentWallet.address,
@@ -239,13 +249,9 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         Sequence: transactionSequence,
         LastLedgerSequence: transactionLedger + 1000,
         Fee: '12',
-        SigningPubKey: currentWallet.publicKey || ''
+        Flags: calculateFlags(),
+        SigningPubKey: currentWallet.publicKey
       };
-
-      const flags = calculateFlags();
-      if (flags !== undefined) {
-        transaction.Flags = flags;
-      }
 
       if (expirationDays) {
         const rippleEpoch = 946684800;
@@ -273,6 +279,16 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
   const handleCancelOffer = useCallback(async (offerSequence: number) => {
     if (!currentWallet) return;
 
+    // Validate public key is available
+    if (!currentWallet.publicKey) {
+      toast({
+        title: "Missing Public Key",
+        description: "Wallet public key is required for Keystone signing. Please re-import your wallet.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       let transactionSequence = 1;
       let transactionLedger = 1000;
@@ -289,7 +305,8 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         Sequence: transactionSequence,
         LastLedgerSequence: transactionLedger + 1000,
         Fee: '12',
-        SigningPubKey: currentWallet.publicKey || ''
+        Flags: 2147483648,
+        SigningPubKey: currentWallet.publicKey
       };
 
       const keystoneUR = await encodeOfferTransaction(transaction);

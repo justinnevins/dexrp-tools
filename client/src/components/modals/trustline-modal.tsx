@@ -189,6 +189,11 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
       }
 
+      // Validate public key is available
+      if (!currentWallet.publicKey) {
+        throw new Error('Wallet public key is required for Keystone signing. Please re-import your wallet.');
+      }
+
       const encodedCurrency = encodeCurrency(currency);
       
       const trustSetTransaction = {
@@ -203,7 +208,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
         Flags: 2147483648,
         LastLedgerSequence: transactionLedger + 1000,
         Sequence: transactionSequence,
-        SigningPubKey: currentWallet.publicKey || ""
+        SigningPubKey: currentWallet.publicKey
       };
 
       const keystoneUR = await encodeKeystoneUR(trustSetTransaction);

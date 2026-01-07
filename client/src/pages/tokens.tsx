@@ -189,6 +189,11 @@ export default function Tokens() {
         // The XRPL library will handle the encoding automatically
         const currencyCode = trustlineToDelete.rawCurrency || trustlineToDelete.currency;
 
+        // Validate public key is available
+        if (!currentWallet.publicKey) {
+          throw new Error('Wallet public key is required for Keystone signing. Please re-import your wallet.');
+        }
+
         // Prepare TrustSet transaction to remove the trustline (limit = "0")
         const trustSetTx = {
           TransactionType: 'TrustSet',
@@ -201,7 +206,8 @@ export default function Tokens() {
           Sequence: sequence,
           LastLedgerSequence: ledgerIndex + 1000,
           Fee: "12",
-          SigningPubKey: currentWallet.publicKey || ""
+          Flags: 2147483648,
+          SigningPubKey: currentWallet.publicKey
         };
 
         // Encode the transaction for Keystone using client-side SDK (no server dependency)

@@ -204,6 +204,11 @@ export function SendTransactionForm({
       transactionLedger = accountInfo.ledger_current_index || accountInfo.ledger_index || 1000;
     }
     
+    // Validate public key is available
+    if (!currentWallet.publicKey) {
+      throw new Error('Wallet public key is required for Keystone signing. Please re-import your wallet.');
+    }
+
     // Create transaction for Keystone 3 Pro using actual form data
     const xrpTransaction = {
       Account: currentWallet.address,
@@ -213,7 +218,7 @@ export function SendTransactionForm({
       Flags: 2147483648,
       LastLedgerSequence: transactionLedger + 1000, // Current ledger + buffer
       Sequence: transactionSequence,
-      SigningPubKey: currentWallet.publicKey || "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421",
+      SigningPubKey: currentWallet.publicKey,
       TransactionType: "Payment"
     };
 
@@ -242,7 +247,7 @@ export function SendTransactionForm({
         Flags: 2147483648,
         LastLedgerSequence: xrpTransaction.LastLedgerSequence,
         Sequence: transactionSequence,
-        SigningPubKey: currentWallet.publicKey || "03402C1D75D247CEB2297449F1AD9CE0D313139385EE3D64AA1BCE5B0463283421",
+        SigningPubKey: currentWallet.publicKey,
         TransactionType: "Payment"
       };
       

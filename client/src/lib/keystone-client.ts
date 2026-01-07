@@ -79,10 +79,9 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     xrpTransaction.DestinationTag = Number(transaction.DestinationTag);
   }
 
-  // Remove empty SigningPubKey - Keystone will provide the correct one
-  // Empty string causes issues with CBOR encoding
+  // Validate SigningPubKey is present - required for Keystone signing
   if (!xrpTransaction.SigningPubKey || xrpTransaction.SigningPubKey === '') {
-    delete xrpTransaction.SigningPubKey;
+    throw new Error('SigningPubKey is required for Keystone signing. Please ensure wallet has a valid public key.');
   }
 
   if (transaction.TransactionType === 'Payment' && transaction.Amount) {
