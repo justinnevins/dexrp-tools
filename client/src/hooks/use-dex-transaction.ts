@@ -231,6 +231,15 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         }
       }
 
+      if (!currentWallet.publicKey) {
+        toast({
+          title: "Missing Public Key",
+          description: "This wallet is missing its public key. Please reconnect your Keystone device to fix this.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const transaction: any = {
         TransactionType: 'OfferCreate',
         Account: currentWallet.address,
@@ -239,12 +248,14 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
         Sequence: transactionSequence,
         LastLedgerSequence: transactionLedger + 1000,
         Fee: '12',
-        SigningPubKey: currentWallet.publicKey || ''
+        Flags: 2147483648, // tfFullyCanonicalSig - required by Keystone 3 Pro
+        SigningPubKey: currentWallet.publicKey
       };
 
-      const flags = calculateFlags();
-      if (flags !== undefined) {
-        transaction.Flags = flags;
+      const userFlags = calculateFlags();
+      if (userFlags !== undefined) {
+        // Use >>> 0 to ensure unsigned 32-bit integer (JavaScript bitwise ops use signed 32-bit)
+        transaction.Flags = (transaction.Flags | userFlags) >>> 0;
       }
 
       if (expirationDays) {
@@ -273,6 +284,15 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
   const handleCancelOffer = useCallback(async (offerSequence: number) => {
     if (!currentWallet) return;
 
+    if (!currentWallet.publicKey) {
+      toast({
+        title: "Missing Public Key",
+        description: "This wallet is missing its public key. Please reconnect your Keystone device to fix this.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       let transactionSequence = 1;
       let transactionLedger = 1000;
@@ -285,12 +305,12 @@ export function useDexTransaction({ currentWallet, network, accountInfo, toast }
       const transaction = {
         TransactionType: 'OfferCancel',
         Account: currentWallet.address,
-        OfferSequence: offerSequence,
+        OfferSequence: Number(offerSequence), // Ensure numeric type for Keystone
         Sequence: transactionSequence,
         LastLedgerSequence: transactionLedger + 1000,
         Fee: '12',
         Flags: 2147483648, // tfFullyCanonicalSig - required by Keystone 3 Pro
-        SigningPubKey: currentWallet.publicKey || ''
+        SigningPubKey: currentWallet.publicKey
       };
 
       const keystoneUR = await encodeOfferTransaction(transaction);

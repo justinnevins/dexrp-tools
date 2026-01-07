@@ -50,6 +50,11 @@ interface SignatureResult {
  * });
  */
 export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestResult {
+  // Validate SigningPubKey is present - required for Keystone 3 Pro
+  if (!transaction.SigningPubKey) {
+    throw new Error('SigningPubKey is required for Keystone signing. The wallet may be missing its public key - please reconnect your Keystone device.');
+  }
+
   const keystoneSDK = new KeystoneSDK();
   
   const xrpTransaction: any = {
@@ -59,8 +64,20 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     LastLedgerSequence: Number(transaction.LastLedgerSequence)
   };
 
+  // Ensure numeric types for fields that Keystone requires as numbers
+  if (transaction.OfferSequence !== undefined) {
+    xrpTransaction.OfferSequence = Number(transaction.OfferSequence);
+  }
+  if (transaction.DestinationTag !== undefined) {
+    xrpTransaction.DestinationTag = Number(transaction.DestinationTag);
+  }
+  if ((transaction as any).Expiration !== undefined) {
+    xrpTransaction.Expiration = Number((transaction as any).Expiration);
+  }
+
   if (transaction.Flags !== undefined && transaction.Flags !== null) {
-    xrpTransaction.Flags = Number(transaction.Flags);
+    // Ensure Flags is an unsigned 32-bit integer (XRPL requires positive flag values)
+    xrpTransaction.Flags = Number(transaction.Flags) >>> 0;
   }
 
   if (transaction.TransactionType === 'Payment' && transaction.Amount) {
