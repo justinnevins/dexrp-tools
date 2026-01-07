@@ -1,6 +1,8 @@
+type SyncStatus = 'idle' | 'syncing' | 'pushing' | 'pulling' | 'error';
+
 export function useSync() {
   return {
-    syncState: { status: 'idle' as const, lastPush: null, lastPull: null, error: null },
+    syncState: { status: 'idle' as SyncStatus, lastPush: null, lastPull: null, error: null },
     isUnlocked: false,
     hasStoredSalt: false,
     hasServerData: false,

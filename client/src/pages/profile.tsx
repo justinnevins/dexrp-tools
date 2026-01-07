@@ -1,4 +1,5 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw, Heart } from 'lucide-react';
+import { isCommercial, isCommunity } from '@/edition';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -954,7 +955,61 @@ export default function Profile() {
           </div>
         </div>
       </div>
-      {/* Subscription Management */}
+      {/* Community Edition Info - Only shown in Community Edition */}
+      {isCommunity && (
+        <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Heart className="w-5 h-5 text-red-500" />
+            Community Edition
+          </h2>
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-3 py-1 rounded-full text-sm font-medium">
+                Unlimited Wallets
+              </span>
+              <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full text-sm font-medium">
+                Free Forever
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You're using DEXrp Tools Community Edition - completely free with unlimited wallets, no account required. All data is stored locally on your device.
+            </p>
+            <div className="p-4 bg-muted/30 rounded-lg border border-border">
+              <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                <Heart className="w-4 h-4 text-red-500" />
+                Support Development
+              </h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                If you find DEXrp Tools useful, consider supporting its development with a donation.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  onClick={() => window.open('https://github.com/sponsors/dexrp', '_blank')}
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-donate-github"
+                >
+                  GitHub Sponsors
+                </Button>
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText('rDexrpDonationAddressHere');
+                    toast({ title: 'XRP Address Copied', description: 'Donation address copied to clipboard' });
+                  }}
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-donate-xrp"
+                >
+                  Donate XRP
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Management - Only shown in Commercial Edition */}
+      {isCommercial && (
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Crown className="w-5 h-5 text-yellow-500" />
@@ -1168,6 +1223,7 @@ export default function Profile() {
           </div>
         )}
       </div>
+      )}
 
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
