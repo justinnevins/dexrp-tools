@@ -5,6 +5,7 @@ import { useSubscription, getWalletLimitsForTier, computeWalletOverage, type Wal
 import { useSync } from '@/hooks/useSync';
 import { syncManager } from '@/lib/sync-manager';
 import { useAuth } from '@/hooks/useAuth';
+import { isCommunity } from '@/edition';
 import type { Wallet, Transaction, Trustline } from '@shared/schema';
 
 interface WalletContextType {
@@ -59,6 +60,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
 
   const triggerSync = useCallback((immediate = false) => {
+    if (isCommunity) return;
     if (!isAuthenticated || !isPremium || !syncOptIn || !syncManager.isUnlocked()) {
       return;
     }
@@ -71,8 +73,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     staleTime: 0,
   });
 
-  // Listen for sync updates and refresh wallet data
+  // Listen for sync updates and refresh wallet data (Commercial Edition only)
   useEffect(() => {
+    if (isCommunity) return;
     const handleSyncUpdate = () => {
       queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
       // Also refresh current wallet from localStorage
@@ -158,7 +161,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
     queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
     queryClient.invalidateQueries({ queryKey: ['accountLines'] });
-    syncManager.schedulePush();
+    if (!isCommunity) syncManager.schedulePush();
   };
 
   // Auto-select first active wallet on initial load or when current wallet becomes inactive
@@ -202,7 +205,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     queryClient.invalidateQueries({ queryKey: ['accountInfo'] });
     queryClient.invalidateQueries({ queryKey: ['accountTransactions'] });
     queryClient.invalidateQueries({ queryKey: ['accountLines'] });
-    syncManager.schedulePush();
+    if (!isCommunity) syncManager.schedulePush();
     return true;
   };
 
@@ -235,9 +238,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     onSuccess: (newWallet) => {
       setCurrentWallet(newWallet);
       queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
-      // Clear any "wallets cleared" marker since we now have wallets
-      syncManager.clearWalletsClearedMarker();
-      triggerSync();
+      // Clear any "wallets cleared" marker since we now have wallets (Commercial only)
+      if (!isCommunity) {
+        syncManager.clearWalletsClearedMarker();
+        triggerSync();
+      }
     },
   });
 

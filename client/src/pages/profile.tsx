@@ -360,11 +360,13 @@ export default function Profile() {
       // Set network back to mainnet as default
       localStorage.setItem('xrpl_target_network', 'mainnet');
       
-      // If sync is enabled, mark wallets as cleared and push to sync across devices
-      const { syncManager } = await import('@/lib/sync-manager');
-      if (syncManager.isUnlocked() && syncManager.getSyncOptIn()) {
-        syncManager.markWalletsCleared();
-        await syncManager.push();
+      // If sync is enabled, mark wallets as cleared and push to sync across devices (Commercial only)
+      if (!isCommunity) {
+        const { syncManager } = await import('@/lib/sync-manager');
+        if (syncManager.isUnlocked() && syncManager.getSyncOptIn()) {
+          syncManager.markWalletsCleared();
+          await syncManager.push();
+        }
       }
       
       // Clear all query cache
@@ -462,8 +464,10 @@ export default function Profile() {
     // Reload full history endpoints in memory
     xrplClient.reloadFullHistoryEndpoints();
 
-    // Push sync immediately for explicit saves (no debounce delay)
-    syncManager.schedulePush(0);
+    // Push sync immediately for explicit saves (Commercial only)
+    if (!isCommunity) {
+      syncManager.schedulePush(0);
+    }
 
     toast({
       title: "Network Settings Saved",
@@ -524,7 +528,7 @@ export default function Profile() {
     if (!pendingBackupData) return;
 
     try {
-      syncManager.markPendingPushAfterImport();
+      if (!isCommunity) syncManager.markPendingPushAfterImport();
       
       const result = restoreBackup(pendingBackupData, mode);
       
@@ -545,7 +549,7 @@ export default function Profile() {
         window.location.reload();
       }, 1000);
     } catch (error) {
-      syncManager.clearPendingPushAfterImport();
+      if (!isCommunity) syncManager.clearPendingPushAfterImport();
       toast({
         title: "Restore Failed",
         description: error instanceof Error ? error.message : "Failed to restore backup",
@@ -807,7 +811,7 @@ export default function Profile() {
     if (!pendingQRBackupData) return;
 
     try {
-      syncManager.markPendingPushAfterImport();
+      if (!isCommunity) syncManager.markPendingPushAfterImport();
       
       const result = restoreFromQRBackup(pendingQRBackupData, mode);
       await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
@@ -827,7 +831,7 @@ export default function Profile() {
         window.location.reload();
       }, 1000);
     } catch (error) {
-      syncManager.clearPendingPushAfterImport();
+      if (!isCommunity) syncManager.clearPendingPushAfterImport();
       toast({
         title: "Restore Failed",
         description: error instanceof Error ? error.message : "Failed to restore from QR",
