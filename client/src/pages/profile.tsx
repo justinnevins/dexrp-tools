@@ -984,14 +984,6 @@ export default function Profile() {
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button
-                  onClick={() => window.open('https://github.com/sponsors/dexrp', '_blank')}
-                  variant="outline"
-                  size="sm"
-                  data-testid="button-donate-github"
-                >
-                  GitHub Sponsors
-                </Button>
-                <Button
                   onClick={() => {
                     navigator.clipboard.writeText('rDexrpDonationAddressHere');
                     toast({ title: 'XRP Address Copied', description: 'Donation address copied to clipboard' });
