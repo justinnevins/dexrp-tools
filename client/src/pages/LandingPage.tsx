@@ -1,11 +1,10 @@
 import { Button } from '@/components/ui/button';
-import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalLink, Crown, Cloud, Zap, Heart } from 'lucide-react';
+import { Wallet, Lock, GitBranch, CheckCircle2, Send, TrendingUp, Eye, ExternalLink, Crown, Cloud, Zap } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { EmptyWalletState } from '@/components/wallet/empty-wallet-state';
 import { useAuth } from '@/hooks/useAuth';
 import { useSubscription } from '@/hooks/useSubscription';
 import { apiRequest } from '@/lib/queryClient';
-import { isCommunity } from '@/edition';
 
 const PENDING_CHECKOUT_KEY = 'dexrp_pending_checkout';
 
@@ -137,43 +136,8 @@ export default function LandingPage() {
             <span className="text-muted-foreground">100% air-gapped signing — keys never touch the internet</span>
           </div>
 
-          {/* Community Edition - Simple Get Started with Donation */}
-          {isCommunity && (
-            <div className="max-w-xl mx-auto mb-8">
-              <div className="flex flex-col items-center gap-6">
-                <Button
-                  onClick={() => setShowSetup(true)}
-                  size="lg"
-                  className="text-sm sm:text-base px-8 sm:px-10 py-3 h-12 sm:h-14 font-medium"
-                  data-testid="button-get-started"
-                >
-                  Get Started
-                </Button>
-                
-                {/* Donation Section */}
-                <div className="bg-card border border-border rounded-2xl p-6 w-full shadow-sm">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <Heart className="w-5 h-5 text-pink-500" />
-                    <span className="font-semibold">Support DEXrp Tools</span>
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-4 text-center">
-                    DEXrp Tools is free and open source. If you find it useful, consider supporting development.
-                  </p>
-                  <a
-                    href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP"
-                    className="block p-3 bg-muted/30 rounded-lg border border-border text-center hover:bg-muted/50 transition-colors"
-                    data-testid="link-tip-landing"
-                  >
-                    <p className="text-xs text-muted-foreground mb-1">Recommended: 2 XRP</p>
-                    <span className="text-sm font-medium text-primary">Send a Tip →</span>
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Premium CTA Section - Commercial Edition Only */}
-          {!isCommunity && !isPremium && (
+          {/* Premium CTA Section */}
+          {!isPremium && (
             <div className="max-w-xl mx-auto mb-8">
               <div className="bg-card border border-border rounded-2xl p-6 mb-4 shadow-sm">
                 <div className="flex items-center justify-center gap-2 mb-3">
@@ -243,8 +207,8 @@ export default function LandingPage() {
             </div>
           )}
 
-          {/* If already premium (Commercial Edition), show simple get started */}
-          {!isCommunity && isPremium && (
+          {/* If already premium, show simple get started */}
+          {isPremium && (
             <div className="flex flex-col items-center gap-4">
               <Button
                 onClick={() => setShowSetup(true)}

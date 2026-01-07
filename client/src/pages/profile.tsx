@@ -1,5 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw, Heart } from 'lucide-react';
-import { isCommunity } from '@/edition';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw } from 'lucide-react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -360,13 +359,11 @@ export default function Profile() {
       // Set network back to mainnet as default
       localStorage.setItem('xrpl_target_network', 'mainnet');
       
-      // If sync is enabled, mark wallets as cleared and push to sync across devices (Commercial only)
-      if (!isCommunity) {
-        const { syncManager } = await import('@/lib/sync-manager');
-        if (syncManager.isUnlocked() && syncManager.getSyncOptIn()) {
-          syncManager.markWalletsCleared();
-          await syncManager.push();
-        }
+      // If sync is enabled, mark wallets as cleared and push to sync across devices
+      const { syncManager } = await import('@/lib/sync-manager');
+      if (syncManager.isUnlocked() && syncManager.getSyncOptIn()) {
+        syncManager.markWalletsCleared();
+        await syncManager.push();
       }
       
       // Clear all query cache
@@ -464,10 +461,8 @@ export default function Profile() {
     // Reload full history endpoints in memory
     xrplClient.reloadFullHistoryEndpoints();
 
-    // Push sync immediately for explicit saves (Commercial only)
-    if (!isCommunity) {
-      syncManager.schedulePush(0);
-    }
+    // Push sync immediately for explicit saves (no debounce delay)
+    syncManager.schedulePush(0);
 
     toast({
       title: "Network Settings Saved",
@@ -528,7 +523,7 @@ export default function Profile() {
     if (!pendingBackupData) return;
 
     try {
-      if (!isCommunity) syncManager.markPendingPushAfterImport();
+      syncManager.markPendingPushAfterImport();
       
       const result = restoreBackup(pendingBackupData, mode);
       
@@ -549,7 +544,7 @@ export default function Profile() {
         window.location.reload();
       }, 1000);
     } catch (error) {
-      if (!isCommunity) syncManager.clearPendingPushAfterImport();
+      syncManager.clearPendingPushAfterImport();
       toast({
         title: "Restore Failed",
         description: error instanceof Error ? error.message : "Failed to restore backup",
@@ -811,7 +806,7 @@ export default function Profile() {
     if (!pendingQRBackupData) return;
 
     try {
-      if (!isCommunity) syncManager.markPendingPushAfterImport();
+      syncManager.markPendingPushAfterImport();
       
       const result = restoreFromQRBackup(pendingQRBackupData, mode);
       await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
@@ -831,7 +826,7 @@ export default function Profile() {
         window.location.reload();
       }, 1000);
     } catch (error) {
-      if (!isCommunity) syncManager.clearPendingPushAfterImport();
+      syncManager.clearPendingPushAfterImport();
       toast({
         title: "Restore Failed",
         description: error instanceof Error ? error.message : "Failed to restore from QR",
@@ -959,39 +954,7 @@ export default function Profile() {
           </div>
         </div>
       </div>
-      {/* Donation Section for Community Edition */}
-      {isCommunity && (
-        <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Heart className="w-5 h-5 text-pink-500" />
-            Support DEXrp Tools
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4">
-            DEXrp Tools is free and open source. If you find it useful, consider supporting development with a tip.
-          </p>
-          <div className="space-y-3">
-            <a
-              href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP"
-              className="block p-4 bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors"
-              data-testid="link-tip-settings"
-            >
-              <p className="text-sm font-medium mb-1">Send a Tip</p>
-              <p className="text-xs text-muted-foreground">Recommended: 2 XRP</p>
-            </a>
-            <a
-              href="https://github.com/justinnevins/dexrp-tools"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-primary hover:text-primary/80 flex items-center gap-1"
-              data-testid="link-github-support"
-            >
-              Star us on GitHub
-            </a>
-          </div>
-        </div>
-      )}
-      {/* Subscription Management - Commercial Edition Only */}
-      {!isCommunity && (
+      {/* Subscription Management */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Crown className="w-5 h-5 text-yellow-500" />
@@ -1205,7 +1168,7 @@ export default function Profile() {
           </div>
         )}
       </div>
-      )}
+
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -1254,6 +1217,7 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
       {/* Advanced Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl mb-6">
         <Accordion type="single" collapsible className="w-full">
@@ -1367,6 +1331,7 @@ export default function Profile() {
           </AccordionItem>
         </Accordion>
       </div>
+
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
         <Button
           onClick={handleRemoveAllAccounts}
@@ -1382,6 +1347,7 @@ export default function Profile() {
         isOpen={showAddAccountModal}
         onClose={() => setShowAddAccountModal(false)}
       />
+      
       {/* Edit Wallet Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
@@ -1430,6 +1396,7 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Remove Account Confirmation Dialog */}
       <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
         <AlertDialogContent>
@@ -1451,6 +1418,7 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       {/* Remove All Accounts Confirmation Dialog */}
       <AlertDialog open={removeAllConfirmOpen} onOpenChange={setRemoveAllConfirmOpen}>
         <AlertDialogContent>
@@ -1472,6 +1440,7 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
       {/* Sign Out Confirmation Dialog */}
       <Dialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1540,6 +1509,7 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Import Backup Confirmation Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1655,6 +1625,7 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* QR Code Display Dialog */}
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1689,12 +1660,14 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Fullscreen QR Viewer */}
       {qrFullscreen && qrCodeDataUrl && (
         <FullscreenQRViewer onClose={() => setQrFullscreen(false)}>
           <img src={qrCodeDataUrl} alt="Backup QR Code" />
         </FullscreenQRViewer>
       )}
+
       {/* QR Scanner Dialog */}
       <Dialog open={qrScanDialogOpen} onOpenChange={(open) => {
         if (!open) stopCamera();
@@ -1734,6 +1707,7 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* QR Import Confirmation Dialog */}
       <Dialog open={qrImportDialogOpen} onOpenChange={setQrImportDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1834,6 +1808,7 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       {/* Password Change Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
         setPasswordDialogOpen(open);

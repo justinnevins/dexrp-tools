@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { syncManager } from "./sync-manager";
-import { isCommunity } from "@/edition";
 
 type Theme = "dark" | "light" | "system";
 
@@ -51,7 +50,6 @@ export function ThemeProvider({
   }, [theme]);
 
   useEffect(() => {
-    if (isCommunity) return;
     const handleSyncUpdate = () => {
       const storedTheme = localStorage.getItem(storageKey) as Theme;
       if (storedTheme && storedTheme !== theme) {
@@ -67,9 +65,7 @@ export function ThemeProvider({
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme);
       setTheme(theme);
-      if (!isCommunity) {
-        syncManager.schedulePush();
-      }
+      syncManager.schedulePush();
     },
   };
 

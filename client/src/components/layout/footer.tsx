@@ -1,8 +1,6 @@
 import { SiGithub } from 'react-icons/si';
-import { Heart } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { xrplClient } from '@/lib/xrpl-client';
-import { isCommunity } from '@/edition';
 
 const KEYSTONE_AFFILIATE_URL = 'https://keyst.one/?rfsn=8924031.c9a3ff&utm_source=refersion&utm_medium=affiliate&utm_campaign=8924031.c9a3ff';
 const GITHUB_URL = 'https://github.com/justinnevins/dexrp-tools';
@@ -60,16 +58,6 @@ export function Footer() {
             <SiGithub className="w-3 h-3" />
             GitHub
           </a>
-          {isCommunity && (
-            <a
-              href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP"
-              className="text-pink-500 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center justify-center gap-1"
-              data-testid="footer-tip"
-            >
-              <Heart className="w-3 h-3" />
-              Tip
-            </a>
-          )}
         </div>
 
         <div className="border-t border-border pt-4 sm:pt-6 text-center space-y-2">
