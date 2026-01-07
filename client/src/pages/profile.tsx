@@ -968,9 +968,7 @@ export default function Profile() {
           <div className="space-y-3">
             <div className="p-4 bg-muted/30 rounded-lg border border-border">
               <p className="text-sm font-medium mb-2">XRP Tip Jar</p>
-              <code className="text-xs bg-muted px-2 py-1 rounded break-all block" data-testid="text-tip-address">
-                rDEXrpTipsAddress
-              </code>
+              <code className="text-xs bg-muted px-2 py-1 rounded break-all block" data-testid="text-tip-address">rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv</code>
               <p className="text-xs text-muted-foreground mt-2">
                 Any amount helps support continued development!
               </p>
@@ -987,7 +985,6 @@ export default function Profile() {
           </div>
         </div>
       )}
-
       {/* Subscription Management - Commercial Edition Only */}
       {!isCommunity && (
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
@@ -1204,7 +1201,6 @@ export default function Profile() {
         )}
       </div>
       )}
-
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -1253,7 +1249,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-
       {/* Advanced Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl mb-6">
         <Accordion type="single" collapsible className="w-full">
@@ -1367,7 +1362,6 @@ export default function Profile() {
           </AccordionItem>
         </Accordion>
       </div>
-
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
         <Button
           onClick={handleRemoveAllAccounts}
@@ -1383,7 +1377,6 @@ export default function Profile() {
         isOpen={showAddAccountModal}
         onClose={() => setShowAddAccountModal(false)}
       />
-      
       {/* Edit Wallet Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
@@ -1432,7 +1425,6 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Remove Account Confirmation Dialog */}
       <AlertDialog open={removeConfirmOpen} onOpenChange={setRemoveConfirmOpen}>
         <AlertDialogContent>
@@ -1454,7 +1446,6 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* Remove All Accounts Confirmation Dialog */}
       <AlertDialog open={removeAllConfirmOpen} onOpenChange={setRemoveAllConfirmOpen}>
         <AlertDialogContent>
@@ -1476,7 +1467,6 @@ export default function Profile() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* Sign Out Confirmation Dialog */}
       <Dialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1545,7 +1535,6 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Import Backup Confirmation Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1661,7 +1650,6 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* QR Code Display Dialog */}
       <Dialog open={qrDialogOpen} onOpenChange={setQrDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1696,14 +1684,12 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Fullscreen QR Viewer */}
       {qrFullscreen && qrCodeDataUrl && (
         <FullscreenQRViewer onClose={() => setQrFullscreen(false)}>
           <img src={qrCodeDataUrl} alt="Backup QR Code" />
         </FullscreenQRViewer>
       )}
-
       {/* QR Scanner Dialog */}
       <Dialog open={qrScanDialogOpen} onOpenChange={(open) => {
         if (!open) stopCamera();
@@ -1743,7 +1729,6 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* QR Import Confirmation Dialog */}
       <Dialog open={qrImportDialogOpen} onOpenChange={setQrImportDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1844,7 +1829,6 @@ export default function Profile() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
       {/* Password Change Dialog */}
       <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
         setPasswordDialogOpen(open);
