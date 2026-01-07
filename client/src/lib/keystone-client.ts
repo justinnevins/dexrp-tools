@@ -59,29 +59,8 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     LastLedgerSequence: Number(transaction.LastLedgerSequence)
   };
 
-  // Normalize Flags to number
   if (transaction.Flags !== undefined && transaction.Flags !== null) {
     xrpTransaction.Flags = Number(transaction.Flags);
-  }
-
-  // Normalize OfferSequence to number (for OfferCancel)
-  if ((transaction as any).OfferSequence !== undefined) {
-    xrpTransaction.OfferSequence = Number((transaction as any).OfferSequence);
-  }
-
-  // Normalize Expiration to number (for OfferCreate with expiry)
-  if ((transaction as any).Expiration !== undefined) {
-    xrpTransaction.Expiration = Number((transaction as any).Expiration);
-  }
-
-  // Normalize DestinationTag to number
-  if (transaction.DestinationTag !== undefined) {
-    xrpTransaction.DestinationTag = Number(transaction.DestinationTag);
-  }
-
-  // Validate SigningPubKey is present - required for Keystone signing
-  if (!xrpTransaction.SigningPubKey || xrpTransaction.SigningPubKey === '') {
-    throw new Error('SigningPubKey is required for Keystone signing. Please ensure wallet has a valid public key.');
   }
 
   if (transaction.TransactionType === 'Payment' && transaction.Amount) {

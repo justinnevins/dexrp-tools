@@ -291,12 +291,14 @@ export function useDexOrder({ network, accountInfo, accountLines, accountOffers 
   }, []);
 
   const calculateFlags = useCallback(() => {
-    let flags = 0;
+    // Always include tfFullyCanonicalSig (0x80000000) for transaction malleability protection
+    // This is required by Keystone 3 Pro firmware for signing DEX transactions
+    let flags = 0x80000000;
     if (tfPassive) flags |= 0x00010000;
     if (orderType === 'market') flags |= 0x00020000;
     if (tfFillOrKill) flags |= 0x00040000;
     if (orderSide === 'sell') flags |= 0x00080000;
-    return flags > 0 ? flags : undefined;
+    return flags;
   }, [tfPassive, orderType, tfFillOrKill, orderSide]);
 
   return {
