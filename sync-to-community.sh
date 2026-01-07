@@ -62,11 +62,58 @@ export const EDITION = 'community' as const;
 export { default } from './community';
 EOF
 
-# Check if index.ts was changed and commit if needed
-if ! git diff --quiet client/src/edition/index.ts 2>/dev/null || ! git ls-files --error-unmatch client/src/edition/index.ts >/dev/null 2>&1; then
+# Copy stub files to replace real implementations
+echo "Copying stub files for Community Edition..."
+
+# Copy stub hooks
+if [ -f "client/src/edition/stubs/useAuth.ts" ]; then
+    cp client/src/edition/stubs/useAuth.ts client/src/hooks/useAuth.ts
+    echo "  - Copied useAuth.ts stub"
+fi
+
+if [ -f "client/src/edition/stubs/useSubscription.ts" ]; then
+    cp client/src/edition/stubs/useSubscription.ts client/src/hooks/useSubscription.ts
+    echo "  - Copied useSubscription.ts stub"
+fi
+
+if [ -f "client/src/edition/stubs/useSync.ts" ]; then
+    cp client/src/edition/stubs/useSync.ts client/src/hooks/useSync.ts
+    echo "  - Copied useSync.ts stub"
+fi
+
+# Copy stub sync-manager
+if [ -f "client/src/edition/stubs/sync-manager.ts" ]; then
+    cp client/src/edition/stubs/sync-manager.ts client/src/lib/sync-manager.ts
+    echo "  - Copied sync-manager.ts stub"
+fi
+
+# Copy stub sync-context
+if [ -f "client/src/edition/stubs/sync-context.tsx" ]; then
+    cp client/src/edition/stubs/sync-context.tsx client/src/contexts/sync-context.tsx
+    echo "  - Copied sync-context.tsx stub"
+fi
+
+# Copy stub server files
+if [ -f "client/src/edition/stubs/server/auth.ts" ]; then
+    cp client/src/edition/stubs/server/auth.ts server/auth.ts
+    echo "  - Copied server/auth.ts stub"
+fi
+
+if [ -f "client/src/edition/stubs/server/stripeService.ts" ]; then
+    cp client/src/edition/stubs/server/stripeService.ts server/stripeService.ts
+    echo "  - Copied server/stripeService.ts stub"
+fi
+
+if [ -f "client/src/edition/stubs/server/stripeClient.ts" ]; then
+    cp client/src/edition/stubs/server/stripeClient.ts server/stripeClient.ts
+    echo "  - Copied server/stripeClient.ts stub"
+fi
+
+# Check if any files were changed and commit if needed
+if ! git diff --quiet 2>/dev/null; then
     echo "Committing community edition configuration..."
-    git add client/src/edition/index.ts
-    git commit -m "Restore community edition configuration" || true
+    git add -A
+    git commit -m "Restore community edition configuration and stubs" || true
 fi
 
 echo ""
