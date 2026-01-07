@@ -76,6 +76,8 @@ class SyncManagerStub {
   lock(): void {}
 
   clearWalletsClearedMarker(): void {}
+
+  clearPendingPushAfterImport(): void {}
 }
 
 export const syncManager = new SyncManagerStub();
