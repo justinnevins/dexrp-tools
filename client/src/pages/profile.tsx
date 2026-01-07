@@ -966,13 +966,14 @@ export default function Profile() {
             DEXrp Tools is free and open source. If you find it useful, consider supporting development with a tip.
           </p>
           <div className="space-y-3">
-            <div className="p-4 bg-muted/30 rounded-lg border border-border">
-              <p className="text-sm font-medium mb-2">XRP Tip Jar</p>
-              <code className="text-xs bg-muted px-2 py-1 rounded break-all block" data-testid="text-tip-address">rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv</code>
-              <p className="text-xs text-muted-foreground mt-2">
-                Any amount helps support continued development!
-              </p>
-            </div>
+            <a
+              href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP"
+              className="block p-4 bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+              data-testid="link-tip-settings"
+            >
+              <p className="text-sm font-medium mb-1">Send a Tip</p>
+              <p className="text-xs text-muted-foreground">Recommended: 2 XRP</p>
+            </a>
             <a
               href="https://github.com/justinnevins/dexrp-tools"
               target="_blank"

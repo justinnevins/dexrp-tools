@@ -62,12 +62,7 @@ export function Footer() {
           </a>
           {isCommunity && (
             <a
-              href="#tip"
-              onClick={(e) => {
-                e.preventDefault();
-                navigator.clipboard.writeText('rDEXrpTipsAddress');
-                alert('XRP tip address copied to clipboard!');
-              }}
+              href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP"
               className="text-pink-500 hover:text-pink-400 transition-colors text-xs sm:text-sm flex items-center justify-center gap-1"
               data-testid="footer-tip"
             >

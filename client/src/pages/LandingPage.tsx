@@ -159,12 +159,14 @@ export default function LandingPage() {
                   <p className="text-muted-foreground text-sm mb-4 text-center">
                     DEXrp Tools is free and open source. If you find it useful, consider supporting development.
                   </p>
-                  <div className="p-3 bg-muted/30 rounded-lg border border-border text-center">
-                    <p className="text-xs text-muted-foreground mb-1">XRP Tip Jar</p>
-                    <code className="text-xs bg-muted px-2 py-1 rounded break-all" data-testid="text-tip-address-landing">
-                      rDEXrpTipsAddress
-                    </code>
-                  </div>
+                  <a
+                    href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP"
+                    className="block p-3 bg-muted/30 rounded-lg border border-border text-center hover:bg-muted/50 transition-colors"
+                    data-testid="link-tip-landing"
+                  >
+                    <p className="text-xs text-muted-foreground mb-1">Recommended: 2 XRP</p>
+                    <span className="text-sm font-medium text-primary">Send a Tip →</span>
+                  </a>
                 </div>
               </div>
             </div>
