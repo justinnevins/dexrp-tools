@@ -1,5 +1,5 @@
 export interface SyncState {
-  status: 'idle' | 'pushing' | 'pulling' | 'error';
+  status: 'idle' | 'syncing' | 'pushing' | 'pulling' | 'error';
   lastPush: Date | null;
   lastPull: Date | null;
   error: string | null;
@@ -76,6 +76,16 @@ class SyncManagerStub {
   lock(): void {}
 
   clearWalletsClearedMarker(): void {}
+
+  markWalletsCleared(): void {}
+
+  markPendingPushAfterImport(): void {}
+
+  hasPendingPushFromImport(): boolean {
+    return false;
+  }
+
+  clearPendingPushFromImport(): void {}
 }
 
 export const syncManager = new SyncManagerStub();

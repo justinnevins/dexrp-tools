@@ -1,6 +1,11 @@
+interface User {
+  email: string;
+  hasPassword: boolean;
+}
+
 export function useAuth() {
   return {
-    user: null,
+    user: null as User | null,
     isLoading: false,
     isAuthenticated: false,
     logout: async () => {},
