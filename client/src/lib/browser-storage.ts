@@ -142,6 +142,8 @@ class BrowserStorage {
       name: insertWallet.name || defaultName,
       address: insertWallet.address,
       publicKey: insertWallet.publicKey || null,
+      balance: null,
+      reservedBalance: null,
       hardwareWalletType: insertWallet.hardwareWalletType || null,
       walletType: (insertWallet.walletType || 'full') as 'full' | 'watchOnly',
       network: network as 'mainnet' | 'testnet',

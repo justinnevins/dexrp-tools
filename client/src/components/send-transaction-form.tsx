@@ -122,7 +122,7 @@ export function SendTransactionForm({
     closeTimestampRef.current = Date.now();
     setShowFullscreen(false);
   };
-  const { currentWallet } = useWallet();
+  const { currentWallet, isWalletActive } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: accountInfo, isLoading: isAccountInfoLoading } = useAccountInfo(currentWallet?.address || null, network);
   const { data: accountLines } = useAccountLines(currentWallet?.address || null, network);
@@ -268,6 +268,16 @@ export function SendTransactionForm({
       toast({
         title: "Watch-Only Account",
         description: "This account cannot send transactions. Connect a Keystone 3 Pro to enable sending.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if wallet is active (within tier limits)
+    if (currentWallet && !isWalletActive(currentWallet)) {
+      toast({
+        title: "Wallet Inactive",
+        description: "This wallet exceeds your plan limits. Upgrade to Premium or remove other wallets to enable transactions.",
         variant: "destructive",
       });
       return;

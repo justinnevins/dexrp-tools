@@ -56,7 +56,7 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
     };
   }, [isOpen]);
 
-  const { currentWallet } = useWallet();
+  const { currentWallet, isWalletActive } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTrustlines } = useTrustlines(currentWallet?.id || null);
   const { data: xrplLines } = useAccountLines(currentWallet?.address || null, network);
@@ -139,6 +139,16 @@ export function TrustlineModal({ isOpen, onClose }: TrustlineModalProps) {
       toast({
         title: "Missing Information",
         description: "Please fill in all fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if wallet is active (within tier limits)
+    if (!isWalletActive(currentWallet)) {
+      toast({
+        title: "Wallet Inactive",
+        description: "This wallet exceeds your plan limits. Upgrade to Premium or remove other wallets to manage trustlines.",
         variant: "destructive",
       });
       return;

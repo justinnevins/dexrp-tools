@@ -29,7 +29,7 @@ export default function Tokens() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { currentWallet } = useWallet();
+  const { currentWallet, isWalletActive } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { data: dbTrustlines, isLoading: dbLoading } = useTrustlines(currentWallet?.id || null);
   const { data: xrplLines, isLoading: xrplLoading } = useAccountLines(currentWallet?.address || null, network);
@@ -141,6 +141,18 @@ export default function Tokens() {
 
   const handleDeleteConfirm = async () => {
     if (!trustlineToDelete || !currentWallet || isWatchOnly) return;
+
+    // Check if wallet is active (within tier limits)
+    if (!isWalletActive(currentWallet)) {
+      toast({
+        title: "Wallet Inactive",
+        description: "This wallet exceeds your plan limits. Upgrade to Premium or remove other wallets to manage trustlines.",
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+      setTrustlineToDelete(null);
+      return;
+    }
 
     try {
       // Check if this is an XRPL trustline (string ID starting with 'xrpl-') or database trustline (numeric ID)

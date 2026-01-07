@@ -4,6 +4,8 @@ import { Moon, Sun, Home, ArrowLeftRight, Coins, Settings, TrendingUp, LineChart
 import { useTheme } from '@/lib/theme-provider';
 import { Button } from '@/components/ui/button';
 import { TestnetBanner } from '@/components/testnet-banner';
+import { WalletLimitBanner } from '@/components/wallet-limit-banner';
+import { LocalBackupBanner } from '@/components/local-backup-banner';
 import { AccountSwitcher } from '@/components/account-switcher';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 import { fetchXRPToRLUSDPrice, formatPrice, type DEXPriceData } from '@/lib/xrp-price';
@@ -246,7 +248,7 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
         </nav>
       </aside>
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col max-w-md md:max-w-none w-full h-full overflow-hidden md:px-8 lg:px-12">
+      <div className="flex-1 flex flex-col max-w-md md:max-w-none w-full h-full overflow-hidden">
         {/* Testnet Banner */}
         <TestnetBanner />
 
@@ -316,7 +318,13 @@ export function MobileAppLayout({ children }: MobileAppLayoutProps) {
           className="flex-1 overflow-y-auto pb-20 md:pb-6"
           style={{ overscrollBehavior: 'contain' }}
         >
-          {children}
+          <div className="md:px-12 lg:px-20">
+            <div className="px-4 pt-4">
+              <WalletLimitBanner />
+              <LocalBackupBanner />
+            </div>
+            {children}
+          </div>
           <Footer />
         </main>
 

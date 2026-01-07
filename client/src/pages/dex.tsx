@@ -18,8 +18,9 @@ import { ActiveOffersList } from '@/components/dex/active-offers-list';
 export default function DEX() {
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const { currentWallet } = useWallet();
+  const { currentWallet, isWalletActive } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
+  const walletIsActive = currentWallet ? isWalletActive(currentWallet) : false;
   const { data: accountOffers, isLoading: offersLoading } = useAccountOffers(currentWallet?.address || null, network);
   const { data: accountInfo } = useAccountInfo(currentWallet?.address || null, network);
   const { data: accountLines } = useAccountLines(currentWallet?.address || null, network);
@@ -99,8 +100,9 @@ export default function DEX() {
   }
 
   const isWatchOnly = currentWallet.walletType === 'watchOnly';
+  const isInactive = !walletIsActive;
 
-  if (isWatchOnly) {
+  if (isWatchOnly || isInactive) {
     return (
       <div className="px-4 py-6">
         <h1 className="text-2xl font-bold mb-4">DEX Trading</h1>
@@ -108,11 +110,19 @@ export default function DEX() {
           <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mb-4">
             <Eye className="w-8 h-8 text-amber-600 dark:text-amber-400" />
           </div>
-          <h2 className="text-lg font-semibold mb-2">Watch-Only Account</h2>
-          <p className="text-muted-foreground mb-6 max-w-sm">This is a watch-only account. To trade on the DEX, switch to a Keystone 3 Pro wallet address or connect a new one.</p>
+          <h2 className="text-lg font-semibold mb-2">{isWatchOnly ? 'Watch-Only Account' : 'Wallet Inactive'}</h2>
+          <p className="text-muted-foreground mb-6 max-w-sm">
+            {isWatchOnly 
+              ? 'This is a watch-only account. To trade on the DEX, switch to a Keystone 3 Pro wallet address or connect a new one.'
+              : 'This wallet exceeds your plan limits. Upgrade to Premium or switch to an active wallet to trade.'}
+          </p>
           <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg max-w-sm">
             <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs text-amber-700 dark:text-amber-300 text-left">Watch-only accounts can view open orders, but cannot create or cancel offers. Connect a Keystone 3 Pro to enable trading.</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 text-left">
+              {isWatchOnly
+                ? 'Watch-only accounts can view open orders, but cannot create or cancel offers. Connect a Keystone 3 Pro to enable trading.'
+                : 'Inactive wallets can view open orders, but cannot create or cancel offers. Upgrade to Premium to unlock all wallets.'}
+            </p>
           </div>
         </div>
       </div>

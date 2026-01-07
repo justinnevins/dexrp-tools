@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { syncManager } from "./sync-manager";
 
 type Theme = "dark" | "light" | "system";
 
@@ -48,11 +49,23 @@ export function ThemeProvider({
     root.classList.add(theme);
   }, [theme]);
 
+  useEffect(() => {
+    const handleSyncUpdate = () => {
+      const storedTheme = localStorage.getItem(storageKey) as Theme;
+      if (storedTheme && storedTheme !== theme) {
+        setTheme(storedTheme);
+      }
+    };
+    window.addEventListener('sync-data-updated', handleSyncUpdate);
+    return () => window.removeEventListener('sync-data-updated', handleSyncUpdate);
+  }, [storageKey, theme]);
+
   const value = {
     theme,
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme);
       setTheme(theme);
+      syncManager.schedulePush();
     },
   };
 

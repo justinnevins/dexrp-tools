@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Plus } from 'lucide-react';
+import { Check, ChevronDown, Plus, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useWallet } from '@/hooks/use-wallet';
 import { truncateAddress } from '@/lib/format-address';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/cn';
 import type { Wallet } from '@shared/schema';
 
 interface WalletSelectorProps {
@@ -17,9 +19,18 @@ interface WalletSelectorProps {
 }
 
 export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
-  const { currentWallet, wallets, setCurrentWallet } = useWallet();
+  const { currentWallet, wallets, setCurrentWallet, isWalletActive } = useWallet();
+  const { toast } = useToast();
 
   const handleSelectWallet = (wallet: Wallet) => {
+    if (!isWalletActive(wallet)) {
+      toast({
+        title: "Wallet Inactive",
+        description: "This wallet exceeds your plan limits. Upgrade to Premium to access all wallets.",
+        variant: "destructive",
+      });
+      return;
+    }
     setCurrentWallet(wallet);
   };
 
@@ -60,33 +71,47 @@ export function WalletSelector({ onAddAccount }: WalletSelectorProps) {
         <DropdownMenuLabel>Your Accounts</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {wallets.data && wallets.data.length > 0 ? (
-          wallets.data.map((wallet, index) => (
-            <DropdownMenuItem
-              key={wallet.id}
-              onClick={() => handleSelectWallet(wallet)}
-              className="flex items-center justify-between cursor-pointer"
-              data-testid={`wallet-option-${wallet.id}`}
-            >
-              <div className="flex flex-col flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{getWalletName(wallet, index)}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded ${
-                    wallet.network === 'mainnet' 
-                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                      : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
-                  }`}>
-                    {wallet.network === 'mainnet' ? 'Mainnet' : 'Testnet'}
+          wallets.data.map((wallet, index) => {
+            const walletActive = isWalletActive(wallet);
+            return (
+              <DropdownMenuItem
+                key={wallet.id}
+                onClick={() => handleSelectWallet(wallet)}
+                className={cn(
+                  "flex items-center justify-between",
+                  walletActive ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                )}
+                data-testid={`wallet-option-${wallet.id}`}
+              >
+                <div className="flex flex-col flex-1">
+                  <div className="flex items-center gap-2">
+                    {!walletActive && <Lock className="w-3 h-3 text-muted-foreground" />}
+                    <span className={cn("font-medium", !walletActive && "text-muted-foreground")}>
+                      {getWalletName(wallet, index)}
+                    </span>
+                    {!walletActive && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                        Inactive
+                      </span>
+                    )}
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${
+                      wallet.network === 'mainnet' 
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                        : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+                    }`}>
+                      {wallet.network === 'mainnet' ? 'Mainnet' : 'Testnet'}
+                    </span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {truncateAddress(wallet.address)}
                   </span>
                 </div>
-                <span className="text-xs text-muted-foreground">
-                  {truncateAddress(wallet.address)}
-                </span>
-              </div>
-              {currentWallet?.id === wallet.id && (
-                <Check className="w-4 h-4 text-primary" />
-              )}
-            </DropdownMenuItem>
-          ))
+                {currentWallet?.id === wallet.id && (
+                  <Check className="w-4 h-4 text-primary" />
+                )}
+              </DropdownMenuItem>
+            );
+          })
         ) : (
           <DropdownMenuItem disabled>
             <span className="text-muted-foreground">No accounts yet</span>

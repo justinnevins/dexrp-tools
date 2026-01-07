@@ -1,4 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, Heart, GripVertical, Download, Upload, FileArchive, QrCode, Camera } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw } from 'lucide-react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,9 +10,16 @@ import { useTheme } from '@/lib/theme-provider';
 import { useState, useEffect, useRef } from 'react';
 import { queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useSync } from '@/hooks/useSync';
+import { useSyncContext } from '@/contexts/sync-context';
+import { SyncStatusIndicator } from '@/components/sync-status-indicator';
+import { apiRequest } from '@/lib/queryClient';
 import { browserStorage } from '@/lib/browser-storage';
 import { xrplClient } from '@/lib/xrpl-client';
 import { createBackup, downloadBackup, readBackupFile, getImportPreview, restoreBackup, createQRBackupData, generateQRCodeDataUrl, parseQRBackupData, restoreFromQRBackup, getQRBackupPreview, type BackupData, type ImportPreview, type ImportMode, type BackupResult, type QRBackupData } from '@/lib/backup-utils';
+import { syncManager } from '@/lib/sync-manager';
 import { AddressFormat } from '@/lib/format-address';
 import type { Wallet as WalletType } from '@shared/schema';
 import {
@@ -48,16 +55,20 @@ import {
 } from '@/components/ui/accordion';
 import { HardwareWalletConnectModal } from '@/components/modals/hardware-wallet-connect-modal';
 import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
+import { computeWalletOverage } from '@/hooks/useSubscription';
 
 interface DraggableWalletItemProps {
   wallet: WalletType;
   index: number;
   isActive: boolean;
+  isWalletInactive: boolean;
   onEdit: (wallet: WalletType) => void;
   onRemove: (walletId: number) => void;
 }
 
-function DraggableWalletItem({ wallet, index, isActive, onEdit, onRemove }: DraggableWalletItemProps) {
+function DraggableWalletItem({ wallet, index, isActive, isWalletInactive, onEdit, onRemove }: DraggableWalletItemProps) {
   const controls = useDragControls();
 
   return (
@@ -95,6 +106,12 @@ function DraggableWalletItem({ wallet, index, isActive, onEdit, onRemove }: Drag
             {isActive && (
               <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full">
                 Active
+              </span>
+            )}
+            {isWalletInactive && (
+              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Lock className="w-3 h-3" />
+                Inactive
               </span>
             )}
             <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -151,11 +168,19 @@ function DraggableWalletItem({ wallet, index, isActive, onEdit, onRemove }: Drag
 }
 
 export default function Profile() {
-  const { currentWallet, wallets, setCurrentWallet, updateWallet, reorderWallets } = useWallet();
+  const { currentWallet, wallets, setCurrentWallet, updateWallet, deleteWallet, reorderWallets, isWalletActive } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
+  const { user, isAuthenticated, logout, isLoggingOut } = useAuth();
+  const { isPremium, tier, subscription, isLoading: subscriptionLoading } = useSubscription();
+  const { needsSetup, needsUnlock, isUnlocked, push, pull, syncState, syncOptIn } = useSync();
+  const { showPassphraseModal, showChangePassphraseModal } = useSyncContext();
+  const [isManagingSubscription, setIsManagingSubscription] = useState(false);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [isUpdatingSyncPreference, setIsUpdatingSyncPreference] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingWallet, setEditingWallet] = useState<WalletType | null>(null);
   const [editName, setEditName] = useState('');
@@ -180,19 +205,32 @@ export default function Profile() {
   const [qrFullscreen, setQrFullscreen] = useState(false);
   const [pendingQRBackupData, setPendingQRBackupData] = useState<QRBackupData | null>(null);
   const [qrImportDialogOpen, setQrImportDialogOpen] = useState(false);
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isSettingPassword, setIsSettingPassword] = useState(false);
+  const [signOutDialogOpen, setSignOutDialogOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scanningRef = useRef(false);
   // Fetch real balance from XRPL
   const { data: accountInfo, isLoading: loadingAccountInfo } = useAccountInfo(currentWallet?.address || null, network);
 
-  // Load custom node settings on mount
+  // Load custom node settings on mount and when sync updates
   useEffect(() => {
-    const settings = browserStorage.getSettings();
-    setCustomMainnetNode(settings.customMainnetNode || '');
-    setCustomTestnetNode(settings.customTestnetNode || '');
-    setFullHistoryMainnetNode(settings.fullHistoryMainnetNode || '');
-    setFullHistoryTestnetNode(settings.fullHistoryTestnetNode || '');
+    const loadSettings = () => {
+      const settings = browserStorage.getSettings();
+      setCustomMainnetNode(settings.customMainnetNode || '');
+      setCustomTestnetNode(settings.customTestnetNode || '');
+      setFullHistoryMainnetNode(settings.fullHistoryMainnetNode || '');
+      setFullHistoryTestnetNode(settings.fullHistoryTestnetNode || '');
+    };
+    
+    loadSettings();
+    
+    // Re-load settings when sync updates localStorage
+    window.addEventListener('sync-data-updated', loadSettings);
+    return () => window.removeEventListener('sync-data-updated', loadSettings);
   }, []);
 
 
@@ -223,33 +261,35 @@ export default function Profile() {
   };
 
   const confirmRemoveAccount = async () => {
-    if (walletToRemove === null || !currentWallet) return;
+    if (walletToRemove === null) return;
     
     const allWallets = wallets.data || [];
     
-    // Remove the account
-    browserStorage.deleteWallet(walletToRemove);
-    
     // If this was the last account, redirect to setup
     if (allWallets.length === 1) {
-      localStorage.clear();
+      await deleteWallet.mutateAsync(walletToRemove);
       localStorage.setItem('xrpl_target_network', 'mainnet');
       queryClient.clear();
       window.location.href = '/';
       return;
     }
     
-    // If removing the current account, switch to another one
-    if (currentWallet.id === walletToRemove) {
-      const remainingWallets = allWallets.filter(w => w.id !== walletToRemove);
-      if (remainingWallets.length > 0) {
-        setCurrentWallet(remainingWallets[0]);
-      }
-    }
+    // Use the context's deleteWallet mutation which handles all cleanup
+    const result = await deleteWallet.mutateAsync(walletToRemove);
     
-    // Clear mutation cache and invalidate queries to fully refresh
-    queryClient.resetQueries({ queryKey: ['browser-wallets'] });
-    await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+    // If we deleted the current wallet, force a page reload to ensure clean state
+    if (result.wasCurrentWallet) {
+      // Update localStorage with new wallet ID before reload
+      if (result.newCurrentWallet) {
+        localStorage.setItem('xrpl_current_wallet_id', result.newCurrentWallet.id.toString());
+      } else {
+        localStorage.removeItem('xrpl_current_wallet_id');
+      }
+      // Clear query cache and reload to ensure clean state
+      queryClient.clear();
+      window.location.reload();
+      return;
+    }
     
     setRemoveConfirmOpen(false);
     setWalletToRemove(null);
@@ -308,11 +348,23 @@ export default function Profile() {
       const { apiFetch } = await import('@/lib/queryClient');
       await apiFetch('/api/wallets', { method: 'DELETE' });
       
-      // Clear all local storage data
-      localStorage.clear();
+      // Clear specific account data but preserve settings and sync config
+      localStorage.removeItem('xrpl_wallets');
+      localStorage.removeItem('xrpl_transactions');
+      localStorage.removeItem('xrpl_trustlines');
+      localStorage.removeItem('xrpl_counters');
+      localStorage.removeItem('xrpl_dex_offers');
+      localStorage.removeItem('xrpl_current_wallet_id');
       
       // Set network back to mainnet as default
       localStorage.setItem('xrpl_target_network', 'mainnet');
+      
+      // If sync is enabled, mark wallets as cleared and push to sync across devices
+      const { syncManager } = await import('@/lib/sync-manager');
+      if (syncManager.isUnlocked() && syncManager.getSyncOptIn()) {
+        syncManager.markWalletsCleared();
+        await syncManager.push();
+      }
       
       // Clear all query cache
       queryClient.clear();
@@ -331,7 +383,13 @@ export default function Profile() {
       // Force immediate page reload
       window.location.href = '/';
     } catch {
-      localStorage.clear();
+      // Fallback cleanup
+      localStorage.removeItem('xrpl_wallets');
+      localStorage.removeItem('xrpl_transactions');
+      localStorage.removeItem('xrpl_trustlines');
+      localStorage.removeItem('xrpl_counters');
+      localStorage.removeItem('xrpl_dex_offers');
+      localStorage.removeItem('xrpl_current_wallet_id');
       localStorage.setItem('xrpl_target_network', 'mainnet');
       queryClient.clear();
       window.location.href = '/';
@@ -403,6 +461,9 @@ export default function Profile() {
     // Reload full history endpoints in memory
     xrplClient.reloadFullHistoryEndpoints();
 
+    // Push sync immediately for explicit saves (no debounce delay)
+    syncManager.schedulePush(0);
+
     toast({
       title: "Network Settings Saved",
       description: "Custom node URLs and full history servers have been updated successfully"
@@ -462,6 +523,8 @@ export default function Profile() {
     if (!pendingBackupData) return;
 
     try {
+      syncManager.markPendingPushAfterImport();
+      
       const result = restoreBackup(pendingBackupData, mode);
       
       await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
@@ -481,11 +544,165 @@ export default function Profile() {
         window.location.reload();
       }, 1000);
     } catch (error) {
+      syncManager.clearPendingPushAfterImport();
       toast({
         title: "Restore Failed",
         description: error instanceof Error ? error.message : "Failed to restore backup",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleToggleSyncPreference = (enabled: boolean) => {
+    if (enabled) {
+      // When enabling sync, show passphrase modal first
+      // Pass true to indicate this is for enabling sync (triggers local opt-in on success)
+      showPassphraseModal(true);
+      return;
+    }
+    
+    // When disabling sync - just update local preference
+    syncManager.setSyncOptIn(false);
+    toast({
+      title: "Cloud Sync Disabled",
+      description: "Remember to export backups manually from Settings.",
+    });
+  };
+  
+  const handleManageSubscription = async () => {
+    setIsManagingSubscription(true);
+    try {
+      const response = await apiRequest('POST', '/api/subscription/portal');
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to open subscription portal",
+        variant: "destructive",
+      });
+    } finally {
+      setIsManagingSubscription(false);
+    }
+  };
+
+  const handleSetPassword = async () => {
+    if (!newPassword || newPassword.length < 8) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 8 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "Please make sure both passwords are the same",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSettingPassword(true);
+    try {
+      const response = await apiRequest('POST', '/api/auth/set-password', { password: newPassword });
+      if (response.ok) {
+        toast({
+          title: "Password updated",
+          description: "Your password has been set successfully",
+        });
+        setPasswordDialogOpen(false);
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        const data = await response.json();
+        toast({
+          title: "Error",
+          description: data.message || "Failed to set password",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to set password",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSettingPassword(false);
+    }
+  };
+
+  const handleSignOutClick = () => {
+    setSignOutDialogOpen(true);
+  };
+
+  const handleSignOutWithClearData = async (deleteCloudData: boolean = false) => {
+    try {
+      // If user wants to delete cloud data too, use deleteAll to set tombstone
+      if (deleteCloudData) {
+        const { syncManager } = await import('@/lib/sync-manager');
+        if (syncManager.isUnlocked()) {
+          await syncManager.deleteAll();
+        } else {
+          // Fallback to direct API call if sync not unlocked
+          await apiRequest('DELETE', '/api/sync/data');
+        }
+      }
+      
+      // Clear all browser data
+      browserStorage.clearAllData();
+      // Also clear any sync-related localStorage keys
+      localStorage.removeItem('sync-passphrase');
+      localStorage.removeItem('xrpl_sync_salt');
+      localStorage.removeItem('xrpl-wallets');
+      localStorage.removeItem('current-wallet-id');
+      localStorage.removeItem('xrpl-wallet-theme');
+      setSignOutDialogOpen(false);
+      await logout();
+      // Refresh the page to ensure all data is cleared from UI
+      window.location.href = '/';
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to clear data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSignOutAsGuest = async () => {
+    setSignOutDialogOpen(false);
+    await logout();
+    // Refresh the page to update UI state
+    window.location.href = '/';
+  };
+
+  const handleStartSubscription = async (plan: 'monthly' | 'yearly') => {
+    if (!isAuthenticated) {
+      window.location.href = '/login';
+      return;
+    }
+
+    setIsCheckingOut(true);
+    try {
+      const response = await apiRequest('POST', '/api/subscription/checkout', { plan });
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to start checkout",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingOut(false);
     }
   };
 
@@ -589,6 +806,8 @@ export default function Profile() {
     if (!pendingQRBackupData) return;
 
     try {
+      syncManager.markPendingPushAfterImport();
+      
       const result = restoreFromQRBackup(pendingQRBackupData, mode);
       await queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
       
@@ -607,6 +826,7 @@ export default function Profile() {
         window.location.reload();
       }, 1000);
     } catch (error) {
+      syncManager.clearPendingPushAfterImport();
       toast({
         title: "Restore Failed",
         description: error instanceof Error ? error.message : "Failed to restore from QR",
@@ -637,7 +857,13 @@ export default function Profile() {
             values={wallets.data}
             onReorder={(newOrder) => {
               const orderedIds = newOrder.map(w => w.id);
-              reorderWallets.mutateAsync(orderedIds);
+              reorderWallets.mutateAsync(orderedIds).catch((error: Error) => {
+                toast({
+                  title: "Cannot reorder",
+                  description: error.message,
+                  variant: "destructive",
+                });
+              });
             }}
             className="space-y-3"
           >
@@ -647,6 +873,7 @@ export default function Profile() {
                 wallet={wallet}
                 index={index}
                 isActive={currentWallet?.id === wallet.id}
+                isWalletInactive={!isWalletActive(wallet)}
                 onEdit={handleEditWallet}
                 onRemove={handleRemoveAccount}
               />
@@ -727,6 +954,221 @@ export default function Profile() {
           </div>
         </div>
       </div>
+      {/* Subscription Management */}
+      <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
+        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <Crown className="w-5 h-5 text-yellow-500" />
+          Subscription
+        </h2>
+        
+        {isAuthenticated && user && (
+          <div className="mb-6 p-4 bg-muted/30 rounded-lg border border-border">
+            <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+              <Shield className="w-4 h-4" />
+              Account Info
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Email</span>
+                <span className="text-sm font-medium" data-testid="text-user-email">{user.email}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Password</span>
+                <Button
+                  onClick={() => setPasswordDialogOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  data-testid="button-change-password"
+                >
+                  <Key className="w-3 h-3 mr-1" />
+                  {user.hasPassword ? 'Change Password' : 'Set Password'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {subscriptionLoading ? (
+          <p className="text-muted-foreground">Loading subscription status...</p>
+        ) : isPremium ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 px-3 py-1 rounded-full text-sm font-medium">
+                Premium
+              </span>
+              {subscription?.status === 'trialing' && (
+                <span className="text-xs text-muted-foreground">
+                  Trial ends {subscription.trialEnd ? new Date(subscription.trialEnd).toLocaleDateString() : 'soon'}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              You have full access to unlimited wallets and optional cloud sync.
+            </p>
+            
+            <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Cloud className="w-4 h-4 text-blue-400" />
+                  <div>
+                    <p className="text-sm font-medium">Cloud Sync</p>
+                    <p className="text-xs text-muted-foreground">
+                      {syncOptIn ? 'End-to-end encrypted sync' : 'Manual backup only'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {syncOptIn && <SyncStatusIndicator />}
+                  <Switch
+                    checked={syncOptIn}
+                    onCheckedChange={handleToggleSyncPreference}
+                    disabled={isUpdatingSyncPreference}
+                    data-testid="switch-toggle-sync"
+                  />
+                </div>
+              </div>
+              
+              {syncOptIn && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+                  {(needsSetup || needsUnlock) ? (
+                    <Button
+                      onClick={() => showPassphraseModal()}
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      data-testid="button-setup-passphrase"
+                    >
+                      <Key className="w-3 h-3 mr-1" />
+                      {needsSetup ? 'Set Up Passphrase' : 'Unlock Sync'}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={async () => {
+                          setIsManualSyncing(true);
+                          try {
+                            const pullResult = await pull();
+                            if (pullResult.success) {
+                              queryClient.invalidateQueries({ queryKey: ['browser-wallets'] });
+                            }
+                            
+                            const pushResult = await push();
+                            if (pushResult.success) {
+                              toast({ title: 'Sync complete', description: 'Your data has been synced.' });
+                            } else {
+                              toast({ title: 'Sync failed', description: pushResult.error || 'Please try again.', variant: 'destructive' });
+                            }
+                          } finally {
+                            setIsManualSyncing(false);
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        disabled={isManualSyncing || syncState.status === 'syncing'}
+                        data-testid="button-manual-sync"
+                      >
+                        <RefreshCw className={`w-3 h-3 mr-1 ${isManualSyncing ? 'animate-spin' : ''}`} />
+                        {isManualSyncing ? 'Syncing...' : 'Sync Now'}
+                      </Button>
+                      <Button
+                        onClick={showChangePassphraseModal}
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs"
+                        data-testid="button-change-passphrase"
+                      >
+                        <Key className="w-3 h-3 mr-1" />
+                        Change Passphrase
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={handleManageSubscription}
+                variant="outline"
+                disabled={isManagingSubscription}
+                data-testid="button-manage-subscription"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                {isManagingSubscription ? 'Loading...' : 'Manage Subscription'}
+              </Button>
+              <Button
+                onClick={handleSignOutClick}
+                variant="ghost"
+                disabled={isLoggingOut}
+                data-testid="button-sign-out"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+              </Button>
+            </div>
+          </div>
+        ) : isAuthenticated ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-sm font-medium">
+                Free Account
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Upgrade to Premium for unlimited wallets and optional cloud sync.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => handleStartSubscription('monthly')}
+                disabled={isCheckingOut}
+                className="bg-blue-600 hover:bg-blue-700"
+                data-testid="button-upgrade-monthly"
+              >
+                {isCheckingOut ? 'Loading...' : 'Upgrade - $3.49/month'}
+              </Button>
+              <Button
+                onClick={() => handleStartSubscription('yearly')}
+                disabled={isCheckingOut}
+                variant="outline"
+                data-testid="button-upgrade-yearly"
+              >
+                {isCheckingOut ? 'Loading...' : '$29.99/year (save 15%)'}
+              </Button>
+              <Button
+                onClick={handleSignOutClick}
+                variant="ghost"
+                disabled={isLoggingOut}
+                data-testid="button-sign-out-free"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full text-sm font-medium">
+                Guest
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Create a free account or upgrade to Premium for more wallets and cloud sync.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button
+                onClick={() => window.location.href = '/login'}
+                variant="outline"
+                data-testid="button-sign-in"
+              >
+                Sign In / Create Account
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -890,29 +1332,6 @@ export default function Profile() {
         </Accordion>
       </div>
 
-      {/* Support DEXrp */}
-      <div className="bg-gradient-to-r from-pink-50 to-pink-100 dark:from-pink-950/30 dark:to-pink-900/20 border border-pink-200 dark:border-pink-800 rounded-xl p-6 mb-6">
-        <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-pink-500/20 rounded-full flex items-center justify-center flex-shrink-0">
-            <Heart className="w-6 h-6 text-pink-500" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-lg font-semibold mb-1">Support DEXrp</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              DEXrp is free to use. If you find it helpful, consider supporting its continued development with a tip.
-            </p>
-            <a
-              href="/send?tip=true&destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv&amount=2&currency=XRP&memo=DEXrp%20Tip"
-              className="inline-flex items-center gap-2 bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-              data-testid="button-tip-settings"
-            >
-              <Heart className="w-4 h-4" />
-              Tip XRP, RLUSD, or USDC
-            </a>
-          </div>
-        </div>
-      </div>
-
       <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4">
         <Button
           onClick={handleRemoveAllAccounts}
@@ -1022,6 +1441,75 @@ export default function Profile() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Sign Out Confirmation Dialog */}
+      <Dialog open={signOutDialogOpen} onOpenChange={setSignOutDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogOut className="w-5 h-5" />
+              Sign Out
+            </DialogTitle>
+            <DialogDescription>
+              What would you like to do with your data?
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-4">
+            <Button
+              onClick={handleSignOutAsGuest}
+              variant="outline"
+              className="w-full justify-start"
+              disabled={isLoggingOut}
+              data-testid="signout-continue-guest"
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              <div className="flex flex-col items-start">
+                <span>Continue as Guest</span>
+                <span className="text-xs text-muted-foreground">Keep all data in browser</span>
+              </div>
+            </Button>
+            
+            <Button
+              onClick={() => handleSignOutWithClearData(false)}
+              variant="outline"
+              className="w-full justify-start"
+              disabled={isLoggingOut}
+              data-testid="signout-clear-browser"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              <div className="flex flex-col items-start">
+                <span>Clear Browser Only</span>
+                <span className="text-xs text-muted-foreground">Cloud data restores on next sign-in</span>
+              </div>
+            </Button>
+            
+            <Button
+              onClick={() => handleSignOutWithClearData(true)}
+              variant="outline"
+              className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+              disabled={isLoggingOut}
+              data-testid="signout-delete-all"
+            >
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              <div className="flex flex-col items-start">
+                <span>Delete Everything</span>
+                <span className="text-xs text-muted-foreground">Browser + cloud data permanently</span>
+              </div>
+            </Button>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setSignOutDialogOpen(false)}
+              data-testid="signout-cancel"
+            >
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import Backup Confirmation Dialog */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="max-w-md">
@@ -1050,14 +1538,53 @@ export default function Profile() {
                   <span className="text-muted-foreground">Includes:</span>
                   <span className="text-right">
                     {[
-                      importPreview.hasTransactions && 'Transactions',
-                      importPreview.hasTrustlines && 'Trustlines',
                       importPreview.hasOffers && 'DEX Offers',
                       importPreview.hasSettings && 'Settings',
                     ].filter(Boolean).join(', ') || 'Basic data'}
                   </span>
                 </div>
               </div>
+
+              {(() => {
+                const overage = computeWalletOverage(
+                  importPreview.signingWalletCount,
+                  importPreview.watchOnlyWalletCount,
+                  tier,
+                  isPremium
+                );
+                if (overage.isOverLimit) {
+                  return (
+                    <Alert variant="destructive" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <p className="font-medium mb-1">Wallet limit warning</p>
+                        <p className="text-xs">
+                          This backup contains {importPreview.signingWalletCount > overage.allowedSigning && 
+                            `${importPreview.signingWalletCount} signing wallets (limit: ${overage.allowedSigning})`}
+                          {importPreview.signingWalletCount > overage.allowedSigning && 
+                           importPreview.watchOnlyWalletCount > overage.allowedWatchOnly && ' and '}
+                          {importPreview.watchOnlyWalletCount > overage.allowedWatchOnly && 
+                            `${importPreview.watchOnlyWalletCount} watch-only wallets (limit: ${overage.allowedWatchOnly})`}.
+                          Extra wallets will be imported but set to read-only mode.
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 gap-1 border-yellow-500/50"
+                          onClick={() => {
+                            localStorage.setItem('dexrp_pending_checkout', 'monthly');
+                            window.location.href = isAuthenticated ? '/?upgrade=true' : '/login';
+                          }}
+                        >
+                          <Crown className="w-3 h-3" />
+                          Upgrade to Premium
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  );
+                }
+                return null;
+              })()}
 
               <div className="space-y-3">
                 <p className="text-sm font-medium">Choose restore mode:</p>
@@ -1207,6 +1734,41 @@ export default function Profile() {
                 </div>
               </div>
 
+              {(() => {
+                const overage = computeWalletOverage(
+                  importPreview.signingWalletCount,
+                  importPreview.watchOnlyWalletCount,
+                  tier,
+                  isPremium
+                );
+                if (overage.isOverLimit) {
+                  return (
+                    <Alert variant="destructive" className="border-yellow-500/50 bg-yellow-500/10 text-yellow-700 dark:text-yellow-400">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <p className="font-medium mb-1">Wallet limit warning</p>
+                        <p className="text-xs">
+                          This backup exceeds your plan limits. Extra wallets will be imported in read-only mode.
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 gap-1 border-yellow-500/50"
+                          onClick={() => {
+                            localStorage.setItem('dexrp_pending_checkout', 'monthly');
+                            window.location.href = isAuthenticated ? '/?upgrade=true' : '/login';
+                          }}
+                        >
+                          <Crown className="w-3 h-3" />
+                          Upgrade to Premium
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  );
+                }
+                return null;
+              })()}
+
               <div className="space-y-3">
                 <p className="text-sm font-medium">Choose restore mode:</p>
                 <div className="grid gap-3">
@@ -1242,6 +1804,66 @@ export default function Profile() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setQrImportDialogOpen(false)}>
               Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password Change Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
+        setPasswordDialogOpen(open);
+        if (!open) {
+          setNewPassword('');
+          setConfirmPassword('');
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {user?.hasPassword ? 'Change Password' : 'Set Password'}
+            </DialogTitle>
+            <DialogDescription>
+              {user?.hasPassword 
+                ? 'Enter a new password to change your current password.'
+                : 'Set a password to enable email/password login for your account.'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                data-testid="input-new-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">Confirm Password</Label>
+              <Input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm your password"
+                data-testid="input-confirm-password"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSetPassword}
+              disabled={isSettingPassword || !newPassword || !confirmPassword}
+              data-testid="button-save-password"
+            >
+              {isSettingPassword ? 'Saving...' : 'Save Password'}
             </Button>
           </DialogFooter>
         </DialogContent>

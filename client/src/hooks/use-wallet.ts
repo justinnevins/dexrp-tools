@@ -5,4 +5,5 @@ export {
   useTrustlines,
   useCreateTransaction,
   useCreateTrustline,
+  WalletProvider,
 } from '@/contexts/wallet-context';

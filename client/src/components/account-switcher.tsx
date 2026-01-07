@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Wallet, Plus, Eye } from 'lucide-react';
+import { Check, ChevronDown, Wallet, Plus, Eye, Lock } from 'lucide-react';
 import { useWallet } from '@/hooks/use-wallet';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,15 +11,29 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/cn';
 import { truncateAddress } from '@/lib/format-address';
+import { useToast } from '@/hooks/use-toast';
 
 interface AccountSwitcherProps {
   onAddAccount?: () => void;
 }
 
 export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
-  const { currentWallet, wallets, setCurrentWallet } = useWallet();
+  const { currentWallet, wallets, setCurrentWallet, isWalletActive } = useWallet();
+  const { toast } = useToast();
 
   const availableWallets = wallets.data || [];
+
+  const handleWalletSwitch = (wallet: typeof availableWallets[0]) => {
+    if (!isWalletActive(wallet)) {
+      toast({
+        title: "Wallet Inactive",
+        description: "This wallet exceeds your plan limits. Upgrade to Premium to access all wallets.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setCurrentWallet(wallet);
+  };
 
   if (availableWallets.length === 0) {
     return null;
@@ -88,22 +102,26 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {availableWallets.map((wallet) => {
-          const isActive = currentWallet ? wallet.id === currentWallet.id : false;
+          const isSelected = currentWallet ? wallet.id === currentWallet.id : false;
+          const walletActive = isWalletActive(wallet);
           return (
             <DropdownMenuItem
               key={wallet.id}
-              onClick={() => !isActive && setCurrentWallet(wallet)}
+              onClick={() => !isSelected && handleWalletSwitch(wallet)}
               className={cn(
-                "flex items-center gap-3 cursor-pointer py-3",
-                isActive && "bg-accent"
+                "flex items-center gap-3 py-3",
+                isSelected && "bg-accent",
+                walletActive ? "cursor-pointer" : "cursor-not-allowed opacity-60"
               )}
               data-testid={`account-option-${wallet.id}`}
             >
               <div className={cn(
                 "flex items-center justify-center w-8 h-8 rounded-full",
-                wallet.walletType === 'watchOnly' ? 'bg-amber-500/10' : 'bg-primary/10'
+                !walletActive ? 'bg-muted' : wallet.walletType === 'watchOnly' ? 'bg-amber-500/10' : 'bg-primary/10'
               )}>
-                {wallet.walletType === 'watchOnly' ? (
+                {!walletActive ? (
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                ) : wallet.walletType === 'watchOnly' ? (
                   <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 ) : (
                   <Wallet className="w-4 h-4 text-primary" />
@@ -111,9 +129,14 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium truncate">
+                  <span className={cn("text-sm font-medium truncate", !walletActive && "text-muted-foreground")}>
                     {wallet.name || truncateAddress(wallet.address)}
                   </span>
+                  {!walletActive && (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase bg-muted text-muted-foreground">
+                      Inactive
+                    </span>
+                  )}
                   <span 
                     className={cn(
                       "text-[10px] font-semibold px-1.5 py-0.5 rounded uppercase",
@@ -127,7 +150,7 @@ export function AccountSwitcher({ onAddAccount }: AccountSwitcherProps = {}) {
                   {truncateAddress(wallet.address)}
                 </span>
               </div>
-              {isActive && (
+              {isSelected && (
                 <Check className="w-4 h-4 text-primary flex-shrink-0" />
               )}
             </DropdownMenuItem>

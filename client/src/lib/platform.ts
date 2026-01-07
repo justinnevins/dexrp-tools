@@ -6,6 +6,6 @@ export const isWeb = (): boolean => {
   return true;
 };
 
-export const getPlatform = (): 'web' => {
+export const getPlatform = (): 'ios' | 'android' | 'web' => {
   return 'web';
 };

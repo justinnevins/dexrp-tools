@@ -60,7 +60,7 @@ export default function Assets() {
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { currentWallet, wallets } = useWallet();
+  const { currentWallet, wallets, isWalletActive } = useWallet();
 
   // Get XRP price from DEX
   const { data: xrpPriceData } = useXRPPrice(selectedNetwork);
@@ -283,6 +283,18 @@ export default function Assets() {
 
   const handleDeleteConfirm = async () => {
     if (!trustlineToDelete || !currentWallet || isWatchOnly) return;
+
+    // Check if wallet is active (within tier limits)
+    if (!isWalletActive(currentWallet)) {
+      toast({
+        title: "Wallet Inactive",
+        description: "This wallet exceeds your plan limits. Upgrade to Premium or remove other wallets to manage trustlines.",
+        variant: "destructive",
+      });
+      setDeleteDialogOpen(false);
+      setTrustlineToDelete(null);
+      return;
+    }
 
     try {
       const balance = parseFloat(trustlineToDelete.balance);
