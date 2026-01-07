@@ -20,11 +20,6 @@ export function LocalBackupBanner() {
     setIsPremiumSyncDismissed(localStorage.getItem(PREMIUM_SYNC_DISMISSED_KEY) === 'true');
   }, []);
 
-  // Community Edition: No subscription or cloud sync banners needed
-  if (isCommunity) {
-    return null;
-  }
-
   const handleDismissFree = () => {
     localStorage.setItem(FREE_DISMISSED_KEY, 'true');
     setIsFreeDismissed(true);
@@ -44,6 +39,39 @@ export function LocalBackupBanner() {
     }
   };
 
+  // Community Edition: Show simple local backup reminder (no upgrade/cloud sync messaging)
+  if (isCommunity && !isFreeDismissed) {
+    return (
+      <div 
+        className="mb-4 rounded-lg border border-blue-500/50 bg-blue-500/10 p-4 text-blue-700 dark:text-blue-400"
+        role="alert"
+        data-testid="local-backup-banner"
+      >
+        <div className="flex items-start gap-3">
+          <HardDrive className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm">
+              Your wallet data is stored locally on this device. Back it up regularly from{' '}
+              <Link href="/profile" className="underline font-medium hover:text-blue-800 dark:hover:text-blue-300">
+                Settings
+              </Link>.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleDismissFree}
+            className="flex-shrink-0 h-6 w-6 rounded flex items-center justify-center text-blue-700 hover:text-blue-900 hover:bg-blue-500/20 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+            data-testid="button-dismiss-backup-banner"
+            aria-label="Dismiss"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Commercial Edition logic
   const showFreeBanner = !isPremium && (tier === 'guest' || tier === 'free_account') && !isFreeDismissed;
   const showPremiumSyncBanner = isPremium && !syncOptIn && !isPremiumSyncDismissed;
 
