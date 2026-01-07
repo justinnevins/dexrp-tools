@@ -415,8 +415,9 @@ export function KeystoneAccountScanner({ onScan, onClose }: KeystoneAccountScann
     
     searchObject(decoded);
     
-    if (address) {
-      return { address, publicKey: publicKey || '0263e0f578081132fd9e12829c67b9e68185d7f7a8bb37b78f98e976c3d9d163e6' };
+    // Both address and publicKey are required - no fallbacks
+    if (address && publicKey) {
+      return { address, publicKey };
     }
     
     return null;
