@@ -59,8 +59,30 @@ export function prepareXrpSignRequest(transaction: XrpTransaction): SignRequestR
     LastLedgerSequence: Number(transaction.LastLedgerSequence)
   };
 
+  // Normalize Flags to number
   if (transaction.Flags !== undefined && transaction.Flags !== null) {
     xrpTransaction.Flags = Number(transaction.Flags);
+  }
+
+  // Normalize OfferSequence to number (for OfferCancel)
+  if ((transaction as any).OfferSequence !== undefined) {
+    xrpTransaction.OfferSequence = Number((transaction as any).OfferSequence);
+  }
+
+  // Normalize Expiration to number (for OfferCreate with expiry)
+  if ((transaction as any).Expiration !== undefined) {
+    xrpTransaction.Expiration = Number((transaction as any).Expiration);
+  }
+
+  // Normalize DestinationTag to number
+  if (transaction.DestinationTag !== undefined) {
+    xrpTransaction.DestinationTag = Number(transaction.DestinationTag);
+  }
+
+  // Remove empty SigningPubKey - Keystone will provide the correct one
+  // Empty string causes issues with CBOR encoding
+  if (!xrpTransaction.SigningPubKey || xrpTransaction.SigningPubKey === '') {
+    delete xrpTransaction.SigningPubKey;
   }
 
   if (transaction.TransactionType === 'Payment' && transaction.Amount) {
