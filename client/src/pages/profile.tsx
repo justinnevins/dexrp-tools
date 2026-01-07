@@ -1,4 +1,5 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw, Heart } from 'lucide-react';
+import { isCommunity } from '@/edition';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -954,7 +955,41 @@ export default function Profile() {
           </div>
         </div>
       </div>
-      {/* Subscription Management */}
+      {/* Donation Section for Community Edition */}
+      {isCommunity && (
+        <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Heart className="w-5 h-5 text-pink-500" />
+            Support DEXrp Tools
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            DEXrp Tools is free and open source. If you find it useful, consider supporting development with a tip.
+          </p>
+          <div className="space-y-3">
+            <div className="p-4 bg-muted/30 rounded-lg border border-border">
+              <p className="text-sm font-medium mb-2">XRP Tip Jar</p>
+              <code className="text-xs bg-muted px-2 py-1 rounded break-all block" data-testid="text-tip-address">
+                rDEXrpTipsAddress
+              </code>
+              <p className="text-xs text-muted-foreground mt-2">
+                Any amount helps support continued development!
+              </p>
+            </div>
+            <a
+              href="https://github.com/justinnevins/dexrp-tools"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:text-primary/80 flex items-center gap-1"
+              data-testid="link-github-support"
+            >
+              Star us on GitHub
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Subscription Management - Commercial Edition Only */}
+      {!isCommunity && (
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Crown className="w-5 h-5 text-yellow-500" />
@@ -1168,6 +1203,7 @@ export default function Profile() {
           </div>
         )}
       </div>
+      )}
 
       {/* Display & Theme Settings */}
       <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
