@@ -961,7 +961,7 @@ export default function Profile() {
         <div className="bg-white dark:bg-card border border-border rounded-xl p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
             <Heart className="w-5 h-5 text-red-500" />
-            Community Edition
+            Community Edition (Preview demo)
           </h2>
           <div className="space-y-4">
             <div className="flex items-center gap-2">
