@@ -1,5 +1,4 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw, Heart } from 'lucide-react';
-import { isCommercial, isCommunity } from '@/edition';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw } from 'lucide-react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +58,8 @@ import { FullscreenQRViewer } from '@/components/fullscreen-qr-viewer';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import { computeWalletOverage } from '@/hooks/useSubscription';
+import { isCommercial, isCommunity } from '@/edition';
+import { Heart } from 'lucide-react';
 
 interface DraggableWalletItemProps {
   wallet: WalletType;

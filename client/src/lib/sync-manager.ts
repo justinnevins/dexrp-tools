@@ -76,16 +76,6 @@ class SyncManagerStub {
   lock(): void {}
 
   clearWalletsClearedMarker(): void {}
-
-  markWalletsCleared(): void {}
-
-  markPendingPushAfterImport(): void {}
-
-  clearPendingPushAfterImport(): void {}
-
-  async deleteAll(): Promise<{ success: boolean; error?: string }> {
-    return { success: true };
-  }
 }
 
 export const syncManager = new SyncManagerStub();
