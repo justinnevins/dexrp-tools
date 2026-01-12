@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchXRPToRLUSDPrice, DEXPriceData } from '@/lib/xrp-price';
+import { xrplClient } from '@/lib/xrpl-client';
 
 export function useXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet') {
+  const isPersistent = xrplClient.isPersistentModeEnabled();
+  
   return useQuery<DEXPriceData | null>({
     queryKey: ['xrp-price-dex', network],
     queryFn: async () => {
@@ -12,7 +15,7 @@ export function useXRPPrice(network: 'mainnet' | 'testnet' = 'mainnet') {
         return null;
       }
     },
-    refetchInterval: 5000,
-    staleTime: 2000,
+    refetchInterval: isPersistent ? 1000 : 5000,
+    staleTime: isPersistent ? 500 : 2000,
   });
 }

@@ -1,4 +1,5 @@
-import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw } from 'lucide-react';
+import { Shield, LogOut, Wallet, Trash2, Edit2, Server, Sun, Moon, Eye, Plus, GripVertical, Download, Upload, FileArchive, QrCode, Camera, Crown, Cloud, CreditCard, AlertTriangle, Lock, Key, RefreshCw, Send } from 'lucide-react';
+import { useLocation } from 'wouter';
 import { Reorder, useDragControls } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -170,6 +171,7 @@ function DraggableWalletItem({ wallet, index, isActive, isWalletInactive, onEdit
 }
 
 export default function Profile() {
+  const [, setLocation] = useLocation();
   const { currentWallet, wallets, setCurrentWallet, updateWallet, deleteWallet, reorderWallets, isWalletActive } = useWallet();
   const network = currentWallet?.network ?? 'mainnet';
   const { disconnect: disconnectHardwareWallet } = useHardwareWallet();
@@ -191,6 +193,7 @@ export default function Profile() {
   const [customTestnetNode, setCustomTestnetNode] = useState('');
   const [fullHistoryMainnetNode, setFullHistoryMainnetNode] = useState('');
   const [fullHistoryTestnetNode, setFullHistoryTestnetNode] = useState('');
+  const [persistentConnection, setPersistentConnection] = useState(() => xrplClient.isPersistentModeEnabled());
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);
   const [removeConfirmOpen, setRemoveConfirmOpen] = useState(false);
   const [walletToRemove, setWalletToRemove] = useState<number | null>(null);
@@ -469,6 +472,17 @@ export default function Profile() {
     toast({
       title: "Network Settings Saved",
       description: "Custom node URLs and full history servers have been updated successfully"
+    });
+  };
+
+  const handlePersistentConnectionChange = (enabled: boolean) => {
+    xrplClient.setPersistentMode(enabled);
+    setPersistentConnection(enabled);
+    toast({
+      title: enabled ? "Persistent Connection Enabled" : "Persistent Connection Disabled",
+      description: enabled 
+        ? "Connection will stay open with auto-reconnect" 
+        : "Connection will close when not in use"
     });
   };
 
@@ -986,13 +1000,13 @@ export default function Profile() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   onClick={() => {
-                    navigator.clipboard.writeText('rDexrpDonationAddressHere');
-                    toast({ title: 'XRP Address Copied', description: 'Donation address copied to clipboard' });
+                    setLocation('/send?destination=rMVRPENEPfhwht1RkQp6Emw13DeAp2PtLv');
                   }}
                   variant="outline"
                   size="sm"
                   data-testid="button-donate-xrp"
                 >
+                  <Send className="w-4 h-4 mr-2" />
                   Donate XRP
                 </Button>
               </div>
@@ -1375,6 +1389,30 @@ export default function Profile() {
                 >
                   Save Network Settings
                 </Button>
+
+                <div className="border-t border-border pt-4 mt-4">
+                  <h3 className="text-sm font-medium mb-3">Connection Settings</h3>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="persistent-connection">Persistent WebSocket</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Keep connection open with auto-reconnect
+                      </p>
+                    </div>
+                    <Switch
+                      id="persistent-connection"
+                      checked={persistentConnection}
+                      onCheckedChange={handlePersistentConnectionChange}
+                      data-testid="switch-persistent-connection"
+                    />
+                  </div>
+                  <Alert className="mt-3 bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-xs text-amber-700 dark:text-amber-300">
+                      Enabling persistent connections may increase battery drain on mobile devices. Only recommended when actively trading.
+                    </AlertDescription>
+                  </Alert>
+                </div>
               </div>
             </AccordionContent>
           </AccordionItem>

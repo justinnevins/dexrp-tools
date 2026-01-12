@@ -13,6 +13,7 @@ export interface XRPLSettings {
   customTestnetNode?: string;
   fullHistoryMainnetNode?: string;
   fullHistoryTestnetNode?: string;
+  persistentConnection?: boolean;
 }
 
 class BrowserStorage {

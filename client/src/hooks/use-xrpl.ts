@@ -1,6 +1,27 @@
 import { useQuery } from '@tanstack/react-query';
 import { xrplClient, type XRPLNetwork } from '@/lib/xrpl-client';
 
+const NORMAL_INTERVALS = {
+  accountInfo: 30000,
+  accountTransactions: 60000,
+  accountLines: 60000,
+  accountOffers: 30000,
+  serverInfo: 300000,
+};
+
+const PERSISTENT_INTERVALS = {
+  accountInfo: 10000,
+  accountTransactions: 15000,
+  accountLines: 30000,
+  accountOffers: 10000,
+  serverInfo: 120000,
+};
+
+function getRefetchInterval(key: keyof typeof NORMAL_INTERVALS): number {
+  const isPersistent = xrplClient.isPersistentModeEnabled();
+  return isPersistent ? PERSISTENT_INTERVALS[key] : NORMAL_INTERVALS[key];
+}
+
 export function useXRPL() {
   return {
     client: xrplClient
@@ -15,7 +36,6 @@ export function useAccountInfo(address: string | null, network: XRPLNetwork) {
       try {
         return await xrplClient.getAccountInfo(address, network);
       } catch (error: any) {
-        // Handle account not found error for new addresses
         if (error.data?.error === 'actNotFound') {
           return { 
             account_not_found: true,
@@ -27,7 +47,7 @@ export function useAccountInfo(address: string | null, network: XRPLNetwork) {
       }
     },
     enabled: !!address,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: getRefetchInterval('accountInfo'),
   });
 }
 
@@ -43,9 +63,9 @@ export function useAccountTransactions(address: string | null, network: XRPLNetw
       }
     },
     enabled: !!address,
-    refetchInterval: 60000, // Refetch every minute
-    retry: 3, // Retry failed requests
-    retryDelay: 1000, // Wait 1 second between retries
+    refetchInterval: getRefetchInterval('accountTransactions'),
+    retry: 3,
+    retryDelay: 1000,
   });
 }
 
@@ -61,9 +81,9 @@ export function useAccountLines(address: string | null, network: XRPLNetwork) {
       }
     },
     enabled: !!address,
-    refetchInterval: 60000, // Refetch every minute
-    retry: 3, // Retry failed requests
-    retryDelay: 1000, // Wait 1 second between retries
+    refetchInterval: getRefetchInterval('accountLines'),
+    retry: 3,
+    retryDelay: 1000,
   });
 }
 
@@ -79,7 +99,7 @@ export function useAccountOffers(address: string | null, network: XRPLNetwork) {
       }
     },
     enabled: !!address,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: getRefetchInterval('accountOffers'),
     retry: 3,
     retryDelay: 1000,
   });
@@ -91,7 +111,7 @@ export function useServerInfo(network: XRPLNetwork) {
     queryFn: async () => {
       return await xrplClient.getServerInfo(network);
     },
-    refetchInterval: 300000, // Refetch every 5 minutes (reserves don't change often)
-    staleTime: 60000, // Consider data fresh for 1 minute
+    refetchInterval: getRefetchInterval('serverInfo'),
+    staleTime: 60000,
   });
 }

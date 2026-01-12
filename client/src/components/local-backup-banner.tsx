@@ -3,6 +3,7 @@ import { HardDrive, X, Crown, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAuth } from '@/hooks/useAuth';
+import { useSync } from '@/hooks/useSync';
 import { Link } from 'wouter';
 import { isCommunity } from '@/edition';
 
@@ -10,8 +11,9 @@ const FREE_DISMISSED_KEY = 'dexrp.local-backup-banner.dismissed.v1';
 const PREMIUM_SYNC_DISMISSED_KEY = 'dexrp.premium-sync-banner.dismissed.v1';
 
 export function LocalBackupBanner() {
-  const { tier, isPremium, syncOptIn } = useSubscription();
+  const { tier, isPremium } = useSubscription();
   const { isAuthenticated } = useAuth();
+  const { syncOptIn } = useSync();
   const [isFreeDismissed, setIsFreeDismissed] = useState(true);
   const [isPremiumSyncDismissed, setIsPremiumSyncDismissed] = useState(true);
 

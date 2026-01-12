@@ -43,10 +43,24 @@ class XRPLClient {
     testnet?: string;
   } = {};
 
+  private persistentMode: boolean = false;
+  private heartbeatIntervals: Map<XRPLNetwork, ReturnType<typeof setInterval>> = new Map();
+  private reconnectTimeouts: Map<XRPLNetwork, ReturnType<typeof setTimeout>> = new Map();
+  private reconnectAttempts: Map<XRPLNetwork, number> = new Map();
+  private readonly HEARTBEAT_INTERVAL_MS = 30000;
+  private readonly MAX_RECONNECT_DELAY_MS = 60000;
+  private readonly BASE_RECONNECT_DELAY_MS = 1000;
+
   constructor() {
     this.loadCustomEndpoints();
+    this.loadPersistentMode();
     this.initializeClientState('mainnet');
     this.initializeClientState('testnet');
+  }
+
+  private loadPersistentMode(): void {
+    const settings = browserStorage.getSettings();
+    this.persistentMode = settings.persistentConnection === true;
   }
 
   private loadCustomEndpoints(): void {
@@ -84,6 +98,10 @@ class XRPLClient {
     if (existingState) {
       existingState.connector.disconnect().catch(() => {});
     }
+    
+    this.stopHeartbeat(network);
+    this.clearReconnectTimeout(network);
+    this.reconnectAttempts.delete(network);
     
     const endpoint = this.getNetworkEndpoint(network);
     this.clients.set(network, {
@@ -166,6 +184,10 @@ class XRPLClient {
     try {
       await state.connector.connect();
       state.isConnected = true;
+      
+      if (this.persistentMode) {
+        this.startHeartbeat(network);
+      }
     } catch (error) {
       state.isConnected = false;
       throw error;
@@ -180,6 +202,10 @@ class XRPLClient {
       return;
     }
 
+    this.stopHeartbeat(network);
+    this.clearReconnectTimeout(network);
+    this.reconnectAttempts.delete(network);
+
     try {
       if (state.isConnected) {
         await state.connector.disconnect();
@@ -191,12 +217,120 @@ class XRPLClient {
     }
   }
 
+  private startHeartbeat(network: XRPLNetwork): void {
+    this.stopHeartbeat(network);
+    
+    const interval = setInterval(async () => {
+      const state = this.clients.get(network);
+      if (!state || !state.isConnected) {
+        this.stopHeartbeat(network);
+        if (this.persistentMode) {
+          this.scheduleReconnect(network);
+        }
+        return;
+      }
+
+      try {
+        await state.connector.request({ command: 'ping' });
+      } catch (error) {
+        console.log(`[XRPL] Heartbeat failed for ${network}, connection may be lost`);
+        state.isConnected = false;
+        this.stopHeartbeat(network);
+        if (this.persistentMode) {
+          this.scheduleReconnect(network);
+        }
+      }
+    }, this.HEARTBEAT_INTERVAL_MS);
+
+    this.heartbeatIntervals.set(network, interval);
+  }
+
+  private stopHeartbeat(network: XRPLNetwork): void {
+    const interval = this.heartbeatIntervals.get(network);
+    if (interval) {
+      clearInterval(interval);
+      this.heartbeatIntervals.delete(network);
+    }
+  }
+
+  private clearReconnectTimeout(network: XRPLNetwork): void {
+    const timeout = this.reconnectTimeouts.get(network);
+    if (timeout) {
+      clearTimeout(timeout);
+      this.reconnectTimeouts.delete(network);
+    }
+  }
+
+  private scheduleReconnect(network: XRPLNetwork): void {
+    if (!this.persistentMode) return;
+    
+    this.clearReconnectTimeout(network);
+    
+    const attempts = this.reconnectAttempts.get(network) || 0;
+    const delay = Math.min(
+      this.BASE_RECONNECT_DELAY_MS * Math.pow(2, attempts),
+      this.MAX_RECONNECT_DELAY_MS
+    );
+
+    console.log(`[XRPL] Scheduling reconnect for ${network} in ${delay}ms (attempt ${attempts + 1})`);
+
+    const timeout = setTimeout(async () => {
+      this.reconnectTimeouts.delete(network);
+      
+      if (!this.persistentMode) return;
+      
+      try {
+        this.reconnectAttempts.set(network, attempts + 1);
+        await this.performConnection(network);
+        this.reconnectAttempts.set(network, 0);
+        console.log(`[XRPL] Reconnected to ${network}`);
+      } catch (error) {
+        console.log(`[XRPL] Reconnect failed for ${network}, will retry`);
+        this.scheduleReconnect(network);
+      }
+    }, delay);
+
+    this.reconnectTimeouts.set(network, timeout);
+  }
+
+  isPersistentModeEnabled(): boolean {
+    return this.persistentMode;
+  }
+
+  setPersistentMode(enabled: boolean): void {
+    this.persistentMode = enabled;
+    
+    const settings = browserStorage.getSettings();
+    settings.persistentConnection = enabled;
+    browserStorage.saveSettings(settings);
+
+    if (enabled) {
+      (['mainnet', 'testnet'] as XRPLNetwork[]).forEach(network => {
+        this.reconnectAttempts.delete(network);
+        const state = this.clients.get(network);
+        if (state?.isConnected) {
+          this.startHeartbeat(network);
+        }
+      });
+    } else {
+      (['mainnet', 'testnet'] as XRPLNetwork[]).forEach(network => {
+        this.stopHeartbeat(network);
+        this.clearReconnectTimeout(network);
+        this.reconnectAttempts.delete(network);
+      });
+    }
+  }
+
   getNetworkInfo(network: XRPLNetwork) {
     const state = this.clients.get(network);
+    const realTimeConnected = state?.connector?.isConnected() || false;
+    if (state && state.isConnected !== realTimeConnected) {
+      state.isConnected = realTimeConnected;
+    }
     return {
       network,
       endpoint: this.getNetworkEndpoint(network),
-      isConnected: state?.isConnected || false
+      isConnected: realTimeConnected
     };
   }
 

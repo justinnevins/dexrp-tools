@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 // Helper to get human-readable transaction type labels
 function getTransactionLabel(tx: any): string {
@@ -68,6 +68,20 @@ export default function Transactions() {
 
   const isLoading = dbLoading || xrplLoading;
   
+  const prevWalletKeyRef = useRef<string | null>(null);
+  const currentWalletKey = currentWallet ? `${currentWallet.id}-${network}` : null;
+  
+  useEffect(() => {
+    if (prevWalletKeyRef.current !== currentWalletKey) {
+      if (prevWalletKeyRef.current !== null) {
+        setRawTransactions([]);
+        setMarker(undefined);
+        setHasMore(true);
+      }
+      prevWalletKeyRef.current = currentWalletKey;
+    }
+  }, [currentWalletKey]);
+  
   useEffect(() => {
     if (xrplTransactions?.transactions) {
       setRawTransactions(xrplTransactions.transactions);
@@ -75,12 +89,6 @@ export default function Transactions() {
       setHasMore(!!xrplTransactions.marker);
     }
   }, [xrplTransactions]);
-  
-  useEffect(() => {
-    setRawTransactions([]);
-    setMarker(undefined);
-    setHasMore(true);
-  }, [currentWallet?.id, network]);
   
   const loadMoreTransactions = async () => {
     if (!currentWallet?.address || !marker || isLoadingMore) return;
